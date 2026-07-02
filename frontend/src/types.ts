@@ -18,6 +18,7 @@ export interface Student {
   profile_completed: boolean;
   name: string;
   email: string;
+  projects?: any[];
 }
 
 export interface Job {
@@ -33,6 +34,8 @@ export interface Job {
   deadline: string;
   status: 'open' | 'closed' | 'draft';
   created_at: string;
+  cgpa_required?: number;
+  department?: string;
 }
 
 export interface Application {
@@ -48,4 +51,5 @@ export interface Application {
   student_cgpa: number;
   job_title: string;
   company_name: string;
+  title?: string;
 }

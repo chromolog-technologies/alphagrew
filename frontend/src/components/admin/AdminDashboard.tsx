@@ -41,7 +41,7 @@ import {
   Filler
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { User, Student, Job, Application } from '../types';
+import { User, Student, Job, Application } from '../../types';
 import { DepartmentsModule } from './DepartmentsModule';
 import { DesignationsModule } from './DesignationsModule';
 

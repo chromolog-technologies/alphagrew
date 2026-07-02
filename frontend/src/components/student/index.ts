@@ -1,6 +1,6 @@
 export { default as StudentDashboard } from './StudentDashboard';
-export { default as StudentAssignmentsMaterials } from './StudentAssignmentsMaterials';
-export { default as StudentAttendanceView } from './StudentAttendanceView';
-export { default as StudentMarksView } from './StudentMarksView';
-export { default as StudentNotifications } from './StudentNotifications';
-export { default as StudentTimetableView } from './StudentTimetableView';
+export { StudentAssignmentsMaterials } from './StudentAssignmentsMaterials';
+export { StudentAttendanceView } from './StudentAttendanceView';
+export { StudentMarksView } from './StudentMarksView';
+export { StudentNotifications } from './StudentNotifications';
+export { StudentTimetableView } from './StudentTimetableView';

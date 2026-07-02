@@ -16,7 +16,7 @@ import {
   Plus,
   GraduationCap
 } from 'lucide-react';
-import { User, Job, Application, Student } from '../types';
+import { User, Job, Application, Student } from '../../types';
 
 interface StudentDashboardProps {
   user: User;

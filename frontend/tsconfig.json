@@ -1,6 +1,6 @@
 {
   "include": [
-    "frontend/src",
+    "src",
     "vite.config.ts"
   ],
   "compilerOptions": {
@@ -21,7 +21,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@/*": [
-        "./frontend/*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,

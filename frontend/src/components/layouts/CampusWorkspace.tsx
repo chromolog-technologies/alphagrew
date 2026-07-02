@@ -411,7 +411,7 @@ type NavItem = {
 };
 
 type SidebarNavGroup = {
-  id: 'overview' | 'management' | 'workspace';
+  id: string;
   label: string;
   itemIds: string[];
 };
@@ -497,40 +497,40 @@ const cardToneStyles: Record<
   }
 > = {
   navy: {
-    metric: 'border border-[#d8e4f2] bg-[linear-gradient(180deg,#ffffff,#f4f8fc)] shadow-[0_22px_42px_-34px_rgba(7,43,82,0.26)]',
-    highlight: 'border border-[#d8e4f2] bg-[linear-gradient(180deg,#ffffff,#f4f8fc)] shadow-[0_22px_42px_-34px_rgba(7,43,82,0.24)]',
-    icon: 'bg-[linear-gradient(135deg,#072b52,#0d4f88)] text-white shadow-[0_18px_28px_-22px_rgba(7,43,82,0.6)]',
-    helper: 'bg-[#e9f2fb] text-[#0d4f88]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-blue-50 text-blue-600',
+    helper: 'bg-blue-50 text-blue-600',
   },
   sky: {
-    metric: 'border border-[#d7eef8] bg-[linear-gradient(180deg,#ffffff,#f1fbff)] shadow-[0_22px_42px_-34px_rgba(27,168,233,0.24)]',
-    highlight: 'border border-[#d7eef8] bg-[linear-gradient(180deg,#ffffff,#f1fbff)] shadow-[0_22px_42px_-34px_rgba(27,168,233,0.24)]',
-    icon: 'bg-[linear-gradient(135deg,#1f97d9,#63c6f1)] text-white shadow-[0_18px_28px_-22px_rgba(27,168,233,0.55)]',
-    helper: 'bg-[#e6f8ff] text-[#1784c3]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-sky-50 text-sky-600',
+    helper: 'bg-sky-50 text-sky-600',
   },
   teal: {
-    metric: 'border border-[#d7f1ef] bg-[linear-gradient(180deg,#ffffff,#f2fcfa)] shadow-[0_22px_42px_-34px_rgba(15,118,110,0.22)]',
-    highlight: 'border border-[#d7f1ef] bg-[linear-gradient(180deg,#ffffff,#f2fcfa)] shadow-[0_22px_42px_-34px_rgba(15,118,110,0.22)]',
-    icon: 'bg-[linear-gradient(135deg,#0f766e,#28b0a6)] text-white shadow-[0_18px_28px_-22px_rgba(15,118,110,0.52)]',
-    helper: 'bg-[#e4faf7] text-[#0f766e]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-teal-50 text-teal-600',
+    helper: 'bg-teal-50 text-teal-600',
   },
   amber: {
-    metric: 'border border-[#f6e7c9] bg-[linear-gradient(180deg,#ffffff,#fff8ee)] shadow-[0_22px_42px_-34px_rgba(217,119,6,0.2)]',
-    highlight: 'border border-[#f6e7c9] bg-[linear-gradient(180deg,#ffffff,#fff8ee)] shadow-[0_22px_42px_-34px_rgba(217,119,6,0.2)]',
-    icon: 'bg-[linear-gradient(135deg,#d97706,#f4b143)] text-white shadow-[0_18px_28px_-22px_rgba(217,119,6,0.48)]',
-    helper: 'bg-[#fff3db] text-[#b96504]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-amber-50 text-amber-600',
+    helper: 'bg-amber-50 text-amber-600',
   },
   indigo: {
-    metric: 'border border-[#e0e2fb] bg-[linear-gradient(180deg,#ffffff,#f5f5ff)] shadow-[0_22px_42px_-34px_rgba(79,70,229,0.22)]',
-    highlight: 'border border-[#e0e2fb] bg-[linear-gradient(180deg,#ffffff,#f5f5ff)] shadow-[0_22px_42px_-34px_rgba(79,70,229,0.22)]',
-    icon: 'bg-[linear-gradient(135deg,#4f46e5,#7367f0)] text-white shadow-[0_18px_28px_-22px_rgba(79,70,229,0.5)]',
-    helper: 'bg-[#eef0ff] text-[#4f46e5]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-indigo-50 text-indigo-600',
+    helper: 'bg-indigo-50 text-indigo-600',
   },
   emerald: {
-    metric: 'border border-[#d9f2e4] bg-[linear-gradient(180deg,#ffffff,#f2fcf6)] shadow-[0_22px_42px_-34px_rgba(5,150,105,0.2)]',
-    highlight: 'border border-[#d9f2e4] bg-[linear-gradient(180deg,#ffffff,#f2fcf6)] shadow-[0_22px_42px_-34px_rgba(5,150,105,0.2)]',
-    icon: 'bg-[linear-gradient(135deg,#059669,#34c889)] text-white shadow-[0_18px_28px_-22px_rgba(5,150,105,0.48)]',
-    helper: 'bg-[#e6fbef] text-[#087d59]',
+    metric: 'border border-slate-200 bg-white shadow-sm',
+    highlight: 'border border-slate-200 bg-white shadow-sm',
+    icon: 'bg-emerald-50 text-emerald-600',
+    helper: 'bg-emerald-50 text-emerald-600',
   },
 };
 
@@ -800,31 +800,74 @@ function SectionHeader({
   );
 }
 
+function Sparkline({ points, color = '#2563eb' }: { points: number[]; color?: string }) {
+  if (points.length === 0) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min === 0 ? 1 : max - min;
+  const width = 50;
+  const height = 16;
+  const padding = 1;
+  const svgPoints = points.map((p, i) => {
+    const x = padding + (i / (points.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((p - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  });
+  const pathD = `M ${svgPoints.join(' L ')}`;
+  
+  return (
+    <svg width={width} height={height} className="flex-shrink-0 opacity-85">
+      <path
+        d={pathD}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MetricCard({
   label,
   value,
   helper,
   icon: Icon,
   tone = 'navy',
+  sparklineData = [12, 16, 14, 20, 18, 22, 21, 25]
 }: {
   label: string;
   value: string | number;
   helper: string;
   icon: typeof Users;
   tone?: CardTone;
+  sparklineData?: number[];
 }) {
   const toneStyles = cardToneStyles[tone];
+  
+  const colors: Record<CardTone, string> = {
+    navy: '#2563eb',
+    sky: '#0ea5e9',
+    teal: '#0d766e',
+    amber: '#d97706',
+    indigo: '#4f46e5',
+    emerald: '#059669'
+  };
+  const strokeColor = colors[tone] || '#2563eb';
 
   return (
-    <section className={classNames('rounded-[18px] p-5', toneStyles.metric)}>
-      <div className="flex items-center justify-between">
-        <div className={classNames('rounded-[18px] p-3', toneStyles.icon)}>
-          <Icon size={20} />
-        </div>
-        <span className={classNames('rounded-full px-3 py-1 text-xs font-semibold', toneStyles.helper)}>{helper}</span>
+    <section className="rounded-lg p-3 bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-xl font-bold text-slate-900 leading-none tracking-tight">{value}</p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
+        <p className="mt-0.5 text-[9px] text-emerald-600 font-bold flex items-center gap-1">
+          {helper}
+        </p>
       </div>
-      <p className="mt-5 text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-1 text-3xl font-bold text-slate-950">{value}</p>
+      <div className="flex-shrink-0 flex items-center justify-center">
+        <Sparkline points={sparklineData} color={strokeColor} />
+      </div>
     </section>
   );
 }
@@ -847,18 +890,18 @@ function DashboardHighlightCard({
   const toneStyles = cardToneStyles[tone];
 
   return (
-    <section className={classNames('rounded-[18px] p-5', toneStyles.highlight)}>
-      <div className="flex items-start justify-between gap-4">
-        <div className={classNames('flex h-12 w-12 items-center justify-center rounded-[18px]', toneStyles.icon)}>
-          <Icon size={22} />
+    <section className={classNames('rounded-xl p-4 bg-white border border-slate-200/80 shadow-sm', toneStyles.highlight)}>
+      <div className="flex items-start justify-between gap-3">
+        <div className={classNames('flex h-8 w-8 items-center justify-center rounded-lg', toneStyles.icon)}>
+          <Icon size={16} />
         </div>
-        <span className={classNames('rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]', toneStyles.helper)}>
+        <span className={classNames('rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider', toneStyles.helper)}>
           {meta}
         </span>
       </div>
-      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-500">{detail}</p>
+      <p className="mt-3.5 text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="mt-1 text-2xl font-black text-slate-900 leading-none">{value}</p>
+      <p className="mt-2 text-xs text-slate-500 leading-relaxed">{detail}</p>
     </section>
   );
 }
@@ -868,32 +911,39 @@ function AdminSnapshotCard({
   value,
   note,
   icon: Icon,
-  className,
+  tone = 'navy',
+  sparklineData = [12, 16, 14, 20, 18, 22, 21, 25]
 }: {
   label: string;
   value: string | number;
   note: string;
   icon: typeof Users;
-  className: string;
+  className?: string;
+  tone?: CardTone;
+  sparklineData?: number[];
 }) {
+  const toneStyles = cardToneStyles[tone];
+  
+  const colors: Record<CardTone, string> = {
+    navy: '#2563eb',
+    sky: '#0ea5e9',
+    teal: '#0d766e',
+    amber: '#d97706',
+    indigo: '#4f46e5',
+    emerald: '#059669'
+  };
+  const strokeColor = colors[tone] || '#2563eb';
+
   return (
-    <section
-      className={classNames(
-        'relative overflow-hidden rounded-[18px] p-5 text-white shadow-[0_24px_45px_-28px_rgba(15,23,42,0.42)]',
-        className,
-      )}
-    >
-      <div className="absolute right-4 top-4 flex items-end gap-1 opacity-80">
-        <span className="h-2.5 w-1.5 rounded-full bg-white/80" />
-        <span className="h-4 w-1.5 rounded-full bg-white/75" />
-        <span className="h-2.5 w-1.5 rounded-full bg-white/70" />
+    <section className="rounded-lg p-3 bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-xl font-bold text-slate-900 leading-none tracking-tight">{value}</p>
+        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
+        <p className="mt-0.5 text-[9px] text-emerald-600 font-bold">{note}</p>
       </div>
-      <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-white/16 backdrop-blur-sm">
-        <Icon size={20} />
+      <div className="flex-shrink-0 flex items-center justify-center">
+        <Sparkline points={sparklineData} color={strokeColor} />
       </div>
-      <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-white/72">{label}</p>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-white">{value}</p>
-      <p className="mt-2 text-sm text-white/78">{note}</p>
     </section>
   );
 }
@@ -2609,28 +2659,28 @@ export default function CampusWorkspace({
             value={data.students.length}
             note={`${placementReadyStudents} ready for the next drive`}
             icon={Users}
-            className="bg-[linear-gradient(135deg,#ff9b74,#ff7a5c)]"
+            tone="navy"
           />
           <AdminSnapshotCard
             label="Placement Rate"
             value={`${placementRate}%`}
             note={`${placedStudents} students already placed`}
             icon={TrendingUp}
-            className="bg-[linear-gradient(135deg,#2ed98d,#16bf74)]"
+            tone="emerald"
           />
           <AdminSnapshotCard
             label="Fee Recovery"
             value={`${feeRecoveryRate}%`}
             note={`${paidFees} accounts cleared this cycle`}
             icon={ClipboardList}
-            className="bg-[linear-gradient(135deg,#ff7a8f,#ff5f74)]"
+            tone="amber"
           />
           <AdminSnapshotCard
             label="Open Drives"
             value={openDrives}
             note={`${data.companies.length} companies tracked`}
             icon={BriefcaseBusiness}
-            className="bg-[linear-gradient(135deg,#37caef,#15a5d7)]"
+            tone="sky"
           />
         </div>
 
@@ -2666,11 +2716,13 @@ export default function CampusWorkspace({
             // Find the HOD user for this department by matching the hod name
             const hodUser = data.users.find(user => 
               user.role === 'staff' && 
-              user.department_code === selectedDepartment.code &&
+              user.departmentCode === selectedDepartment.code &&
               user.name === selectedDepartment.hod
             );
 
-            const hodDesignation = hodUser?.designation;
+            const hodDesignation = hodUser
+              ? data.designations.find(d => d.id === hodUser.designationId)
+              : undefined;
 
             return (
               <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
@@ -2764,7 +2816,7 @@ export default function CampusWorkspace({
 
               <div className="h-[340px] px-4 py-5 sm:px-6">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={activeAdminAnalytics.data} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
+                  <LineChart data={activeAdminAnalytics.data as any} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
                     <CartesianGrid stroke="#ebf1f7" vertical={false} strokeDasharray="4 6" />
                     <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: '#718095', fontSize: 12 }} />
                     <YAxis tickLine={false} axisLine={false} tick={{ fill: '#718095', fontSize: 12 }} />
@@ -2895,7 +2947,7 @@ export default function CampusWorkspace({
               <button
                 type="button"
                 onClick={() => setActiveTab('reports')}
-                className="mt-5 flex w-full items-center justify-between rounded-[18px] bg-[linear-gradient(135deg,#ff9b74,#ff7a5c)] px-4 py-3 text-sm font-semibold text-white shadow-[0_18px_32px_-24px_rgba(239,107,77,0.58)] transition hover:opacity-95"
+                className="mt-5 flex w-full items-center justify-between rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 shadow-sm"
               >
                 Open visual report
                 <ChevronRight size={18} />
@@ -2903,26 +2955,26 @@ export default function CampusWorkspace({
             </Panel>
 
             {adminSpotlightStudent ? (
-              <Panel className="overflow-hidden border-[#dce9f7] bg-[linear-gradient(135deg,#072c52,#0c487d_60%,#1eb2e3_100%)] p-6 text-white shadow-[0_26px_44px_-32px_rgba(7,44,82,0.62)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-100/76">Student spotlight</p>
-                <h3 className="mt-3 text-2xl font-bold text-white">{adminSpotlightStudent.name}</h3>
-                <p className="mt-2 text-sm text-sky-50/82">
+              <Panel className="overflow-hidden border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Student spotlight</p>
+                <h3 className="mt-3 text-xl font-bold text-slate-900 leading-tight">{adminSpotlightStudent.name}</h3>
+                <p className="mt-1 text-xs text-slate-500">
                   {adminSpotlightStudent.departmentCode} | {adminSpotlightStudent.year}
                 </p>
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-[18px] border border-white/12 bg-white/10 px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100/76">CGPA</p>
-                    <p className="mt-2 text-2xl font-bold text-white">{adminSpotlightStudent.cgpa}</p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">CGPA</p>
+                    <p className="mt-1 text-lg font-black text-slate-900 leading-none">{adminSpotlightStudent.cgpa}</p>
                   </div>
-                  <div className="rounded-[18px] border border-white/12 bg-white/10 px-4 py-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100/76">Attendance</p>
-                    <p className="mt-2 text-2xl font-bold text-white">{adminSpotlightStudent.attendance}%</p>
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Attendance</p>
+                    <p className="mt-1 text-lg font-black text-slate-900 leading-none">{adminSpotlightStudent.attendance}%</p>
                   </div>
                 </div>
-                <div className="mt-4 rounded-[18px] border border-white/12 bg-white/10 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-100/76">Status</p>
-                  <p className="mt-2 text-sm font-semibold text-white">{adminSpotlightStudent.status}</p>
-                  <p className="mt-1 text-sm text-sky-50/82">{adminSpotlightStudent.skills.slice(0, 3).join(' | ')}</p>
+                <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900 leading-none">{adminSpotlightStudent.status}</p>
+                  <p className="mt-1.5 text-xs text-slate-500">{adminSpotlightStudent.skills.slice(0, 3).join(' | ')}</p>
                 </div>
               </Panel>
             ) : null}
@@ -3093,35 +3145,35 @@ export default function CampusWorkspace({
           ))}
         </div>
 
-        <Panel className="overflow-hidden bg-[linear-gradient(135deg,#ffffff,#eaf8ff_56%,#eef9f2)] p-7">
+        <Panel className="overflow-hidden bg-white border border-slate-200/80 p-6 shadow-sm">
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">
                 <GraduationCap size={14} />
                 Student dashboard
               </div>
-              <h1 className="mt-5 text-3xl font-bold text-slate-950">{currentStudent.name}</h1>
+              <h1 className="mt-4 text-2xl font-black text-slate-900">{currentStudent.name}</h1>
               <p className="hidden">
                 {currentStudent.registrationNumber} • {currentStudent.departmentCode} • {currentStudent.year}
               </p>
-              <p className="mt-2 text-base text-slate-600">
+              <p className="mt-1.5 text-sm text-slate-600">
                 {currentStudent.registrationNumber} | {currentStudent.departmentCode} | {masterLabel('student_year', currentStudent.year)}
               </p>
-              <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-500">
                 Track placements, monitor announcements, and show a polished student journey during demos.
               </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-              <div className="rounded-[18px] border border-white/70 bg-white/80 p-5 shadow-sm">
-                <p className="text-sm text-slate-500">Placement status</p>
-                <p className="mt-3 text-2xl font-bold text-slate-950">{masterLabel('student_status', currentStudent.status)}</p>
-                <p className="mt-2 text-sm text-slate-600">You already match {eligibleCompanies.length} eligible drives.</p>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Placement status</p>
+                <p className="mt-1.5 text-xl font-black text-slate-900">{masterLabel('student_status', currentStudent.status)}</p>
+                <p className="mt-1 text-xs text-slate-500">You already match {eligibleCompanies.length} eligible drives.</p>
               </div>
-              <div className="rounded-[18px] border border-white/70 bg-white/80 p-5 shadow-sm">
-                <p className="text-sm text-slate-500">Current applications</p>
-                <p className="mt-3 text-2xl font-bold text-slate-950">{appliedCompanies.length}</p>
-                <p className="mt-2 text-sm text-slate-600">Use this to show placement momentum clearly.</p>
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Current applications</p>
+                <p className="mt-1.5 text-xl font-black text-slate-900">{appliedCompanies.length}</p>
+                <p className="mt-1 text-xs text-slate-500">Use this to show placement momentum clearly.</p>
               </div>
             </div>
           </div>
@@ -5417,29 +5469,41 @@ export default function CampusWorkspace({
           <div className="flex flex-col gap-5 lg:flex-row">
             <aside
               className={classNames(
-                'fixed left-4 top-[88px] z-40 h-[calc(100vh-104px)] w-[262px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[18px] border border-[#0b3a66] bg-[linear-gradient(180deg,#07284e_0%,#0c4375_58%,#20a7dd_100%)] p-4 shadow-[0_30px_60px_-34px_rgba(7,40,78,0.78)] transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[100px] lg:h-[calc(100vh-116px)] lg:max-w-none lg:flex-shrink-0',
+                'fixed left-4 top-[88px] z-40 h-[calc(100vh-104px)] w-[262px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-blue-700 bg-blue-600 p-4 shadow-md transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[100px] lg:h-[calc(100vh-116px)] lg:max-w-none lg:flex-shrink-0 flex flex-col',
                 isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%] lg:hidden',
               )}
             >
-              <div className="mb-3 flex justify-end lg:hidden">
+              <div className="mb-3 flex justify-end lg:hidden flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(false)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/12 bg-white/10 text-white transition hover:bg-white/16"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/12 bg-white/10 text-white transition hover:bg-white/16"
                   aria-label="Close sidebar navigation"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
 
-              <div className="mt-1">
-                <div className="space-y-3">
+              {/* Profile Card on Top */}
+              <div className="mb-4 rounded-xl border border-white/10 bg-white/10 p-3 flex items-center gap-3 flex-shrink-0">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 font-bold text-white uppercase text-sm border border-white/25">
+                  {userInitials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-bold text-white leading-snug">{user.name}</h3>
+                  <p className="truncate text-[10px] text-white/70 font-medium capitalize tracking-wider leading-none mt-0.5">{user.role}</p>
+                </div>
+              </div>
+
+              {/* Navigation List */}
+              <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:w-0">
+                <div className="space-y-2">
                   {groupedSidebarNav.map((group) => {
                     const isOpen = sidebarDropdowns[group.id];
                     const hasActiveItem = group.items.some((item) => item.id === activeTab);
 
                     return (
-                      <div key={group.id} className="rounded-[18px] border border-white/10 bg-white/8 p-2 backdrop-blur-sm">
+                      <div key={group.id} className="rounded-xl border border-white/5 bg-white/5 p-1 shadow-sm">
                         <button
                           type="button"
                           onClick={() =>
@@ -5449,21 +5513,21 @@ export default function CampusWorkspace({
                             }))
                           }
                           className={classNames(
-                            'flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left text-sm font-semibold transition',
-                            hasActiveItem ? 'bg-white/12 text-white' : 'text-white/82 hover:bg-white/8 hover:text-white',
+                            'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-bold transition',
+                            hasActiveItem ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white',
                           )}
                         >
-                          <span className="flex-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-sky-100/78">
+                          <span className="flex-1 text-[10px] font-bold uppercase tracking-wider text-white/90">
                             {group.label}
                           </span>
                           <ChevronDown
-                            size={16}
-                            className={classNames('flex-shrink-0 text-sky-100/80 transition-transform', isOpen ? 'rotate-180' : '')}
+                            size={14}
+                            className={classNames('flex-shrink-0 text-white/80 transition-transform', isOpen ? 'rotate-180' : '')}
                           />
                         </button>
 
                         {isOpen ? (
-                          <div className="mt-1 space-y-1">
+                          <div className="mt-1 space-y-0.5">
                             {group.items.map((item) => {
                               const isLocked = isPhase1LockedTab(item.id);
 
@@ -5475,23 +5539,23 @@ export default function CampusWorkspace({
                                   disabled={isLocked}
                                   title={isLocked ? 'Complete Phase 1 setup to unlock this module.' : item.label}
                                   className={classNames(
-                                    'flex w-full items-center gap-3 rounded-[16px] px-3 py-3 text-left text-sm font-semibold transition',
+                                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition',
                                     activeTab === item.id
-                                      ? 'bg-white text-[#0b355f] shadow-[0_18px_35px_-24px_rgba(6,45,89,0.48)]'
+                                      ? 'bg-white text-blue-600 shadow-sm'
                                       : isLocked
-                                        ? 'cursor-not-allowed bg-transparent text-white/45'
-                                        : 'bg-transparent text-white/82 hover:bg-white/14 hover:text-white',
+                                        ? 'cursor-not-allowed bg-transparent text-white/30'
+                                        : 'bg-transparent text-white/80 hover:bg-white/10 hover:text-white',
                                   )}
                                 >
                                   <span
                                     className={classNames(
-                                      'flex h-9 w-9 items-center justify-center rounded-[16px]',
-                                      activeTab === item.id ? 'bg-[#eaf5ff] text-[#189ed6]' : 'bg-white/12 text-white',
+                                      'flex h-6 w-6 items-center justify-center rounded-md',
+                                      activeTab === item.id ? 'bg-blue-50 text-blue-600' : 'bg-white/10 text-white',
                                     )}
                                   >
-                                    <item.icon size={18} />
+                                    <item.icon size={14} />
                                   </span>
-                                  <span className="flex-1">{item.label}</span>
+                                  <span className="flex-1 truncate">{item.label}</span>
                                 </button>
                               );
                             })}
@@ -5500,16 +5564,6 @@ export default function CampusWorkspace({
                       </div>
                     );
                   })}
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-[18px] border border-white/14 bg-white/10 p-5 text-white backdrop-blur-sm lg:mt-auto">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-100/72">Signed in as</p>
-                <h3 className="mt-2 text-lg font-bold text-white">{user.name}</h3>
-                <p className="mt-1 text-sm text-sky-100/80">{user.title}</p>
-                <div className="mt-4 flex items-center justify-between rounded-[18px] border border-white/10 bg-white/10 px-4 py-3 text-sm">
-                  <span className="text-sky-100/72">Role</span>
-                  <span className="font-semibold capitalize text-white">{user.role}</span>
                 </div>
               </div>
             </aside>

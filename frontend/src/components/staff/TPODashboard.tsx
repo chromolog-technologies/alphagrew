@@ -26,7 +26,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
-import { User, Job, Student } from '../types';
+import { User, Job, Student } from '../../types';
 
 interface TPODashboardProps {
   user: User;

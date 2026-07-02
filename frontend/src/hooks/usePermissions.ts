@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') || 'http://localhost:8000/api/v1');
 const AUTH_KEY = 'chromolog-campus-auth';
@@ -44,20 +43,28 @@ export const usePermissions = () => {
           return;
         }
 
-        const response = await axios.get(`${API_BASE_URL}/permissions/all`, {
+        const response = await fetch(`${API_BASE_URL}/permissions/all`, {
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
 
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.message || 'Failed to load permissions');
+        }
+
+        const data = await response.json();
+
         setPermissions({
-          permissions: response.data.permissions,
-          role: response.data.role,
-          modules: Object.keys(response.data.permissions),
+          permissions: data.permissions,
+          role: data.role,
+          modules: Object.keys(data.permissions),
         });
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to load permissions');
+        setError(err.message || 'Failed to load permissions');
       } finally {
         setLoading(false);
       }

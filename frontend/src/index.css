@@ -2,18 +2,15 @@
 
 :root {
   color-scheme: light;
-  --brand-blue: #38bdf8;
-  --brand-blue-strong: #0ea5e9;
-  --brand-cyan: #7dd3fc;
-  --brand-green: #7dd3fc;
-  --brand-green-strong: #38bdf8;
-  --brand-ink: #0f4c6e;
-  --brand-muted: #6b8798;
-  font-family: "Aptos", "Trebuchet MS", "Gill Sans", sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(125, 211, 252, 0.16), transparent 24%),
-    #f8fcff;
+  --brand-blue: #2563eb;
+  --brand-blue-strong: #1d4ed8;
+  --brand-cyan: #60a5fa;
+  --brand-green: #10b981;
+  --brand-green-strong: #059669;
+  --brand-ink: #0f172a;
+  --brand-muted: #64748b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #f8fafc;
   color: var(--brand-ink);
 }
 
@@ -28,16 +25,13 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.14), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(125, 211, 252, 0.16), transparent 24%),
-    #f8fcff;
+  background: #f8fafc;
   color: var(--brand-ink);
 }
 
 ::selection {
-  background: rgba(38, 166, 232, 0.2);
-  color: #154f6e;
+  background: rgba(37, 99, 235, 0.15);
+  color: #1e40af;
 }
 
 button,
@@ -70,11 +64,11 @@ textarea {
 }
 
 .hover\:bg-slate-800:hover {
-  background: #0284c7 !important;
+  background: #1e40af !important;
 }
 
 .bg-slate-950\/40 {
-  background-color: rgba(23, 139, 205, 0.24) !important;
+  background-color: rgba(37, 99, 235, 0.12) !important;
 }
 
 .text-slate-950,
@@ -89,15 +83,15 @@ textarea {
 }
 
 .bg-slate-50 {
-  background-color: #f3fbfd !important;
+  background-color: #f8fafc !important;
 }
 
 .bg-slate-100 {
-  background-color: #eef8ff !important;
+  background-color: #f1f5f9 !important;
 }
 
 .bg-blue-50 {
-  background-color: #e0f2fe !important;
+  background-color: #eff6ff !important;
 }
 
 .text-blue-700,
@@ -106,7 +100,7 @@ textarea {
 }
 
 .border-blue-100 {
-  border-color: rgba(38, 166, 232, 0.18) !important;
+  border-color: rgba(37, 99, 235, 0.12) !important;
 }
 
 .focus\:border-blue-500:focus {
@@ -114,5 +108,5 @@ textarea {
 }
 
 .focus\:ring-blue-100:focus {
-  --tw-ring-color: rgba(38, 166, 232, 0.16) !important;
+  --tw-ring-color: rgba(37, 99, 235, 0.12) !important;
 }

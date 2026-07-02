@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { usePermissions } from '../hooks/usePermissions';
-import { ProtectedRoute } from './ProtectedRoute';
+import { usePermissions } from '../../hooks/usePermissions';
+import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { AttendanceMarkForm } from './AttendanceMarkForm';
 import { AttendanceReport } from './AttendanceReport';
-import { Tabs } from 'lucide-react';
 import { Users, BarChart3 } from 'lucide-react';
 
 interface AttendanceModuleProps {

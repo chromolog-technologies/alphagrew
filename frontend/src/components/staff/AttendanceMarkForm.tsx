@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { Check, AlertCircle, Loader, Save, Plus, Trash2 } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -40,14 +39,23 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
 
   const fetchSubjects = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/subjects`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await fetch(`${API_BASE_URL}/subjects`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
-      setSubjects(response.data.subjects || []);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to load subjects');
+      }
+      const data = await response.json();
+      setSubjects(data.subjects || []);
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to load subjects',
+        text: error.message || 'Failed to load subjects',
       });
     }
   };
@@ -57,17 +65,27 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     setLoading(true);
 
     try {
-      const response = await axios.get(
+      const response = await fetch(
         `${API_BASE_URL}/attendance/subject/${subjectId}/students`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
 
-      setStudents(response.data.students || []);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to load students');
+      }
+
+      const data = await response.json();
+      setStudents(data.students || []);
 
       // Initialize attendance records
-      const initialAttendance = (response.data.students || []).map(
+      const initialAttendance = (data.students || []).map(
         (student: Student) => ({
           student_id: student.id,
           status: 'present' as const,
@@ -77,7 +95,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to load students',
+        text: error.message || 'Failed to load students',
       });
     } finally {
       setLoading(false);
@@ -105,22 +123,33 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     setSubmitting(true);
 
     try {
-      const response = await axios.post(
+      const response = await fetch(
         `${API_BASE_URL}/attendance/mark`,
         {
-          subject_id: selectedSubject,
-          attendance_data: attendance,
-          attendance_date: attendanceDate,
-          remarks,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            subject_id: selectedSubject,
+            attendance_data: attendance,
+            attendance_date: attendanceDate,
+            remarks,
+          }),
         }
       );
 
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to mark attendance');
+      }
+
+      const data = await response.json();
+
       setMessage({
         type: 'success',
-        text: `Attendance marked for ${response.data.created} students`,
+        text: `Attendance marked for ${data.created} students`,
       });
 
       // Reset form
@@ -132,7 +161,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     } catch (error: any) {
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Failed to mark attendance',
+        text: error.message || 'Failed to mark attendance',
       });
     } finally {
       setSubmitting(false);

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { usePermissions } from '../hooks/usePermissions';
+import { usePermissions } from '../../hooks/usePermissions';
 import {
   LayoutDashboard,
   Activity,

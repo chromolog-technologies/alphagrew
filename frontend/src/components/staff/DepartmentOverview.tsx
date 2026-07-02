@@ -80,6 +80,10 @@ export const DepartmentOverview: React.FC = () => {
     placementRate: stats?.placement_rate || 0,
   };
 
+  const schoolPerformance: SchoolPerformance[] = performance?.schoolPerformance || [];
+  const coursePerformance: any[] = performance?.coursePerformance || [];
+  const placementData: any[] = performance?.placementData || [];
+
   return (
     <div className="space-y-6">
       <div>

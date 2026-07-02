@@ -4,9 +4,9 @@ import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode, __dirname, '');
   const proxyTarget = env.LARAVEL_DEV_URL || 'http://127.0.0.1:8000';
-  const frontendRoot = path.resolve(__dirname, 'frontend');
+  const frontendRoot = __dirname;
 
   return {
     root: frontendRoot,

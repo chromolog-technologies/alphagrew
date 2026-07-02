@@ -6,19 +6,18 @@
   "scripts": {
     "dev": "vite",
     "dev:frontend": "vite",
-    "dev:api": "php backend/artisan serve --host=127.0.0.1 --port=8000",
-    "api:migrate": "php backend/artisan migrate",
-    "api:seed": "php backend/artisan db:seed",
+    "dev:api": "php ../backend/artisan serve --host=127.0.0.1 --port=8000",
+    "api:migrate": "php ../backend/artisan migrate",
+    "api:seed": "php ../backend/artisan db:seed",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "powershell -NoProfile -Command \"if (Test-Path frontend\\\\dist) { Remove-Item -Recurse -Force frontend\\\\dist }\"",
+    "clean": "powershell -NoProfile -Command \"if (Test-Path dist) { Remove-Item -Recurse -Force dist }\"",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
-    "axios": "^1.15.0",
     "better-sqlite3": "^12.4.1",
     "chart.js": "^4.5.1",
     "dotenv": "^17.2.3",

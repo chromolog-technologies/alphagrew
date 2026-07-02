@@ -18,7 +18,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { User, Job, Application } from '../types';
+import { User, Job, Application } from '../../types';
 
 interface RecruiterDashboardProps {
   user: User;

@@ -16,7 +16,8 @@ export type CampusPermission =
   | 'announcements.create'
   | 'reports.view'
   | 'profile.view'
-  | 'demo.reset';
+  | 'demo.reset'
+  | 'attendance.view';
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
@@ -39,6 +40,7 @@ export const campusRolePermissions: Record<CampusRole, CampusPermission[]> = {
     'reports.view',
     'profile.view',
     'demo.reset',
+    'attendance.view',
   ],
   staff: [
     'dashboard.view',
@@ -52,8 +54,9 @@ export const campusRolePermissions: Record<CampusRole, CampusPermission[]> = {
     'announcements.create',
     'reports.view',
     'profile.view',
+    'attendance.view',
   ],
-  student: ['dashboard.view', 'marks.view', 'placement.view', 'placement.apply', 'announcements.view', 'profile.view'],
+  student: ['dashboard.view', 'marks.view', 'placement.view', 'placement.apply', 'announcements.view', 'profile.view', 'attendance.view'],
 };
 
 export const campusPermissionLabels: Record<CampusPermission, string> = {
@@ -74,6 +77,7 @@ export const campusPermissionLabels: Record<CampusPermission, string> = {
   'reports.view': 'Reports',
   'profile.view': 'Profile',
   'demo.reset': 'Reset demo',
+  'attendance.view': 'Attendance',
 };    
 
 export const campusStaffAssignablePermissions: CampusPermission[] = [
@@ -159,6 +163,7 @@ export interface CampusDesignation {
   description: string;
   permissions: CampusPermission[];
   staffCount: number;
+  departmentCode?: string;
 }
 
 export const campusDefaultDesignations: CampusDesignation[] = campusStaffDesignationPresets.map((preset, index) => ({
@@ -356,6 +361,7 @@ export interface CampusDepartment {
   staffCount: number;
   intake: number;
   accent: string;
+  description?: string;
 }
 
 export interface CampusStudent {

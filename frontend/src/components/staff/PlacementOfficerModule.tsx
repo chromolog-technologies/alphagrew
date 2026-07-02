@@ -32,6 +32,59 @@ export const PlacementOfficerModule: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'companies' | 'jobs' | 'interviews'>('companies');
+  
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [isAddingJob, setIsAddingJob] = useState(false);
+  
+  const [companies, setCompanies] = useState<Company[]>([
+    {
+      id: 1,
+      name: 'Google',
+      location: 'Mountain View, CA',
+      website: 'google.com',
+      hrEmail: 'hr@google.com',
+      hrContact: '1234567890',
+      industry: 'Technology',
+      status: 'active',
+      lastVisit: '2025-03-10',
+    },
+    {
+      id: 2,
+      name: 'Microsoft',
+      location: 'Redmond, WA',
+      website: 'microsoft.com',
+      hrEmail: 'hr@microsoft.com',
+      hrContact: '0987654321',
+      industry: 'Technology',
+      status: 'active',
+      lastVisit: '2025-02-28',
+    },
+  ]);
+
+  const [jobPostings, setJobPostings] = useState<JobPosting[]>([
+    {
+      id: 1,
+      companyName: 'Google',
+      position: 'Software Engineer',
+      package: '12-15 LPA',
+      eligibility: 'CGPA > 8.0',
+      jobType: 'Full-time',
+      applicants: 15,
+      status: 'open',
+      postDate: '2025-03-15',
+    },
+    {
+      id: 2,
+      companyName: 'Microsoft',
+      position: 'Support Engineer',
+      package: '8-10 LPA',
+      eligibility: 'CGPA > 7.0',
+      jobType: 'Full-time',
+      applicants: 8,
+      status: 'open',
+      postDate: '2025-03-18',
+    },
+  ]);
 
   useEffect(() => {
     const fetchData = async () => {

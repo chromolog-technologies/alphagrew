@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { BarChart3, Loader, AlertCircle, TrendingUp, Users } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -14,11 +13,12 @@ interface AttendanceSummary {
 }
 
 interface SubjectAttendance {
-  subject: {
+  subject?: {
     id: number;
     name: string;
     code: string;
   };
+  student?: string;
   total_classes: number;
   present: number;
   absent: number;
@@ -76,14 +76,29 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         return;
       }
 
-      const response = await axios.get(url, {
-        params,
-        headers: { Authorization: `Bearer ${token}` },
+      let finalUrl = url;
+      if (params && Object.keys(params).length > 0) {
+        const queryParams = new URLSearchParams(params).toString();
+        finalUrl = `${url}?${queryParams}`;
+      }
+
+      const response = await fetch(finalUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
-      setReport(response.data);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to load report');
+      }
+
+      const data = await response.json();
+      setReport(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load report');
+      setError(err.message || 'Failed to load report');
     } finally {
       setLoading(false);
     }
