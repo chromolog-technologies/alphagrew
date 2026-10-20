@@ -2,6 +2,7 @@
 
 namespace App\Actions\Students;
 
+use App\Actions\Academics\RecalculateAcademicSummaryAction;
 use App\DTOs\StudentData;
 use App\Models\Department;
 use App\Models\Student;
@@ -12,6 +13,12 @@ use Illuminate\Support\Facades\DB;
  */
 class UpdateStudentAction
 {
+    public function __construct(
+        private readonly SyncStudentSkillNamesAction $syncSkills,
+        private readonly RecalculateAcademicSummaryAction $recalculateSummary,
+    ) {
+    }
+
     public function execute(Student $student, StudentData $data, Department $department, string $mentor): Student
     {
         DB::transaction(function () use ($student, $data, $department, $mentor): void {
@@ -27,8 +34,11 @@ class UpdateStudentAction
                 'phone' => $data->phone,
                 'mentor' => $mentor,
                 'fee_status' => $data->feeStatus,
-                'skills' => $data->skills,
             ]);
+
+            $this->syncSkills->execute($student, $data->skills);
+            // Keeps a hand-entered CGPA in the summary until results are published.
+            $this->recalculateSummary->execute($student);
 
             $student->user?->update([
                 'name' => $data->name,

@@ -14,6 +14,7 @@ final class CampusStudentAccess
         return self::normalize([
             CampusPermission::DASHBOARD_VIEW,
             CampusPermission::PROFILE_VIEW,
+            CampusPermission::PROFILE_EDIT,
             CampusPermission::PLACEMENT_VIEW,
             CampusPermission::PLACEMENT_APPLY,
             CampusPermission::ANNOUNCEMENTS_VIEW,
@@ -24,6 +25,8 @@ final class CampusStudentAccess
             CampusPermission::MARKS_VIEW,
             CampusPermission::ATTENDANCE_VIEW,
             CampusPermission::NOTIFICATIONS_VIEW,
+            CampusPermission::RESUMES_MANAGE,
+            CampusPermission::INTERVIEWS_PRACTICE,
         ]);
     }
 

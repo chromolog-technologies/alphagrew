@@ -2,15 +2,26 @@
 
 namespace App\Models;
 
+use App\Enums\MarkStatus;
+use App\Services\Academics\MarkGrader;
 use App\Traits\BelongsToInstitution;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+/**
+ * One student's marks in one subject for one exam, moving through the lifecycle in
+ * MarkStatus. Total, grade, grade point and result are derived by MarkGrader.
+ */
 class MarkEntry extends Model
 {
     use BelongsToInstitution, SoftDeletes, LogsActivity;
+
+    public const RESULT_PASS = 'PASS';
+
+    public const RESULT_FAIL = 'FAIL';
 
     protected $fillable = [
         'exam_id',
@@ -23,20 +34,37 @@ class MarkEntry extends Model
         'is_absent',
         'total_marks',
         'grade',
+        'grade_point',
         'result',
         'status',
         'remarks',
         'entered_by',
+        'submitted_at',
         'verified_by',
         'verified_at',
+        'approved_by',
+        'approved_at',
+        'locked_at',
         'published_at',
     ];
 
-    protected $casts = [
-        'is_absent' => 'boolean',
-        'verified_at' => 'datetime',
-        'published_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'status' => MarkStatus::class,
+            'internal_marks' => 'float',
+            'external_marks' => 'float',
+            'extra_marks' => 'float',
+            'total_marks' => 'float',
+            'grade_point' => 'float',
+            'is_absent' => 'boolean',
+            'submitted_at' => 'datetime',
+            'verified_at' => 'datetime',
+            'approved_at' => 'datetime',
+            'locked_at' => 'datetime',
+            'published_at' => 'datetime',
+        ];
+    }
 
     public function exam(): BelongsTo
     {
@@ -68,52 +96,25 @@ class MarkEntry extends Model
         return $this->belongsTo(User::class, 'verified_by');
     }
 
-    /**
-     * Calculate total marks and grade based on scheme
-     */
+    public function approvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /** Entries of exams held in the given semester. */
+    public function scopeInSemester(Builder $query, int $semesterId): Builder
+    {
+        return $query->whereHas('exam', fn (Builder $exam) => $exam->where('semester_id', $semesterId));
+    }
+
+    /** Total = internal + external + extra; then percentage, grade, grade point and verdict. */
     public function calculateTotalAndGrade(): void
     {
-        if ($this->is_absent) {
-            $this->total_marks = 0;
-            $this->grade = 'AB'; // Absent
-            $this->result = 'FAIL';
-            return;
-        }
-
-        $total = 0;
-        if ($this->internal_marks !== null) {
-            $total += $this->internal_marks;
-        }
-        if ($this->external_marks !== null) {
-            $total += $this->external_marks;
-        }
-        if ($this->extra_marks !== null) {
-            $total += $this->extra_marks;
-        }
-
-        $this->total_marks = $total;
-
-        // Determine grade from grade rules
-        $this->grade = GradeRule::getGradeForScore($total) ?? 'F';
-
-        // Determine result based on pass mark
-        $passMarks = $this->markScheme->pass_mark ?? 40;
-        $this->result = $total >= $passMarks ? 'PASS' : 'FAIL';
+        app(MarkGrader::class)->apply($this);
     }
 
-    /**
-     * Check if marks are locked (published and not overridable)
-     */
-    public function isLocked(): bool
+    public function failed(): bool
     {
-        return $this->status === 'locked' && $this->published_at !== null;
-    }
-
-    /**
-     * Can admin override this mark?
-     */
-    public function canAdminOverride(): bool
-    {
-        return $this->status === 'locked';
+        return $this->is_absent || $this->result === self::RESULT_FAIL;
     }
 }

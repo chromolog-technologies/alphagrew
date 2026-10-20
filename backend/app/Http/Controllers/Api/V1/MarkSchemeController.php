@@ -2,156 +2,72 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\MarkStatus;
+use App\Exceptions\BusinessRuleException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Marks\SaveMarkSchemeRequest;
+use App\Http\Resources\MarkSchemeResource;
 use App\Models\MarkScheme;
-use App\Models\Subject;
-use App\Models\Semester;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
+/**
+ * Internal / external / total maximum and pass marks per subject and semester
+ * (Academic Results spec §4 Stage 1).
+ */
 class MarkSchemeController extends Controller
 {
-    public function __construct()
+    /** GET /mark-schemes?semesterId=&subjectId= */
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:marks.create', ['only' => ['store', 'update', 'destroy']]);
-        $this->middleware('permission:marks.view', ['only' => ['index', 'show']]);
+        $schemes = MarkScheme::query()
+            ->with(['subject', 'semester'])
+            ->when($request->integer('semesterId'), fn ($query, int $id) => $query->where('semester_id', $id))
+            ->when($request->integer('subjectId'), fn ($query, int $id) => $query->where('subject_id', $id))
+            ->orderBy('semester_id')
+            ->orderBy('subject_id')
+            ->paginate(min($request->integer('perPage', 50), 200));
+
+        return MarkSchemeResource::collection($schemes);
     }
 
-    /**
-     * Get all mark schemes with filtering
-     */
-    public function index(Request $request)
+    /** GET /mark-schemes/{markScheme} */
+    public function show(MarkScheme $markScheme): MarkSchemeResource
     {
-        $query = MarkScheme::with(['subject', 'semester']);
+        return new MarkSchemeResource($markScheme->load(['subject', 'semester']));
+    }
 
-        if ($request->has('semester_id')) {
-            $query->where('semester_id', $request->semester_id);
+    /** POST /mark-schemes */
+    public function store(SaveMarkSchemeRequest $request): JsonResponse
+    {
+        $scheme = MarkScheme::query()->create($request->attributesForModel());
+
+        return response()->json(['data' => new MarkSchemeResource($scheme->load(['subject', 'semester']))], 201);
+    }
+
+    /** PUT /mark-schemes/{markScheme} — only while its marks are still drafts. */
+    public function update(SaveMarkSchemeRequest $request, MarkScheme $markScheme): MarkSchemeResource
+    {
+        if ($markScheme->markEntries()->where('status', '!=', MarkStatus::Draft->value)->exists()) {
+            throw BusinessRuleException::unprocessable('Marks under review or published use this scheme; it cannot be changed.');
         }
 
-        if ($request->has('subject_id')) {
-            $query->where('subject_id', $request->subject_id);
+        $markScheme->update($request->attributesForModel());
+
+        return new MarkSchemeResource($markScheme->load(['subject', 'semester']));
+    }
+
+    /** DELETE /mark-schemes/{markScheme} — only while no marks use it. */
+    public function destroy(MarkScheme $markScheme): Response
+    {
+        if ($markScheme->markEntries()->exists()) {
+            throw BusinessRuleException::unprocessable('Marks have been entered against this scheme; it cannot be deleted.');
         }
 
-        if ($request->has('is_active')) {
-            $query->where('is_active', $request->boolean('is_active'));
-        }
+        $markScheme->forceDelete();
 
-        $schemes = $query->orderBy('created_at', 'desc')->paginate(50);
-
-        return response()->json([
-            'success' => true,
-            'data' => $schemes,
-            'message' => 'Mark schemes retrieved successfully',
-        ]);
-    }
-
-    /**
-     * Get a specific mark scheme
-     */
-    public function show(MarkScheme $scheme)
-    {
-        return response()->json([
-            'success' => true,
-            'data' => $scheme->load(['subject', 'semester']),
-            'message' => 'Mark scheme retrieved successfully',
-        ]);
-    }
-
-    /**
-     * Create a new mark scheme
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'semester_id' => 'required|exists:semesters,id',
-            'internal_marks' => 'required|integer|min:0',
-            'external_marks' => 'required|integer|min:0',
-            'total_marks' => 'required|integer|min:1',
-            'pass_mark' => 'required|integer|min:0',
-            'extra_marks_allowed' => 'integer|min:0|default:0',
-            'is_active' => 'boolean|default:true',
-        ]);
-
-        // Validate total_marks = internal + external
-        if ($validated['total_marks'] !== $validated['internal_marks'] + $validated['external_marks']) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Total marks must equal internal + external marks',
-            ], 422);
-        }
-
-        $scheme = MarkScheme::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'data' => $scheme->load(['subject', 'semester']),
-            'message' => 'Mark scheme created successfully',
-        ], 201);
-    }
-
-    /**
-     * Update a mark scheme
-     */
-    public function update(Request $request, MarkScheme $scheme)
-    {
-        $validated = $request->validate([
-            'internal_marks' => 'integer|min:0',
-            'external_marks' => 'integer|min:0',
-            'total_marks' => 'integer|min:1',
-            'pass_mark' => 'integer|min:0',
-            'extra_marks_allowed' => 'integer|min:0',
-            'is_active' => 'boolean',
-        ]);
-
-        // Validate total_marks
-        if (isset($validated['total_marks'], $validated['internal_marks'], $validated['external_marks'])) {
-            if ($validated['total_marks'] !== $validated['internal_marks'] + $validated['external_marks']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Total marks must equal internal + external marks',
-                ], 422);
-            }
-        }
-
-        $scheme->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'data' => $scheme->load(['subject', 'semester']),
-            'message' => 'Mark scheme updated successfully',
-        ]);
-    }
-
-    /**
-     * Delete a mark scheme
-     */
-    public function destroy(MarkScheme $scheme)
-    {
-        $scheme->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Mark scheme deleted successfully',
-        ]);
-    }
-
-    /**
-     * Get subjects for a semester to configure mark scheme
-     */
-    public function getSubjectsBySemet(Request $request)
-    {
-        $validated = $request->validate([
-            'semester_id' => 'required|exists:semesters,id',
-        ]);
-
-        $semester = Semester::findOrFail($validated['semester_id']);
-        $subjects = $semester->subjects()->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $subjects,
-            'message' => 'Subjects retrieved for semester',
-        ]);
+        return response()->noContent();
     }
 }

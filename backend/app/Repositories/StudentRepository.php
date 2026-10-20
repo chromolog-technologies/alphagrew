@@ -22,7 +22,7 @@ class StudentRepository
         $user->loadMissing('student:id,user_id,department_code');
 
         return Student::query()
-            ->with('applications')
+            ->with(['applications', 'studentSkills.skill', 'academicSummary'])
             ->when(
                 $user->role === UserRole::Staff->value && $user->department_code,
                 fn (Builder $query) => $query->where('department_code', $user->department_code)

@@ -2,208 +2,86 @@
 
 namespace App\Http\Controllers\Api\Student;
 
+use App\Actions\Academics\RecalculateAcademicSummaryAction;
+use App\Enums\MarkStatus;
 use App\Http\Controllers\Controller;
-use App\Models\SemesterResult;
+use App\Http\Requests\Students\Me\OwnStudentRequest;
+use App\Http\Resources\AcademicSummaryResource;
+use App\Http\Resources\SemesterGradeCardResource;
 use App\Models\MarkEntry;
-use App\Models\Student;
-use Illuminate\Http\Request;
+use App\Models\Semester;
+use App\Models\SemesterResult;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 
+/**
+ * A student's own published results (Academic Results spec §4 Stage 6).
+ * Only published semesters are visible; everything else is still under review.
+ */
 class StudentResultController extends Controller
 {
-    public function __construct()
+    /** GET /student/results/semesters */
+    public function semesters(OwnStudentRequest $request): JsonResponse
     {
-        $this->middleware('auth:sanctum');
+        return response()->json(['data' => $this->publishedSemesters($request)]);
     }
 
-    /**
-     * Get all published semesters for logged-in student
-     */
-    public function getPublishedSemesters(Request $request)
+    /** GET /student/results/semester/{semester} — the grade card; 404 until published. */
+    public function semester(OwnStudentRequest $request, Semester $semester): SemesterGradeCardResource
     {
-        $user = auth()->user();
-        $student = $this->resolveStudentProfile($user);
-
-        if (!$student) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No student profile linked to current user',
-            ], 403);
-        }
-
-        $semesters = SemesterResult::where('student_id', $student->id)
+        $student = $request->student();
+        $result = SemesterResult::query()
+            ->with('semester.academicYear')
+            ->where('student_id', $student->id)
+            ->where('semester_id', $semester->id)
             ->where('is_published', true)
-            ->with('semester')
+            ->firstOrFail();
+
+        $entries = MarkEntry::query()
+            ->with('subject')
+            ->inSemester($semester->id)
+            ->where('student_id', $student->id)
+            ->where('status', MarkStatus::Locked->value)
+            ->orderBy('id')
             ->get()
-            ->map(function ($result) {
-                return [
-                    'id' => $result->semester->id,
-                    'name' => $result->semester->name,
-                    'result_id' => $result->id,
-                    'is_published' => $result->is_published,
-                    'published_at' => $result->published_at,
-                ];
-            });
+            ->keyBy('subject_id') // latest attempt per subject
+            ->sortBy(fn (MarkEntry $entry) => $entry->subject->code);
 
-        return response()->json([
-            'success' => true,
-            'data' => $semesters,
-            'message' => 'Published semesters retrieved',
-        ]);
+        return new SemesterGradeCardResource($result, $entries);
     }
 
-    /**
-     * Get detailed result for a semester
-     */
-    public function getSemesterResult(Request $request, $semesterId)
+    /** GET /student/results/all — every published semester plus the derived CGPA and backlogs. */
+    public function all(OwnStudentRequest $request, RecalculateAcademicSummaryAction $recalculate): JsonResponse
     {
-        $user = auth()->user();
-        $student = $this->resolveStudentProfile($user);
-
-        if (!$student) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No student profile linked to current user',
-            ], 403);
-        }
-
-        $result = SemesterResult::where('student_id', $student->id)
-            ->where('semester_id', $semesterId)
-            ->where('is_published', true)
-            ->first();
-
-        if (!$result) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Result not found or not published yet',
-            ], 404);
-        }
-
-        // Get all mark entries for this student + semester
-        $markEntries = MarkEntry::where('student_id', $student->id)
-            ->whereHas('subject', function ($q) use ($semesterId) {
-                $q->whereHas('semesters', function ($q) use ($semesterId) {
-                    $q->where('semesters.id', $semesterId);
-                });
-            })
-            ->where('status', '!=', 'draft')
-            ->with(['subject', 'exam', 'markScheme'])
-            ->get();
-
-        // Format marks table
-        $marksTable = $markEntries->map(function ($entry) {
-            return [
-                'subject_id' => $entry->subject_id,
-                'subject_name' => $entry->subject->name,
-                'subject_code' => $entry->subject->code,
-                'internal_marks' => $entry->internal_marks,
-                'external_marks' => $entry->external_marks,
-                'extra_marks' => $entry->extra_marks,
-                'total_marks' => $entry->total_marks,
-                'grade' => $entry->grade,
-                'result' => $entry->result,
-                'is_absent' => $entry->is_absent,
-            ];
-        });
-
-        // Calculate summaries
-        $summary = [
-            'total_subjects' => $marksTable->count(),
-            'total_internal' => $marksTable->sum('internal_marks'),
-            'total_external' => $marksTable->sum('external_marks'),
-            'total_extra' => $marksTable->sum('extra_marks'),
-            'grand_total' => $marksTable->sum('total_marks'),
-            'percentage' => $result->percentage,
-            'overall_grade' => $result->overall_grade,
-            'gpa' => $result->gpa,
-            'result' => $result->result,
-            'subjects_passed' => $result->subjects_passed,
-            'subjects_failed' => $result->subjects_failed,
-        ];
+        $student = $request->student();
 
         return response()->json([
-            'success' => true,
             'data' => [
-                'semester' => $result->semester,
-                'marks' => $marksTable,
-                'summary' => $summary,
-                'published_at' => $result->published_at,
+                'semesters' => $this->publishedSemesters($request),
+                'summary' => new AcademicSummaryResource($student->academicSummary ?? $recalculate->execute($student)),
             ],
-            'message' => 'Semester result retrieved successfully',
         ]);
     }
 
-    /**
-     * Get all results (all published semesters with marks)
-     */
-    public function getAllResults(Request $request)
+    /** @return Collection<int, array<string, mixed>> in semester order */
+    private function publishedSemesters(OwnStudentRequest $request): Collection
     {
-        $user = auth()->user();
-        $student = $this->resolveStudentProfile($user);
-
-        if (!$student) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No student profile linked to current user',
-            ], 403);
-        }
-
-        $results = SemesterResult::where('student_id', $student->id)
+        return SemesterResult::query()
+            ->with('semester.academicYear')
+            ->where('student_id', $request->student()->id)
             ->where('is_published', true)
-            ->with('semester')
-            ->orderBy('semester_id')
             ->get()
-            ->map(function ($result) {
-                return [
-                    'semester_id' => $result->semester->id,
-                    'semester_name' => $result->semester->name,
-                    'total_subjects' => $result->total_subjects,
-                    'subjects_passed' => $result->subjects_passed,
-                    'subjects_failed' => $result->subjects_failed,
-                    'percentage' => $result->percentage,
-                    'overall_grade' => $result->overall_grade,
-                    'gpa' => $result->gpa,
-                    'result' => $result->result,
-                    'published_at' => $result->published_at,
-                ];
-            });
-
-        // Calculate cumulative GPA
-        $cumulativeGpa = $results->avg('gpa');
-        $totalPass = $results->sum('subjects_passed');
-        $totalFail = $results->sum('subjects_failed');
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'semesters' => $results,
-                'cumulative' => [
-                    'total_semesters' => $results->count(),
-                    'total_subjects_passed' => $totalPass,
-                    'total_subjects_failed' => $totalFail,
-                    'cumulative_gpa' => round($cumulativeGpa, 2),
-                    'overall_result' => $totalFail > 0 ? 'FAIL' : 'PASS',
-                ],
-            ],
-            'message' => 'All results retrieved successfully',
-        ]);
-    }
-
-    /**
-     * Resolve student profile from user
-     */
-    private function resolveStudentProfile($user): ?Student
-    {
-        if (!$user) {
-            return null;
-        }
-
-        if ($user->relationLoaded('student') ? $user->student : $user->student()->exists()) {
-            return $user->student;
-        }
-
-        return Student::query()
-            ->where('user_id', $user->id)
-            ->orWhere('email', $user->email)
-            ->first();
+            ->sortBy(fn (SemesterResult $result) => [$result->semester->semester_number, $result->semester_id])
+            ->map(fn (SemesterResult $result) => [
+                'id' => $result->semester->id,
+                'name' => $result->semester->name,
+                'academicYear' => $result->semester->academicYear?->year,
+                'sgpa' => $result->sgpa,
+                'totalCredits' => $result->total_credits,
+                'creditsEarned' => $result->credits_earned,
+                'resultStatus' => $result->result,
+                'publishedAt' => $result->published_at?->toIso8601String(),
+            ])
+            ->values();
     }
 }

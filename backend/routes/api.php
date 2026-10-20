@@ -13,6 +13,12 @@ use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SemesterController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
+use App\Http\Controllers\Api\V1\GradeRuleController;
+use App\Http\Controllers\Api\V1\MarkEntryController;
+use App\Http\Controllers\Api\V1\MarkReviewController;
+use App\Http\Controllers\Api\V1\MarkSchemeController;
+use App\Http\Controllers\Api\V1\ResultPublishingController;
+use App\Http\Controllers\Api\Student\StudentResultController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
@@ -27,12 +33,41 @@ use App\Http\Controllers\Api\Staff\PlacementController;
 use App\Http\Controllers\Api\Staff\ExamCoordinatorController;
 use App\Http\Controllers\Api\Staff\DepartmentController as StaffDepartmentController;
 use App\Http\Controllers\Api\Staff\ReportsController;
+use App\Http\Controllers\Api\V1\SkillController;
+use App\Http\Controllers\Api\V1\Interviews\InterviewController;
+use App\Http\Controllers\Api\V1\Students\ReadinessController;
+use App\Http\Controllers\Api\V1\Students\ResumeController;
+use App\Http\Controllers\Api\V1\Students\StudentAcademicsController;
+use App\Http\Controllers\Api\V1\Students\StudentCertificationController;
+use App\Http\Controllers\Api\V1\Students\StudentExperienceController;
+use App\Http\Controllers\Api\V1\Students\StudentProfileController;
+use App\Http\Controllers\Api\V1\Students\StudentProjectController;
+use App\Http\Controllers\Api\V1\Students\StudentSkillController;
+use App\Models\Student;
+use App\Models\StudentAcademic;
+use App\Models\StudentCertification;
+use App\Models\StudentExperience;
+use App\Models\StudentProject;
 use App\Support\Campus\CampusPermission;
 use Illuminate\Support\Facades\Route;
+
+// Route parameters resolved to models (and scoped to the caller's institution) for
+// controllers that read them through the request instead of a type-hinted argument.
+Route::model('project', StudentProject::class);
+Route::model('certification', StudentCertification::class);
+Route::model('experience', StudentExperience::class);
+Route::model('education', StudentAcademic::class);
+Route::model('student', Student::class);
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);
+
+    // Signed, short-lived link from photoUrl; no token so <img> tags can load it.
+    Route::get('/files/student-photos/{student}', [StudentProfileController::class, 'photo'])
+        ->whereNumber('student')
+        ->middleware('signed')
+        ->name('students.photo');
 
     // tenant: limits every query to the signed-in user's institution (see App\Http\Middleware\SetTenant).
     Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
@@ -148,6 +183,80 @@ Route::prefix('v1')->group(function (): void {
         // Removed: permissions-v1 routes (old system using custom Permission model)
         // Use /api/permissions routes instead (via PermissionController)
 
+        // Student self-service (Student Journey spec steps 2 and 6). Registered before
+        // /students/{student} so "me" is never read as a student id.
+        Route::prefix('students/me')->group(function (): void {
+            $view = 'permission:'.CampusPermission::PROFILE_VIEW.',sanctum';
+            $edit = 'permission:'.CampusPermission::PROFILE_EDIT.',sanctum';
+
+            Route::get('/profile', [StudentProfileController::class, 'show'])->middleware($view);
+            Route::put('/profile', [StudentProfileController::class, 'update'])->middleware($edit);
+            Route::post('/profile/photo', [StudentProfileController::class, 'uploadPhoto'])->middleware($edit);
+
+            foreach ([
+                'projects' => [StudentProjectController::class, 'project'],
+                'certifications' => [StudentCertificationController::class, 'certification'],
+                'experience' => [StudentExperienceController::class, 'experience'],
+            ] as $path => [$controller, $parameter]) {
+                Route::get("/{$path}", [$controller, 'index'])->middleware($view);
+                Route::post("/{$path}", [$controller, 'store'])->middleware($edit);
+                Route::put("/{$path}/{{$parameter}}", [$controller, 'update'])->middleware($edit);
+                Route::delete("/{$path}/{{$parameter}}", [$controller, 'destroy'])->middleware($edit);
+            }
+
+            Route::get('/skills', [StudentSkillController::class, 'index'])->middleware($view);
+            Route::put('/skills', [StudentSkillController::class, 'update'])->middleware($edit);
+            Route::delete('/skills/{skill}', [StudentSkillController::class, 'destroy'])->middleware($edit);
+
+            // Step 3: academic summary (read-only) and prior education.
+            Route::get('/academics', [StudentAcademicsController::class, 'show'])->middleware($view);
+            Route::post('/education', [StudentAcademicsController::class, 'storeEducation'])->middleware($edit);
+            Route::put('/education/{education}', [StudentAcademicsController::class, 'updateEducation'])->middleware($edit);
+            Route::delete('/education/{education}', [StudentAcademicsController::class, 'destroyEducation'])->middleware($edit);
+
+            // AI Interview Journey (documentation/ai-interview-journey-backend-spec.md).
+            $resumes = 'permission:'.CampusPermission::RESUMES_MANAGE.',sanctum';
+            Route::get('/resumes', [ResumeController::class, 'index'])->middleware($resumes);
+            Route::post('/resumes', [ResumeController::class, 'store'])->middleware($resumes);
+            Route::get('/resumes/{resume}', [ResumeController::class, 'show'])->whereNumber('resume')->middleware($resumes);
+            Route::get('/resumes/{resume}/analysis', [ResumeController::class, 'analysis'])->whereNumber('resume')->middleware($resumes);
+            Route::delete('/resumes/{resume}', [ResumeController::class, 'destroy'])->whereNumber('resume')->middleware($resumes);
+
+            $practice = 'permission:'.CampusPermission::INTERVIEWS_PRACTICE.',sanctum';
+            Route::post('/interviews', [InterviewController::class, 'store'])->middleware($practice);
+            Route::get('/interviews', [InterviewController::class, 'history'])->middleware($practice);
+
+            Route::get('/recommendations', [ReadinessController::class, 'recommendations'])->middleware($view);
+            Route::get('/readiness-score', [ReadinessController::class, 'readinessScore'])->middleware($view);
+        });
+
+        // Interview sessions: the owning student only (other students and institutions → 404).
+        Route::prefix('interviews/{interview}')
+            ->whereNumber('interview')
+            ->middleware('permission:'.CampusPermission::INTERVIEWS_PRACTICE.',sanctum')
+            ->group(function (): void {
+                Route::get('/', [InterviewController::class, 'show']);
+                Route::post('/start', [InterviewController::class, 'start']);
+                Route::post('/turns/{turn}/answer', [InterviewController::class, 'answer'])->whereNumber('turn')->scopeBindings();
+                Route::post('/finish', [InterviewController::class, 'finish']);
+                Route::get('/evaluation', [InterviewController::class, 'evaluation']);
+                Route::get('/skill-gap', [InterviewController::class, 'skillGap']);
+            });
+
+        Route::get('/skills', [SkillController::class, 'index'])
+            ->middleware('permission:'.CampusPermission::PROFILE_VIEW.',sanctum');
+        Route::get('/students/{student}/profile', [StudentProfileController::class, 'showForStaff'])
+            ->whereNumber('student')
+            ->middleware('permission:'.CampusPermission::STUDENTS_VIEW.',sanctum');
+        Route::get('/students/{student}/academics', [StudentAcademicsController::class, 'showForStaff'])
+            ->whereNumber('student')
+            ->middleware('permission:'.CampusPermission::STUDENTS_VIEW.',sanctum');
+        Route::post('/students/{student}/education/{education}/verify', [StudentAcademicsController::class, 'verify'])
+            ->whereNumber('student')
+            ->middleware('permission:'.CampusPermission::STUDENTS_EDIT.',sanctum');
+        Route::post('/students/{student}/academics/recalculate', [StudentAcademicsController::class, 'recalculate'])
+            ->whereNumber('student')
+            ->middleware('permission:'.CampusPermission::STUDENTS_EDIT.',sanctum');
 
         Route::get('/students', [StudentController::class, 'index'])
             ->middleware('permission:'.CampusPermission::STUDENTS_VIEW.',sanctum');
@@ -210,93 +319,69 @@ Route::prefix('v1')->group(function (): void {
         });
 
         // ============================================
-        // MARKS MANAGEMENT SYSTEM ROUTES
+        // ACADEMIC RESULTS & MARK PROCESSING
+        // documentation/academic-results-backend-spec.md
+        // draft → submitted → verified → approved → locked (published)
         // ============================================
+        $marksView = 'permission:'.CampusPermission::MARKS_VIEW.',sanctum';
+        $marksCreate = 'permission:'.CampusPermission::MARKS_CREATE.',sanctum';
+        $marksApprove = 'permission:'.CampusPermission::MARKS_APPROVE.',sanctum';
+        $marksPublish = 'permission:'.CampusPermission::MARKS_PUBLISH.',sanctum';
 
-        // 1. MASTER SETUP (Admin Phase)
-        // Grade Rules - Configure A+, A, B, etc.
-        Route::prefix('grade-rules')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::put('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'update'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::delete('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'destroy'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/setup-defaults', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'setupDefaults'])
-                ->middleware('permission:marks.create,sanctum');
+        // Stage 1: grading scale and mark schemes.
+        Route::prefix('grade-rules')->group(function () use ($marksView, $marksCreate): void {
+            Route::get('/', [GradeRuleController::class, 'index'])->middleware($marksView);
+            Route::post('/', [GradeRuleController::class, 'store'])->middleware($marksCreate);
+            Route::post('/setup-defaults', [GradeRuleController::class, 'setupDefaults'])->middleware($marksCreate);
+            Route::get('/{gradeRule}', [GradeRuleController::class, 'show'])->whereNumber('gradeRule')->middleware($marksView);
+            Route::put('/{gradeRule}', [GradeRuleController::class, 'update'])->whereNumber('gradeRule')->middleware($marksCreate);
+            Route::delete('/{gradeRule}', [GradeRuleController::class, 'destroy'])->whereNumber('gradeRule')->middleware($marksCreate);
         });
 
-        // Mark Schemes - Internal/External/Total marks per subject
-        Route::prefix('mark-schemes')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::put('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'update'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::delete('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'destroy'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/semester/{semesterId}/subjects', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'getSubjectsBySemet'])
-                ->middleware('permission:marks.view,sanctum');
+        Route::prefix('mark-schemes')->group(function () use ($marksView, $marksCreate): void {
+            Route::get('/', [MarkSchemeController::class, 'index'])->middleware($marksView);
+            Route::post('/', [MarkSchemeController::class, 'store'])->middleware($marksCreate);
+            Route::get('/{markScheme}', [MarkSchemeController::class, 'show'])->whereNumber('markScheme')->middleware($marksView);
+            Route::put('/{markScheme}', [MarkSchemeController::class, 'update'])->whereNumber('markScheme')->middleware($marksCreate);
+            Route::delete('/{markScheme}', [MarkSchemeController::class, 'destroy'])->whereNumber('markScheme')->middleware($marksCreate);
         });
 
-        // 2. MARK ENTRY (Teacher Phase)
-        Route::prefix('mark-entries')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{entry}', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/get-students', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'getStudentsForEntry'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/save-draft', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'saveDraft'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/submit', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'submitMarks'])
-                ->middleware('permission:marks.create,sanctum');
+        // Stages 2–3: faculty entry and submission.
+        Route::prefix('mark-entries')->group(function () use ($marksView, $marksCreate): void {
+            Route::get('/', [MarkEntryController::class, 'index'])->middleware($marksView);
+            Route::get('/get-students', [MarkEntryController::class, 'students'])->middleware($marksCreate);
+            Route::post('/save-draft', [MarkEntryController::class, 'saveDraft'])->middleware($marksCreate);
+            Route::post('/submit', [MarkEntryController::class, 'submit'])->middleware($marksCreate);
+            Route::get('/{markEntry}', [MarkEntryController::class, 'show'])->whereNumber('markEntry')->middleware($marksView);
         });
 
-        // 3. REVIEW & VERIFICATION (HOD/Admin Phase)
-        Route::prefix('mark-review')->group(function (): void {
-            Route::get('/submitted', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'getSubmittedMarks'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/verify', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'verify'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/reject', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'reject'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/approve', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'approve'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/exam-summary', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'getExamSummary'])
-                ->middleware('permission:marks.view,sanctum');
+        // Stage 4: departmental review.
+        Route::prefix('mark-review')->group(function () use ($marksView, $marksApprove): void {
+            Route::get('/get-submitted-marks', [MarkReviewController::class, 'queue'])->middleware($marksView);
+            Route::get('/exam-summary', [MarkReviewController::class, 'examSummary'])->middleware($marksView);
+            Route::post('/bulk-approve', [MarkReviewController::class, 'bulkApprove'])->middleware($marksApprove);
+            Route::post('/{markEntry}/verify', [MarkReviewController::class, 'verify'])->whereNumber('markEntry')->middleware($marksApprove);
+            Route::post('/{markEntry}/approve', [MarkReviewController::class, 'approve'])->whereNumber('markEntry')->middleware($marksApprove);
+            Route::post('/{markEntry}/reject', [MarkReviewController::class, 'reject'])->whereNumber('markEntry')->middleware($marksApprove);
         });
 
-        // 4-5. RESULT PUBLISHING & LOCKING (Admin Phase)
-        Route::prefix('result-publishing')->group(function (): void {
-            Route::get('/status', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'getPublishingStatus'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/publish', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'publishResults'])
-                ->middleware('permission:marks.publish,sanctum');
-            Route::post('/unlock', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'unlockResults'])
-                ->middleware('permission:marks.publish,sanctum');
-            Route::get('/logs', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'getPublishingLogs'])
-                ->middleware('permission:marks.view,sanctum');
+        // Stage 5: semester publishing and locking.
+        Route::prefix('result-publishing')->group(function () use ($marksView, $marksPublish): void {
+            Route::get('/status', [ResultPublishingController::class, 'status'])->middleware($marksView);
+            Route::post('/publish', [ResultPublishingController::class, 'publish'])->middleware($marksPublish);
+            Route::post('/unlock', [ResultPublishingController::class, 'unlock'])->middleware($marksPublish);
+            Route::get('/logs', [ResultPublishingController::class, 'logs'])->middleware($marksView);
         });
 
-        // 6. STUDENT VIEW FLOW (Student Phase)
-        Route::prefix('student/results')->group(function (): void {
-            Route::get('/semesters', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getPublishedSemesters'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-            Route::get('/semester/{semesterId}', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getSemesterResult'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-            Route::get('/all', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getAllResults'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+        // Stage 6: a student's own published results, and the derived summary for placement.
+        Route::prefix('student/results')->group(function () use ($marksView): void {
+            Route::get('/semesters', [StudentResultController::class, 'semesters'])->middleware($marksView);
+            Route::get('/semester/{semester}', [StudentResultController::class, 'semester'])->whereNumber('semester')->middleware($marksView);
+            Route::get('/all', [StudentResultController::class, 'all'])->middleware($marksView);
         });
+        Route::get('/students/{student}/academic-summary', [StudentAcademicsController::class, 'summary'])
+            ->whereNumber('student')
+            ->middleware('permission:'.CampusPermission::RESULTS_VIEW_SUMMARY.',sanctum');
 
 
         // Attendance Routes

@@ -2,11 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Actions\Students\SyncStudentSkillNamesAction;
 use App\Models\Institution;
+use App\Models\Student;
 use App\Models\User;
 use App\Support\Campus\CampusPermission;
 use App\Services\Campus\CampusDataService;
 use App\Enums\UserRole;
+use App\Support\Placement\LegacyCompanyImporter;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -32,6 +35,11 @@ class CampusDemoSeeder extends Seeder
             DB::table('model_has_permissions')->delete();
             DB::table('roles')->delete();
             DB::table('permissions')->delete();
+            DB::table('job_application_events')->delete();
+            DB::table('job_applications')->delete();
+            DB::table('eligibility_rules')->delete();
+            DB::table('job_postings')->delete();
+            DB::table('placement_drives')->delete();
             DB::table('company_applications')->delete();
             DB::table('announcements')->delete();
             DB::table('students')->delete();
@@ -171,6 +179,13 @@ class CampusDemoSeeder extends Seeder
                     ['id' => 5, 'title' => 'Alumni mentoring week starts Monday', 'summary' => 'Students can book 1:1 mentoring slots for resume reviews, mock interviews, and career guidance.', 'audience' => 'Students', 'priority' => 'High', 'postedBy' => 'Career Services', 'date' => '2026-03-31', 'category' => 'Student Success'],
                 ],
             ], $institutionId);
+
+            // Each demo company becomes a placement drive with one job posting.
+            (new LegacyCompanyImporter())->import();
+
+            // Demo skills are free text; map them onto the skills catalogue (student_skills).
+            $syncSkills = app(SyncStudentSkillNamesAction::class);
+            Student::query()->get()->each(fn (Student $student) => $syncSkills->execute($student, $student->skills ?? []));
 
             // Departments the demo students belong to. Inserted here rather than through sync(),
             // whose department columns (hod, staff_count, intake, accent) predate the current schema.

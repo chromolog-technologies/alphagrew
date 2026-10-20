@@ -2,6 +2,7 @@
 
 namespace App\Actions\Students;
 
+use App\Actions\Academics\RecalculateAcademicSummaryAction;
 use App\DTOs\StudentData;
 use App\Enums\UserRole;
 use App\Models\Department;
@@ -17,8 +18,11 @@ use Illuminate\Support\Facades\DB;
  */
 class CreateStudentAction
 {
-    public function __construct(private readonly StudentRepository $students)
-    {
+    public function __construct(
+        private readonly StudentRepository $students,
+        private readonly SyncStudentSkillNamesAction $syncSkills,
+        private readonly RecalculateAcademicSummaryAction $recalculateSummary,
+    ) {
     }
 
     public function execute(StudentData $data, Department $department, int $institutionId, string $mentor): Student
@@ -38,7 +42,7 @@ class CreateStudentAction
             ]);
             $user->syncRoles([UserRole::Student->value]);
 
-            return Student::query()->create([
+            $student = Student::query()->create([
                 'id' => $studentId,
                 'institution_id' => $institutionId,
                 'user_id' => $user->id,
@@ -54,9 +58,13 @@ class CreateStudentAction
                 'phone' => $data->phone,
                 'mentor' => $mentor,
                 'fee_status' => $data->feeStatus,
-                'skills' => $data->skills,
                 'resume_profile' => null,
             ]);
+
+            $this->syncSkills->execute($student, $data->skills);
+            $this->recalculateSummary->execute($student);
+
+            return $student;
         });
     }
 }

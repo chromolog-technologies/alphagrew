@@ -95,11 +95,13 @@ return new class extends Migration
 
         foreach (self::COLLEGE_ID_TABLES as $tableName) {
             if (Schema::hasColumn($tableName, 'college_id')) {
+                // Foreign key first: MySQL refuses to drop an index a foreign key still uses.
                 Schema::table($tableName, function (Blueprint $table) use ($tableName): void {
+                    $table->dropForeign(['college_id']);
                     if (Schema::hasIndex($tableName, "{$tableName}_college_id_index")) {
                         $table->dropIndex("{$tableName}_college_id_index");
                     }
-                    $table->dropConstrainedForeignId('college_id');
+                    $table->dropColumn('college_id');
                 });
             }
         }

@@ -38,7 +38,7 @@ class CampusDataService
             Department::query()->orderBy('id')->get(),
             Designation::query()->orderBy('name')->get(),
             $this->loadMasterOptions(),
-            Student::query()->with('applications')->orderBy('id')->get(),
+            Student::query()->with(['applications', 'studentSkills.skill', 'academicSummary'])->orderBy('id')->get(),
             Company::query()->orderBy('id')->get(),
             Announcement::query()->orderByDesc('date')->orderByDesc('id')->get(),
         );

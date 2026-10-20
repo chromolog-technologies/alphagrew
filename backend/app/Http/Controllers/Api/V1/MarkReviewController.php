@@ -2,194 +2,118 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Marks\ApproveMarkEntriesAction;
+use App\Actions\Marks\RejectMarkEntryAction;
+use App\Actions\Marks\VerifyMarkEntryAction;
+use App\Enums\MarkStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Marks\BulkApproveMarksRequest;
+use App\Http\Requests\Marks\ExamSummaryRequest;
+use App\Http\Requests\Marks\MarkEntryFiltersRequest;
+use App\Http\Requests\Marks\RejectMarkEntryRequest;
+use App\Http\Requests\Marks\ReviewMarkEntryRequest;
+use App\Http\Requests\Marks\VerifyMarkEntryRequest;
+use App\Http\Resources\MarkEntryResource;
 use App\Models\MarkEntry;
-use App\Models\Exam;
-use Illuminate\Http\Request;
+use App\Repositories\MarkEntryRepository;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
+/**
+ * Departmental review of submitted marks: verify (with moderation), approve, reject
+ * (Academic Results spec §4 Stage 4). Reviewers see and act on their own department's
+ * subjects; Exam Coordinators on the whole institution.
+ */
 class MarkReviewController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly MarkEntryRepository $marks)
     {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:marks.approve', ['only' => ['verify', 'reject', 'approve']]);
-        $this->middleware('permission:marks.view', ['only' => ['index', 'getSubmittedMarks']]);
     }
 
-    /**
-     * Get all submitted marks for review
-     */
-    public function getSubmittedMarks(Request $request)
+    /** GET /mark-review/get-submitted-marks — awaiting review (submitted + verified) unless a status is given. */
+    public function queue(MarkEntryFiltersRequest $request): AnonymousResourceCollection
     {
-        $query = MarkEntry::where('status', '!=', 'draft')
-            ->with(['exam', 'student', 'subject', 'enteredBy']);
+        $filtered = fn () => $this->marks->visibleTo($request->user())
+            ->when($request->validated('examId'), fn ($query, $id) => $query->where('exam_id', $id))
+            ->when($request->validated('subjectId'), fn ($query, $id) => $query->where('subject_id', $id));
 
-        if ($request->has('exam_id')) {
-            $query->where('exam_id', $request->exam_id);
-        }
+        $entries = $filtered()
+            ->with(['exam', 'subject', 'student'])
+            ->whereIn('status', (array) ($request->validated('status') ?? [MarkStatus::Submitted->value, MarkStatus::Verified->value]))
+            ->orderBy('subject_id')
+            ->orderBy('student_id')
+            ->paginate($request->validated('perPage') ?? 50);
 
-        if ($request->has('subject_id')) {
-            $query->where('subject_id', $request->subject_id);
-        }
+        $byStatus = $filtered()->toBase()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
+        return MarkEntryResource::collection($entries)->additional([
+            'stats' => collect(MarkStatus::cases())->mapWithKeys(fn (MarkStatus $status) => [$status->value => (int) ($byStatus[$status->value] ?? 0)]),
+        ]);
+    }
 
-        $entries = $query->orderBy('created_at', 'desc')->paginate(50);
-
-        // Add summary stats
-        $stats = [
-            'total_entries' => $entries->total(),
-            'submitted' => MarkEntry::where('status', 'submitted')->count(),
-            'verified' => MarkEntry::where('status', 'verified')->count(),
-            'approved' => MarkEntry::where('status', 'approved')->count(),
-            'published' => MarkEntry::where('status', 'published')->count(),
-        ];
+    /** GET /mark-review/exam-summary?examId=&subjectId= — class statistics and grade distribution. */
+    public function examSummary(ExamSummaryRequest $request): JsonResponse
+    {
+        $exam = $request->exam();
+        $subject = $request->subject();
+        $entries = $this->marks->visibleTo($request->user())
+            ->where('exam_id', $exam->id)
+            ->where('subject_id', $subject->id)
+            ->get();
+        $present = $entries->where('is_absent', false);
 
         return response()->json([
-            'success' => true,
-            'data' => $entries,
-            'stats' => $stats,
-            'message' => 'Submitted marks retrieved for review',
+            'data' => [
+                'exam' => ['id' => $exam->id, 'name' => $exam->name],
+                'subject' => ['id' => $subject->id, 'code' => $subject->code, 'name' => $subject->name],
+                'totalStudents' => $entries->count(),
+                'absentCount' => $entries->count() - $present->count(),
+                'passCount' => $entries->where('result', MarkEntry::RESULT_PASS)->count(),
+                'failCount' => $entries->where('result', MarkEntry::RESULT_FAIL)->count(),
+                'averageMarks' => $present->isEmpty() ? null : round($present->avg('total_marks'), 2),
+                'highestMarks' => $present->max('total_marks'),
+                'lowestMarks' => $present->min('total_marks'),
+                'gradeDistribution' => $entries->countBy('grade'),
+                'statusDistribution' => $entries->countBy(fn (MarkEntry $entry) => $entry->status->value),
+            ],
         ]);
     }
 
-    /**
-     * Verify marks (HOD checks for errors)
-     */
-    public function verify(Request $request, MarkEntry $entry)
+    /** POST /mark-review/{markEntry}/verify */
+    public function verify(VerifyMarkEntryRequest $request, MarkEntry $markEntry, VerifyMarkEntryAction $verify): MarkEntryResource
     {
-        if ($entry->status === 'draft') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot verify draft marks. Submit first.',
-            ], 422);
-        }
+        $entry = $verify->execute($request->user(), $markEntry, $request->validated('remarks'), $request->adjustments());
 
-        $validated = $request->validate([
-            'remarks' => 'nullable|string',
-            'adjustments' => 'nullable|array',
-            'adjustments.internal_marks' => 'nullable|numeric|min:0',
-            'adjustments.external_marks' => 'nullable|numeric|min:0',
-            'adjustments.extra_marks' => 'nullable|numeric|min:0',
-        ]);
-
-        $user = auth()->user();
-
-        // Apply adjustments if provided
-        if (!empty($validated['adjustments'])) {
-            if (isset($validated['adjustments']['internal_marks'])) {
-                $entry->internal_marks = $validated['adjustments']['internal_marks'];
-            }
-            if (isset($validated['adjustments']['external_marks'])) {
-                $entry->external_marks = $validated['adjustments']['external_marks'];
-            }
-            if (isset($validated['adjustments']['extra_marks'])) {
-                $entry->extra_marks = $validated['adjustments']['extra_marks'];
-            }
-
-            // Recalculate total and grade
-            $entry->calculateTotalAndGrade();
-        }
-
-        $entry->update([
-            'status' => 'verified',
-            'verified_by' => $user->id,
-            'verified_at' => now(),
-            'remarks' => $validated['remarks'] ?? $entry->remarks,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => $entry->load(['exam', 'student', 'subject']),
-            'message' => 'Marks verified successfully',
-        ]);
+        return new MarkEntryResource($entry->load(['exam', 'subject', 'student']));
     }
 
-    /**
-     * Reject marks (send back to teacher for correction)
-     */
-    public function reject(Request $request, MarkEntry $entry)
+    /** POST /mark-review/{markEntry}/approve */
+    public function approve(ReviewMarkEntryRequest $request, MarkEntry $markEntry, ApproveMarkEntriesAction $approve): MarkEntryResource
     {
-        $validated = $request->validate([
-            'reason' => 'required|string',
-        ]);
+        $entry = $approve->approve($request->user(), $markEntry);
 
-        $entry->update([
-            'status' => 'draft',
-            'remarks' => $validated['reason'],
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'data' => $entry,
-            'message' => 'Marks rejected. Sent back to teacher for correction.',
-        ]);
+        return new MarkEntryResource($entry->load(['exam', 'subject', 'student']));
     }
 
-    /**
-     * Approve verified marks (final approval before publishing)
-     */
-    public function approve(Request $request, MarkEntry $entry)
+    /** POST /mark-review/{markEntry}/reject — back to draft; the faculty is notified. */
+    public function reject(RejectMarkEntryRequest $request, MarkEntry $markEntry, RejectMarkEntryAction $reject): MarkEntryResource
     {
-        if ($entry->status !== 'verified') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Only verified marks can be approved',
-            ], 422);
-        }
+        $entry = $reject->execute($request->user(), $markEntry, $request->validated('remarks'));
 
-        $entry->update(['status' => 'approved']);
-
-        return response()->json([
-            'success' => true,
-            'data' => $entry,
-            'message' => 'Marks approved successfully',
-        ]);
+        return new MarkEntryResource($entry->load(['exam', 'subject', 'student']));
     }
 
-    /**
-     * Get marks summary for an exam
-     */
-    public function getExamSummary(Request $request)
+    /** POST /mark-review/bulk-approve — every verified entry of the subject (and exam, if given). */
+    public function bulkApprove(BulkApproveMarksRequest $request, ApproveMarkEntriesAction $approve): JsonResponse
     {
-        $validated = $request->validate([
-            'exam_id' => 'required|exists:exams,id',
-            'subject_id' => 'required|exists:subjects,id',
-        ]);
-
-        $exam = Exam::findOrFail($validated['exam_id']);
-        $entries = MarkEntry::where('exam_id', $validated['exam_id'])
-            ->where('subject_id', $validated['subject_id'])
-            ->with(['student', 'subject'])
+        $entries = MarkEntry::query()
+            ->where('subject_id', $request->subject()->id)
+            ->when($request->exam(), fn ($query, $exam) => $query->where('exam_id', $exam->id))
             ->get();
 
-        $summary = [
-            'exam_name' => $exam->name,
-            'subject_name' => $exam->subject->name,
-            'total_students' => $entries->count(),
-            'absent_count' => $entries->where('is_absent', true)->count(),
-            'pass_count' => $entries->where('result', 'PASS')->count(),
-            'fail_count' => $entries->where('result', 'FAIL')->count(),
-            'average_marks' => $entries->whereNotNull('total_marks')->avg('total_marks'),
-            'highest_marks' => $entries->max('total_marks'),
-            'lowest_marks' => $entries->min('total_marks'),
-            'status_distribution' => [
-                'draft' => $entries->where('status', 'draft')->count(),
-                'submitted' => $entries->where('status', 'submitted')->count(),
-                'verified' => $entries->where('status', 'verified')->count(),
-                'approved' => $entries->where('status', 'approved')->count(),
-            ],
-        ];
-
         return response()->json([
-            'success' => true,
-            'data' => [
-                'summary' => $summary,
-                'entries' => $entries,
-            ],
-            'message' => 'Exam summary retrieved successfully',
+            'data' => ['approvedCount' => $approve->approveVerified($request->user(), $entries)],
+            'message' => 'Verified marks approved.',
         ]);
     }
 }

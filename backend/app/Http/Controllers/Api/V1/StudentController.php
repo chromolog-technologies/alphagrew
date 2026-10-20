@@ -111,7 +111,7 @@ class StudentController extends Controller
      */
     private function recordResponse(User $actor, Student $student, int $status = 200): JsonResponse
     {
-        $student->load('applications', 'user');
+        $student->load('applications', 'user', 'studentSkills.skill', 'academicSummary');
 
         return response()->json([
             'student' => new StudentResource($student),

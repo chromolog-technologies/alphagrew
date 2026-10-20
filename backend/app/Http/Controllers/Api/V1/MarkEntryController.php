@@ -2,256 +2,112 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Marks\SaveDraftMarksAction;
+use App\Actions\Marks\SubmitMarksAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Marks\MarkEntryFiltersRequest;
+use App\Http\Requests\Marks\MarkRosterRequest;
+use App\Http\Requests\Marks\SaveDraftMarksRequest;
+use App\Http\Requests\Marks\SubmitMarksRequest;
+use App\Http\Resources\MarkEntryResource;
+use App\Http\Resources\MarkSchemeResource;
 use App\Models\MarkEntry;
-use App\Models\MarkScheme;
-use App\Models\Exam;
 use App\Models\Student;
-use App\Models\ClassModel;
-use Illuminate\Http\Request;
+use App\Repositories\MarkEntryRepository;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
+/**
+ * Faculty mark entry: class roster, draft saving and submission for review
+ * (Academic Results spec §4 Stages 2–3).
+ */
 class MarkEntryController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly MarkEntryRepository $marks)
     {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:marks.create', ['only' => ['store', 'saveDraft', 'submit']]);
-        $this->middleware('permission:marks.view', ['only' => ['index', 'show', 'getStudentsForEntry']]);
+    }
+
+    /** GET /mark-entries?examId=&subjectId=&status= */
+    public function index(MarkEntryFiltersRequest $request): AnonymousResourceCollection
+    {
+        $entries = $this->marks->visibleTo($request->user())
+            ->with(['exam', 'subject', 'student'])
+            ->when($request->validated('examId'), fn ($query, $id) => $query->where('exam_id', $id))
+            ->when($request->validated('subjectId'), fn ($query, $id) => $query->where('subject_id', $id))
+            ->when($request->validated('status'), fn ($query, $status) => $query->where('status', $status))
+            ->orderByDesc('updated_at')
+            ->paginate($request->validated('perPage') ?? 50);
+
+        return MarkEntryResource::collection($entries);
+    }
+
+    /** GET /mark-entries/{markEntry} */
+    public function show(MarkEntryFiltersRequest $request, MarkEntry $markEntry): MarkEntryResource
+    {
+        $entry = $this->marks->visibleTo($request->user())->findOrFail($markEntry->id);
+
+        return new MarkEntryResource($entry->load(['exam', 'subject', 'student']));
     }
 
     /**
-     * Get all mark entries with filtering
+     * GET /mark-entries/get-students?examId=&subjectId= — the class roster with any marks
+     * already entered. Students with marks but outside the roster (e.g. re-appearing) are included.
      */
-    public function index(Request $request)
+    public function students(MarkRosterRequest $request): JsonResponse
     {
-        $query = MarkEntry::with(['exam', 'student', 'subject']);
+        $exam = $request->exam();
+        $subject = $request->subject();
 
-        if ($request->has('exam_id')) {
-            $query->where('exam_id', $request->exam_id);
-        }
+        $entries = MarkEntry::query()
+            ->with('student')
+            ->where('exam_id', $exam->id)
+            ->where('subject_id', $subject->id)
+            ->get()
+            ->keyBy('student_id');
 
-        if ($request->has('subject_id')) {
-            $query->where('subject_id', $request->subject_id);
-        }
-
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-
-        $entries = $query->orderBy('created_at', 'desc')->paginate(50);
+        $students = $this->marks->rosterFor($subject)
+            ->concat($entries->pluck('student')->filter())
+            ->unique('id')
+            ->sortBy('registration_number')
+            ->values();
 
         return response()->json([
-            'success' => true,
-            'data' => $entries,
-            'message' => 'Mark entries retrieved successfully',
-        ]);
-    }
-
-    /**
-     * Get a specific mark entry
-     */
-    public function show(MarkEntry $entry)
-    {
-        return response()->json([
-            'success' => true,
-            'data' => $entry->load(['exam', 'student', 'subject', 'markScheme']),
-            'message' => 'Mark entry retrieved successfully',
-        ]);
-    }
-
-    /**
-     * Get students list for a course/semester/subject/exam to enter marks
-     */
-    public function getStudentsForEntry(Request $request)
-    {
-        $validated = $request->validate([
-            'exam_id' => 'required|exists:exams,id',
-            'subject_id' => 'required|exists:subjects,id',
-        ]);
-
-        $exam = Exam::findOrFail($validated['exam_id']);
-        $semesterId = $exam->semester_id;
-
-        // Get students for this semester
-        $students = Student::whereHas('user', function ($q) {
-            $q->where('role', 'student');
-        })->get();
-
-        // Get mark scheme for this subject/semester
-        $markScheme = MarkScheme::where('subject_id', $validated['subject_id'])
-            ->where('semester_id', $semesterId)
-            ->first();
-
-        if (!$markScheme) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Mark scheme not configured for this subject',
-            ], 422);
-        }
-
-        // Format response
-        $studentsData = $students->map(function ($student) use ($markScheme, $validated) {
-            $existingEntry = MarkEntry::where('exam_id', $validated['exam_id'])
-                ->where('student_id', $student->id)
-                ->where('subject_id', $validated['subject_id'])
-                ->first();
-
-            return [
-                'id' => $student->id,
-                'name' => $student->name,
-                'email' => $student->email,
-                'registration_number' => $student->registration_number,
-                'entry_id' => $existingEntry?->id,
-                'internal_marks' => $existingEntry?->internal_marks,
-                'external_marks' => $existingEntry?->external_marks,
-                'extra_marks' => $existingEntry?->extra_marks,
-                'is_absent' => $existingEntry?->is_absent ?? false,
-                'status' => $existingEntry?->status ?? 'new',
-                'total_marks' => $existingEntry?->total_marks,
-                'grade' => $existingEntry?->grade,
-                'result' => $existingEntry?->result,
-            ];
-        });
-
-        return response()->json([
-            'success' => true,
             'data' => [
-                'mark_scheme' => $markScheme,
-                'students' => $studentsData,
-                'exam' => $exam->load('subject'),
+                'exam' => ['id' => $exam->id, 'name' => $exam->name, 'semesterId' => $exam->semester_id],
+                'subject' => ['id' => $subject->id, 'code' => $subject->code, 'name' => $subject->name, 'credits' => $subject->credits()],
+                'markScheme' => new MarkSchemeResource($request->scheme()),
+                'students' => $students->map(fn (Student $student) => [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'registrationNumber' => $student->registration_number,
+                    'entry' => $entries->has($student->id) ? new MarkEntryResource($entries->get($student->id)) : null,
+                ]),
             ],
-            'message' => 'Students and mark scheme retrieved successfully',
         ]);
     }
 
-    /**
-     * Save marks as draft (teacher can edit later)
-     */
-    public function saveDraft(Request $request)
+    /** POST /mark-entries/save-draft */
+    public function saveDraft(SaveDraftMarksRequest $request, SaveDraftMarksAction $save): JsonResponse
     {
-        $validated = $request->validate([
-            'marks' => 'required|array',
-            'marks.*.student_id' => 'required|exists:students,id',
-            'marks.*.exam_id' => 'required|exists:exams,id',
-            'marks.*.subject_id' => 'required|exists:subjects,id',
-            'marks.*.mark_scheme_id' => 'required|exists:mark_schemes,id',
-            'marks.*.internal_marks' => 'nullable|numeric|min:0',
-            'marks.*.external_marks' => 'nullable|numeric|min:0',
-            'marks.*.extra_marks' => 'nullable|numeric|min:0',
-            'marks.*.is_absent' => 'boolean|default:false',
-            'remarks' => 'nullable|string',
-        ]);
-
-        $user = auth()->user();
-        $savedCount = 0;
-        $entries = [];
-
-        foreach ($validated['marks'] as $markData) {
-            $entry = MarkEntry::updateOrCreate(
-                [
-                    'exam_id' => $markData['exam_id'],
-                    'student_id' => $markData['student_id'],
-                    'subject_id' => $markData['subject_id'],
-                ],
-                [
-                    'mark_scheme_id' => $markData['mark_scheme_id'],
-                    'internal_marks' => $markData['internal_marks'] ?? null,
-                    'external_marks' => $markData['external_marks'] ?? null,
-                    'extra_marks' => $markData['extra_marks'] ?? 0,
-                    'is_absent' => $markData['is_absent'] ?? false,
-                    'status' => 'draft',
-                    'entered_by' => $user->id,
-                    'remarks' => $validated['remarks'] ?? null,
-                ]
-            );
-
-            // Calculate total and grade
-            $entry->calculateTotalAndGrade();
-            $entry->save();
-
-            $entries[] = $entry;
-            $savedCount++;
-        }
+        $entries = $save->execute($request->user(), $request->exam(), $request->subject(), $request->scheme(), $request->rows());
 
         return response()->json([
-            'success' => true,
             'data' => [
-                'saved_count' => $savedCount,
-                'entries' => $entries,
+                'savedCount' => $entries->count(),
+                'entries' => MarkEntryResource::collection($entries),
             ],
-            'message' => 'Marks saved as draft successfully',
+            'message' => 'Marks saved as draft.',
         ]);
     }
 
-    /**
-     * Submit marks for verification (status changes from draft to submitted)
-     */
-    public function submitMarks(Request $request)
+    /** POST /mark-entries/submit — draft → submitted; read-only to the faculty from here. */
+    public function submit(SubmitMarksRequest $request, SubmitMarksAction $submit): JsonResponse
     {
-        $validated = $request->validate([
-            'exam_id' => 'required|exists:exams,id',
-            'subject_id' => 'required|exists:subjects,id',
-        ]);
-
-        $entries = MarkEntry::where('exam_id', $validated['exam_id'])
-            ->where('subject_id', $validated['subject_id'])
-            ->where('status', 'draft')
-            ->update(['status' => 'submitted']);
+        $count = $submit->execute($request->user(), $request->exam(), $request->subject(), $request->scheme());
 
         return response()->json([
-            'success' => true,
-            'data' => [
-                'submitted_count' => $entries,
-            ],
-            'message' => 'Marks submitted for verification',
+            'data' => ['submittedCount' => $count],
+            'message' => 'Marks submitted for review.',
         ]);
-    }
-
-    /**
-     * Create or update a single mark entry
-     */
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'exam_id' => 'required|exists:exams,id',
-            'student_id' => 'required|exists:students,id',
-            'subject_id' => 'required|exists:subjects,id',
-            'mark_scheme_id' => 'required|exists:mark_schemes,id',
-            'internal_marks' => 'nullable|numeric|min:0',
-            'external_marks' => 'nullable|numeric|min:0',
-            'extra_marks' => 'nullable|numeric|min:0',
-            'is_absent' => 'boolean|default:false',
-            'remarks' => 'nullable|string',
-        ]);
-
-        $user = auth()->user();
-
-        $entry = MarkEntry::updateOrCreate(
-            [
-                'exam_id' => $validated['exam_id'],
-                'student_id' => $validated['student_id'],
-                'subject_id' => $validated['subject_id'],
-            ],
-            [
-                'mark_scheme_id' => $validated['mark_scheme_id'],
-                'internal_marks' => $validated['internal_marks'] ?? null,
-                'external_marks' => $validated['external_marks'] ?? null,
-                'extra_marks' => $validated['extra_marks'] ?? 0,
-                'is_absent' => $validated['is_absent'] ?? false,
-                'status' => 'draft',
-                'entered_by' => $user->id,
-                'remarks' => $validated['remarks'] ?? null,
-            ]
-        );
-
-        // Calculate total and grade
-        $entry->calculateTotalAndGrade();
-        $entry->save();
-
-        return response()->json([
-            'success' => true,
-            'data' => $entry->load(['exam', 'student', 'subject', 'markScheme']),
-            'message' => 'Mark entry saved successfully',
-        ], 201);
     }
 }

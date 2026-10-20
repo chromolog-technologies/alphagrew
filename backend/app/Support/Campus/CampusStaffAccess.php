@@ -24,6 +24,10 @@ final class CampusStaffAccess
             CampusPermission::ANNOUNCEMENTS_VIEW,
             CampusPermission::ANNOUNCEMENTS_CREATE,
             CampusPermission::REPORTS_VIEW,
+            CampusPermission::MARKS_VIEW,
+            CampusPermission::MARKS_CREATE,
+            CampusPermission::MARKS_APPROVE,
+            CampusPermission::MARKS_PUBLISH,
         ];
     }
 
@@ -55,12 +59,29 @@ final class CampusStaffAccess
                     CampusPermission::REPORTS_VIEW,
                 ],
             ],
-            'exam_coordinator' => [
-                'title' => 'Exam Coordinator',
-                'description' => 'Academic coordination with department visibility, student records, and announcements.',
+            'head_of_department' => [
+                'title' => 'Head of Department',
+                'description' => 'Department leadership: verifies and approves marks for the department\'s subjects.',
                 'permissions' => [
                     CampusPermission::STUDENTS_VIEW,
                     CampusPermission::DEPARTMENTS_VIEW,
+                    CampusPermission::MARKS_VIEW,
+                    CampusPermission::MARKS_CREATE,
+                    CampusPermission::MARKS_APPROVE,
+                    CampusPermission::ANNOUNCEMENTS_VIEW,
+                    CampusPermission::REPORTS_VIEW,
+                ],
+            ],
+            'exam_coordinator' => [
+                'title' => 'Exam Coordinator',
+                'description' => 'Runs the marks lifecycle institution-wide: grade rules, approvals and result publishing.',
+                'permissions' => [
+                    CampusPermission::STUDENTS_VIEW,
+                    CampusPermission::DEPARTMENTS_VIEW,
+                    CampusPermission::MARKS_VIEW,
+                    CampusPermission::MARKS_CREATE,
+                    CampusPermission::MARKS_APPROVE,
+                    CampusPermission::MARKS_PUBLISH,
                     CampusPermission::ANNOUNCEMENTS_VIEW,
                     CampusPermission::ANNOUNCEMENTS_CREATE,
                     CampusPermission::REPORTS_VIEW,
@@ -117,6 +138,9 @@ final class CampusStaffAccess
         }
         if (in_array(CampusPermission::ANNOUNCEMENTS_CREATE, $permissions, true)) {
             $impliedPermissions[] = CampusPermission::ANNOUNCEMENTS_VIEW;
+        }
+        if (array_intersect([CampusPermission::MARKS_CREATE, CampusPermission::MARKS_APPROVE, CampusPermission::MARKS_PUBLISH], $permissions)) {
+            $impliedPermissions[] = CampusPermission::MARKS_VIEW;
         }
 
         return collect([
