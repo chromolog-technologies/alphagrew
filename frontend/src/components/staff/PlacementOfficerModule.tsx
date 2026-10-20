@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Briefcase, Users, TrendingUp, MapPin } from 'lucide-react';
 import { fetchPlacementDrives, createPlacementDrive, updatePlacementDrive, fetchPlacementStatistics } from '../../api/campusApi';
+import { PrototypeNotice } from '../shared';
 
 interface Company {
   id: number;
@@ -170,6 +171,7 @@ export const PlacementOfficerModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Placement Management</h2>
         <p className="mt-1 text-sm text-slate-600">Manage companies, job postings, and student placements</p>

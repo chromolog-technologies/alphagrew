@@ -43,6 +43,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Demo Reset
+    |--------------------------------------------------------------------------
+    |
+    | POST /api/v1/campus/reset re-runs the demo seeder, which wipes students,
+    | companies, departments and designations. It is only available when
+    | this flag is on, which by default is only in local and testing.
+    |
+    */
+
+    'demo_reset_enabled' => (bool) env(
+        'DEMO_RESET_ENABLED',
+        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)
+    ),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |

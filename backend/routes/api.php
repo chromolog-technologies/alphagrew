@@ -187,11 +187,19 @@ Route::prefix('v1')->group(function (): void {
 
         // Permission Routes
         Route::prefix('permissions')->group(function (): void {
-            Route::get('/modules', [PermissionController::class, 'getModules']);
-            Route::get('/all', [PermissionController::class, 'getPermissions']);
-            Route::get('/{permission}/check', [PermissionController::class, 'checkPermission']);
-            Route::get('/roles/all', [PermissionController::class, 'getAllRoles']);
-            Route::get('/roles/{role}', [PermissionController::class, 'getRole']);
+            // The caller's own access map (used by the sidebar for every role).
+            Route::get('/modules', [PermissionController::class, 'getModules'])
+                ->middleware('permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum');
+            Route::get('/all', [PermissionController::class, 'getPermissions'])
+                ->middleware('permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum');
+            Route::get('/{permission}/check', [PermissionController::class, 'checkPermission'])
+                ->middleware('permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum');
+
+            // Role definitions across the system.
+            Route::get('/roles/all', [PermissionController::class, 'getAllRoles'])
+                ->middleware('permission:'.CampusPermission::ROLES_VIEW.',sanctum');
+            Route::get('/roles/{role}', [PermissionController::class, 'getRole'])
+                ->middleware('permission:'.CampusPermission::ROLES_VIEW.',sanctum');
         });
 
         // ============================================
@@ -283,94 +291,6 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
         });
 
-        // ============================================
-        // MARKS MANAGEMENT SYSTEM ROUTES
-        // ============================================
-
-        // 1. MASTER SETUP (Admin Phase)
-        // Grade Rules - Configure A+, A, B, etc.
-        Route::prefix('grade-rules')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::put('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'update'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::delete('/{rule}', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'destroy'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/setup-defaults', [\App\Http\Controllers\Api\V1\GradeRuleController::class, 'setupDefaults'])
-                ->middleware('permission:marks.create,sanctum');
-        });
-
-        // Mark Schemes - Internal/External/Total marks per subject
-        Route::prefix('mark-schemes')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::put('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'update'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::delete('/{scheme}', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'destroy'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/semester/{semesterId}/subjects', [\App\Http\Controllers\Api\V1\MarkSchemeController::class, 'getSubjectsBySemet'])
-                ->middleware('permission:marks.view,sanctum');
-        });
-
-        // 2. MARK ENTRY (Teacher Phase)
-        Route::prefix('mark-entries')->group(function (): void {
-            Route::get('/', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'index'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'store'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::get('/{entry}', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'show'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/get-students', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'getStudentsForEntry'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/save-draft', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'saveDraft'])
-                ->middleware('permission:marks.create,sanctum');
-            Route::post('/submit', [\App\Http\Controllers\Api\V1\MarkEntryController::class, 'submitMarks'])
-                ->middleware('permission:marks.create,sanctum');
-        });
-
-        // 3. REVIEW & VERIFICATION (HOD/Admin Phase)
-        Route::prefix('mark-review')->group(function (): void {
-            Route::get('/submitted', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'getSubmittedMarks'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/verify', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'verify'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/reject', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'reject'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/{entry}/approve', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'approve'])
-                ->middleware('permission:marks.approve,sanctum');
-            Route::post('/exam-summary', [\App\Http\Controllers\Api\V1\MarkReviewController::class, 'getExamSummary'])
-                ->middleware('permission:marks.view,sanctum');
-        });
-
-        // 4-5. RESULT PUBLISHING & LOCKING (Admin Phase)
-        Route::prefix('result-publishing')->group(function (): void {
-            Route::get('/status', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'getPublishingStatus'])
-                ->middleware('permission:marks.view,sanctum');
-            Route::post('/publish', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'publishResults'])
-                ->middleware('permission:marks.publish,sanctum');
-            Route::post('/unlock', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'unlockResults'])
-                ->middleware('permission:marks.publish,sanctum');
-            Route::get('/logs', [\App\Http\Controllers\Api\V1\ResultPublishingController::class, 'getPublishingLogs'])
-                ->middleware('permission:marks.view,sanctum');
-        });
-
-        // 6. STUDENT VIEW FLOW (Student Phase)
-        Route::prefix('student/results')->group(function (): void {
-            Route::get('/semesters', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getPublishedSemesters'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-            Route::get('/semester/{semesterId}', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getSemesterResult'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-            Route::get('/all', [\App\Http\Controllers\Api\Student\StudentResultController::class, 'getAllResults'])
-                ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-        });
 
         // Attendance Routes
         Route::prefix('attendance')->group(function (): void {
@@ -421,12 +341,12 @@ Route::prefix('v1')->group(function (): void {
             });
 
             // Student Materials & Assignments
-            Route::prefix('materials')->group(function (): void {
+            Route::prefix('materials')->middleware('sample-data')->group(function (): void {
                 Route::get('/', [MaterialsController::class, 'getMaterials'])
                     ->middleware('permission:'.CampusPermission::MATERIALS_VIEW.',sanctum');
             });
 
-            Route::prefix('assignments')->group(function (): void {
+            Route::prefix('assignments')->middleware('sample-data')->group(function (): void {
                 Route::get('/', [MaterialsController::class, 'getAssignments'])
                     ->middleware('permission:'.CampusPermission::ASSIGNMENTS_VIEW.',sanctum');
                 Route::post('/submit', [MaterialsController::class, 'submitAssignment'])
@@ -434,7 +354,7 @@ Route::prefix('v1')->group(function (): void {
             });
 
             // Student Notifications
-            Route::prefix('notifications')->group(function (): void {
+            Route::prefix('notifications')->middleware('sample-data')->group(function (): void {
                 Route::get('/', [NotificationsController::class, 'index'])
                     ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
                 Route::post('/mark-as-read', [NotificationsController::class, 'markAsRead'])
@@ -453,7 +373,7 @@ Route::prefix('v1')->group(function (): void {
         });
 
         // Staff Routes
-        Route::prefix('staff')->group(function (): void {
+        Route::prefix('staff')->middleware('sample-data')->group(function (): void {
             // Attendance Marking Routes
             Route::prefix('attendance')->group(function (): void {
                 Route::get('/students', [StaffAttendanceController::class, 'getStudents'])

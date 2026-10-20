@@ -99,6 +99,67 @@ class CampusApiTest extends TestCase
         $this->assertSame(25, $bootstrap->json('data.companies.2.applicants'));
     }
 
+    public function test_demo_reset_is_blocked_when_disabled(): void
+    {
+        $this->seed();
+        config(['app.demo_reset_enabled' => false]);
+
+        $token = $this->loginAndGetToken('admin@demo.com');
+
+        $this->withToken($token)
+            ->postJson('/api/v1/campus/reset')
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Demo reset is disabled in this environment.');
+    }
+
+    public function test_permission_routes_require_permissions(): void
+    {
+        $this->seed();
+
+        $this->getJson('/api/v1/permissions/all')->assertUnauthorized();
+
+        $studentToken = $this->loginAndGetToken('student@demo.com');
+
+        $this->withToken($studentToken)
+            ->getJson('/api/v1/permissions/all')
+            ->assertOk();
+
+        $this->withToken($studentToken)
+            ->getJson('/api/v1/permissions/roles/all')
+            ->assertForbidden();
+
+        $this->withToken($studentToken)
+            ->getJson('/api/v1/permissions/no.such.permission/check')
+            ->assertOk()
+            ->assertJsonPath('has_permission', false);
+
+        // The guard caches the resolved user between requests; reset it before switching accounts.
+        $this->app['auth']->forgetGuards();
+        $adminToken = $this->loginAndGetToken('admin@demo.com');
+
+        $this->withToken($adminToken)
+            ->getJson('/api/v1/permissions/roles/all')
+            ->assertOk()
+            ->assertJsonStructure(['roles']);
+    }
+
+    public function test_sample_data_endpoints_are_flagged(): void
+    {
+        $this->seed();
+
+        $token = $this->loginAndGetToken('student@demo.com');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/student/notifications')
+            ->assertOk()
+            ->assertHeader('X-Data-Source', 'sample');
+
+        $this->withToken($token)
+            ->getJson('/api/v1/campus/bootstrap')
+            ->assertOk()
+            ->assertHeaderMissing('X-Data-Source');
+    }
+
     private function loginAndGetToken(string $email): string
     {
         $response = $this->postJson('/api/v1/auth/login', [

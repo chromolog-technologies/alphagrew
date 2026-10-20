@@ -21,10 +21,16 @@ return new class extends Migration
         });
 
         // Set expiry for existing tokens without one (30 days from creation)
+        $expiresAt = match (DB::getDriverName()) {
+            'sqlite' => "datetime(created_at, '+30 days')",
+            'pgsql' => "created_at + interval '30 days'",
+            default => 'DATE_ADD(created_at, INTERVAL 30 DAY)',
+        };
+
         DB::table('personal_access_tokens')
             ->whereNull('expires_at')
             ->update([
-                'expires_at' => DB::raw('DATE_ADD(created_at, INTERVAL 30 DAY)')
+                'expires_at' => DB::raw($expiresAt)
             ]);
 
         // 2. Add Production Fields to Companies

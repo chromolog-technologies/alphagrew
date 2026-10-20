@@ -12,9 +12,6 @@ export default defineConfig(({ mode }) => {
     root: frontendRoot,
     envDir: __dirname,
     plugins: [react(), tailwindcss()],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': frontendRoot,

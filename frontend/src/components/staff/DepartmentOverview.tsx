@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
 import { fetchDepartmentOverview, fetchDepartmentPerformance, fetchDepartmentBudget } from '../../api/campusApi';
+import { PrototypeNotice } from '../shared';
 
 interface DepartmentStats {
   totalStudents: number;
@@ -86,6 +87,7 @@ export const DepartmentOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Department Overview</h2>
         <p className="mt-1 text-sm text-slate-600">Computer Science & Engineering Department</p>

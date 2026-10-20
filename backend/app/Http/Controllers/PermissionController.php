@@ -42,7 +42,8 @@ class PermissionController extends Controller
     public function checkPermission(Request $request, string $permission)
     {
         $user = $request->user();
-        $hasPermission = $user->hasPermissionTo($permission, 'sanctum');
+        // checkPermissionTo returns false for unknown names instead of throwing.
+        $hasPermission = $user->checkPermissionTo($permission, 'sanctum');
         
         return response()->json([
             'permission' => $permission,
@@ -51,16 +52,10 @@ class PermissionController extends Controller
     }
 
     /**
-     * Get all available roles (Admin only)
+     * Get all available roles (requires roles.view, enforced by route middleware)
      */
     public function getAllRoles(Request $request)
     {
-        $user = $request->user();
-        
-        if (!$user->hasPermissionTo('roles.view', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $roles = \Spatie\Permission\Models\Role::where('guard_name', 'sanctum')
             ->with('permissions')
             ->get()
@@ -79,16 +74,10 @@ class PermissionController extends Controller
     }
 
     /**
-     * Get specific role with its permissions (Admin only)
+     * Get specific role with its permissions (requires roles.view, enforced by route middleware)
      */
     public function getRole(Request $request, $roleId)
     {
-        $user = $request->user();
-        
-        if (!$user->hasPermissionTo('roles.view', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $role = \Spatie\Permission\Models\Role::where('guard_name', 'sanctum')
             ->with('permissions')
             ->findOrFail($roleId);

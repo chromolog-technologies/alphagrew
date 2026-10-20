@@ -103,22 +103,24 @@ export const DesignationsModule: React.FC = () => {
 
   const loadPermissions = async () => {
     try {
-      const response = await apiCall('/api/v1/permissions-v1/list/grouped', 'GET');
-      if (response && typeof response === 'object') {
-        setAllPermissions(response);
-      }
+      const response = await apiCall('/designations/list/permissions?group_by_module=1', 'GET');
+      const groups: Array<{ module_name: string; permissions: Array<{ id: number; name: string }> }> =
+        Array.isArray(response?.data) ? response.data : [];
+
+      setAllPermissions(
+        Object.fromEntries(
+          groups.map((group) => [
+            group.module_name,
+            group.permissions.map((permission) => ({
+              ...permission,
+              module: group.module_name,
+              description: '',
+            })),
+          ]),
+        ),
+      );
     } catch (err) {
       console.error('Failed to load permissions', err);
-      // Try seeding if no permissions exist
-      try {
-        await apiCall('/api/v1/permissions-v1/seed/defaults', 'POST');
-        const retryResponse = await apiCall('/api/v1/permissions-v1/list/grouped', 'GET');
-        if (retryResponse && typeof retryResponse === 'object') {
-          setAllPermissions(retryResponse);
-        }
-      } catch (seedErr) {
-        console.error('Failed to seed permissions', seedErr);
-      }
     }
   };
 
@@ -219,7 +221,7 @@ export const DesignationsModule: React.FC = () => {
     if (!selectingPermissionsFor) return;
 
     try {
-      await apiCall(`/api/v1/designations/${selectingPermissionsFor}/assign-permissions`, 'POST', {
+      await apiCall(`/designations/${selectingPermissionsFor}/assign-permissions`, 'POST', {
         permission_ids: formData.permissions,
       });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Upload, Calendar, FileText, BookOpen, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
 import { fetchStudentMaterials, fetchStudentAssignments } from '../../api/campusApi';
+import { PrototypeNotice } from '../shared';
 
 interface Material {
   id: number;
@@ -196,6 +197,7 @@ export const StudentAssignmentsMaterials: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Assignments & Materials</h2>
         <p className="mt-1 text-sm text-slate-600">Download course materials and submit assignments</p>

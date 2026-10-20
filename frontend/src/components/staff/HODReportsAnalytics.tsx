@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Filter, TrendingUp, Users, BarChart3, PieChart } from 'lucide-react';
 import { fetchAcademicPerformanceReport, fetchAttendanceReportForDept, fetchPlacementAnalyticsReport } from '../../api/campusApi';
+import { PrototypeNotice } from '../shared';
 
 interface StudentPerformance {
   name: string;
@@ -132,6 +133,7 @@ export const HODReportsAnalytics: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Department Reports & Analytics</h2>
         <p className="mt-1 text-sm text-slate-600">Analyze departmental performance and student metrics</p>

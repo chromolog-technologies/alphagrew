@@ -25,7 +25,7 @@ function getStoredToken(): string | null {
 
 /**
  * Make an authenticated API request
- * @param path - The API endpoint path (e.g., '/api/v1/courses')
+ * @param path - The API endpoint path (e.g., '/courses'), relative to VITE_API_BASE_URL
  * @param method - HTTP method (GET, POST, PUT, DELETE)
  * @param data - Request body data (for POST/PUT requests)
  * @returns Promise with the response data
@@ -81,14 +81,14 @@ export const courseApi = {
     if (filters?.department_id) params.append('department_id', filters.department_id.toString());
     if (filters?.search) params.append('search', filters.search);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiCall(`/api/v1/courses${query}`, 'GET');
+    return apiCall(`/courses${query}`, 'GET');
   },
-  get: (id: number) => apiCall(`/api/v1/courses/${id}`, 'GET'),
-  create: (data: any) => apiCall('/api/v1/courses', 'POST', data),
-  update: (id: number, data: any) => apiCall(`/api/v1/courses/${id}`, 'PUT', data),
-  delete: (id: number) => apiCall(`/api/v1/courses/${id}`, 'DELETE'),
-  getDepartments: () => apiCall('/api/v1/courses/list/departments', 'GET'),
-  getSelectList: () => apiCall('/api/v1/courses/list/select', 'GET'),
+  get: (id: number) => apiCall(`/courses/${id}`, 'GET'),
+  create: (data: any) => apiCall('/courses', 'POST', data),
+  update: (id: number, data: any) => apiCall(`/courses/${id}`, 'PUT', data),
+  delete: (id: number) => apiCall(`/courses/${id}`, 'DELETE'),
+  getDepartments: () => apiCall('/courses/list/departments', 'GET'),
+  getSelectList: () => apiCall('/courses/list/select', 'GET'),
 };
 
 /**
@@ -100,13 +100,13 @@ export const subjectApi = {
     if (filters?.course_id) params.append('course_id', filters.course_id.toString());
     if (filters?.search) params.append('search', filters.search);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiCall(`/api/v1/subjects${query}`, 'GET');
+    return apiCall(`/subjects${query}`, 'GET');
   },
-  get: (id: number) => apiCall(`/api/v1/subjects/${id}`, 'GET'),
-  create: (data: any) => apiCall('/api/v1/subjects', 'POST', data),
-  update: (id: number, data: any) => apiCall(`/api/v1/subjects/${id}`, 'PUT', data),
-  delete: (id: number) => apiCall(`/api/v1/subjects/${id}`, 'DELETE'),
-  getCourses: () => apiCall('/api/v1/subjects/list/courses', 'GET'),
+  get: (id: number) => apiCall(`/subjects/${id}`, 'GET'),
+  create: (data: any) => apiCall('/subjects', 'POST', data),
+  update: (id: number, data: any) => apiCall(`/subjects/${id}`, 'PUT', data),
+  delete: (id: number) => apiCall(`/subjects/${id}`, 'DELETE'),
+  getCourses: () => apiCall('/subjects/list/courses', 'GET'),
 };
 
 /**
@@ -118,12 +118,12 @@ export const semesterApi = {
     if (filters?.academic_year_id) params.append('academic_year_id', filters.academic_year_id.toString());
     if (filters?.search) params.append('search', filters.search);
     const query = params.toString() ? `?${params.toString()}` : '';
-    return apiCall(`/api/v1/semesters${query}`, 'GET');
+    return apiCall(`/semesters${query}`, 'GET');
   },
-  get: (id: number) => apiCall(`/api/v1/semesters/${id}`, 'GET'),
-  create: (data: any) => apiCall('/api/v1/semesters', 'POST', data),
-  update: (id: number, data: any) => apiCall(`/api/v1/semesters/${id}`, 'PUT', data),
-  delete: (id: number) => apiCall(`/api/v1/semesters/${id}`, 'DELETE'),
-  getAcademicYears: () => apiCall('/api/v1/semesters/list/academic-years', 'GET'),
-  getSemesterOptions: () => apiCall('/api/v1/semesters/list/options', 'GET'),
+  get: (id: number) => apiCall(`/semesters/${id}`, 'GET'),
+  create: (data: any) => apiCall('/semesters', 'POST', data),
+  update: (id: number, data: any) => apiCall(`/semesters/${id}`, 'PUT', data),
+  delete: (id: number) => apiCall(`/semesters/${id}`, 'DELETE'),
+  getAcademicYears: () => apiCall('/semesters/list/academic-years', 'GET'),
+  getSemesterOptions: () => apiCall('/semesters/list/options', 'GET'),
 };

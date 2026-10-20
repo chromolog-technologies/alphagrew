@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Check, CheckCheck, Filter, Search, Loader, AlertCircle } from 'lucide-react';
 import { fetchStudentNotifications, markNotificationAsRead, deleteNotification, markAllNotificationsAsRead, deleteAllNotifications } from '../../api/campusApi';
+import { PrototypeNotice } from '../shared';
 
 interface Notification {
   id: number;
@@ -175,6 +176,7 @@ export const StudentNotifications: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <PrototypeNotice />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Notifications</h2>

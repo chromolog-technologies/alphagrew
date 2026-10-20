@@ -39,6 +39,12 @@ class CampusController extends Controller
 
     public function reset(Request $request, CampusDataService $campusData): JsonResponse
     {
+        abort_unless(
+            config('app.demo_reset_enabled'),
+            403,
+            'Demo reset is disabled in this environment.'
+        );
+
         /** @var User $actor */
         $actor = $request->user();
 
