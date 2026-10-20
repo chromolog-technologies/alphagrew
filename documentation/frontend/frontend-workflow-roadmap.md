@@ -6,7 +6,7 @@
 | Organization | Chromolog Technologies |
 | Document | Comprehensive Backend-Frontend Workflow Analysis & Frontend Changes Roadmap |
 | Based on | Codebase commit `116a1a5`, PRD Addenda (Academics, Roles & Tenancy, Data Model) |
-| Version | 1.0 Final Draft |
+| Version | 1.1 Comprehensive Edition |
 | Date | 20 October 2026 |
 | Status | Approved for Engineering Execution |
 | Audience | Frontend Engineering, Backend Engineering, QA, Product Management |
@@ -46,7 +46,7 @@ An in-depth inspection of the Alphagrew codebase reveals a system operating acro
    - Admin submodules including `ClassesModule.tsx`, `TimetableModule.tsx`, `ExamsModule.tsx`, `FeesModule.tsx`, `AcademicYearModule.tsx`, and `RolesPermissionsModule.tsx` maintain hardcoded mock data in React `useState()`. They execute no HTTP requests and lose all state upon page reload.
 
 **Purpose of this document**:
-Provide an end-to-end operational blueprint that identifies every gap between the backend and frontend workflows, eliminates fake mocks and disconnected sample data, and details the exact sequence of frontend changes (Tickets WF-1 through WF-16) required for a unified, production-ready system.
+Provide an end-to-end operational blueprint that identifies every gap between the backend and frontend workflows, eliminates fake mocks and disconnected sample data, decomposes monolithic architecture, and details the exact sequence of frontend changes (Tickets WF-1 through WF-16) required for a unified, production-ready system.
 
 ---
 
@@ -179,47 +179,210 @@ Alphagrew defines six distinct roles. The frontend must guide each role through 
 
 ---
 
-## 5. Target Frontend Architecture
+## 5. Target Frontend Architecture & Directory Restructuring
+
+To resolve the 6,869-line monolithic `CampusWorkspace.tsx` and maintain clean domain boundaries, the frontend codebase is re-architected into modular domain packages:
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        App.tsx (Root State)                           │
-│     Session Provider | Tenant Error Boundary | Offline Demo Mode      │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-           ┌────────────────────────┴────────────────────────┐
-           ▼                                                 ▼
-┌───────────────────────┐                         ┌──────────────────────┐
-│  Auth Views           │                         │  CampusWorkspace     │
-│  • CampusLogin        │                         │  • Header & Tenant   │
-│  • CampusSignUp       │                         │  • Dynamic RBAC Nav  │
-│  • RecruiterInfoPanel │                         │  • Tab Content Router│
-└───────────────────────┘                         └──────────┬───────────┘
-                                                             │
-     ┌───────────────────────┬───────────────────────────────┼──────────────────────────────┐
-     ▼                       ▼                               ▼                              ▼
-┌───────────────┐     ┌───────────────┐               ┌───────────────┐              ┌──────────────┐
-│ Admin Portals │     │ Staff Portals │               │ Student Views │              │ Super Admin  │
-│ • Masters     │     │ • Attendance  │               │ • My Results  │              │ • Tenant List│
-│ • Courses/Sub │     │ • Marks Entry │               │ • Timetable   │              │ • Onboarding │
-│ • Classes     │     │ • Marks Review│               │ • Attendance  │              │ • Audit Logs │
-│ • Exams       │     │ • Dept HOD    │               │ • Placement   │              │ • Act-As Img │
-│ • Results Pub │     │ • TPO Drives  │               │ • Resume Edit │              └──────────────┘
-└───────┬───────┘     └───────┬───────┘               └───────┬───────┘
-        │                     │                               │
-        └─────────────────────┼───────────────────────────────┘
-                              ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Unified Transport Layer                         │
-│   • apiClient.ts (Bearer Token, Automatic Header Injection)            │
-│   • apiError.ts (Status-Aware 401, 403, 404, 422 Handling)             │
-│   • Domain Clients (campusApi.ts, marksApi.ts, academicApi.ts)        │
-└────────────────────────────────────────────────────────────────────────┘
+frontend/src/
+├── api/
+│   ├── apiClient.ts          # Core authenticated HTTP transport
+│   ├── apiError.ts           # Status-aware ApiError class & fieldError()
+│   ├── authApi.ts            # Login, signup, me, profile, reset
+│   ├── academicApi.ts        # Courses, subjects, semesters, academic years
+│   ├── attendanceApi.ts      # Real /v1/attendance endpoints
+│   ├── classesApi.ts         # Classes, batches, student class assignment
+│   ├── examsApi.ts           # Exam scheduling, exam types
+│   ├── feesApi.ts            # Fee structures, student dues
+│   ├── marksApi.ts           # Grade rules, schemes, entries, review, publishing
+│   ├── placementApi.ts       # Companies, drives, student applications
+│   ├── superAdminApi.ts      # Platform metrics, institutions, audit logs
+│   └── timetableApi.ts       # Weekly slot scheduling & student timetable
+├── components/
+│   ├── admin/                # Institutional admin modules
+│   │   ├── AcademicYearModule.tsx
+│   │   ├── ClassesModule.tsx
+│   │   ├── CoursesModule.tsx
+│   │   ├── DepartmentsModule.tsx
+│   │   ├── DesignationsModule.tsx
+│   │   ├── FeesModule.tsx
+│   │   ├── RolesPermissionsModule.tsx
+│   │   ├── SubjectsModule.tsx
+│   │   └── SystemSettingsModule.tsx
+│   ├── attendance/           # Attendance marking and reporting
+│   │   ├── AttendanceMarkingPanel.tsx
+│   │   ├── AttendanceApprovalPanel.tsx
+│   │   └── AttendanceReportPanel.tsx
+│   ├── auth/                 # Authentication & onboarding
+│   │   ├── CampusLogin.tsx
+│   │   ├── CampusSignUp.tsx
+│   │   ├── RecruiterNoticePanel.tsx
+│   │   └── ProtectedRoute.tsx
+│   ├── layout/               # Lean workspace shell
+│   │   ├── WorkspaceShell.tsx
+│   │   ├── HeaderTenantBadge.tsx
+│   │   ├── DynamicSidebar.tsx
+│   │   └── TabRouter.tsx
+│   ├── marks/                # Production marks pipeline (V1)
+│   │   ├── MarksWorkflowModule.tsx
+│   │   ├── MarksSetupPanel.tsx
+│   │   ├── MarksEntryPanel.tsx
+│   │   ├── MarksReviewPanel.tsx
+│   │   ├── ResultPublishingPanel.tsx
+│   │   └── StudentResultsView.tsx
+│   ├── placement/            # Corporate relations & drives
+│   │   ├── CompanyRegistryPanel.tsx
+│   │   ├── PlacementDrivesPanel.tsx
+│   │   ├── ApplicationReviewDrawer.tsx
+│   │   └── StudentApplyModal.tsx
+│   ├── shared/               # Shared UI atoms & state views
+│   │   ├── TenantState.tsx   # 401, 403, 404 tenant error boundary
+│   │   ├── PrototypeNotice.tsx
+│   │   └── FormFieldError.tsx
+│   ├── student/              # Student self-service
+│   │   ├── StudentDashboard.tsx
+│   │   ├── StudentAttendanceView.tsx
+│   │   ├── StudentTimetableView.tsx
+│   │   ├── StudentAssignmentsMaterials.tsx
+│   │   └── StudentNotifications.tsx
+│   └── superadmin/           # Super Admin Console
+│       ├── SuperAdminDashboard.tsx
+│       ├── InstitutionDirectory.tsx
+│       ├── ImpersonationBanner.tsx
+│       └── PlatformAuditLog.tsx
+├── hooks/
+│   ├── useApi.ts             # Generic data fetching with loading & error
+│   ├── useFormValidation.ts  # 422 inline field error state management
+│   ├── usePermissions.ts     # Dynamic RBAC check helper `can(permission)`
+│   └── useTenantContext.ts   # Active institution identity & impersonation
+└── campusTypes.ts            # Canonical domain types & interfaces
 ```
 
 ---
 
-## 6. Actionable Frontend Changes Roadmap (Tickets WF-1 to WF-16)
+## 6. Frontend TypeScript Interfaces & DTO Contracts
+
+To support real backend workflows without untyped `any` calls, the following interfaces are standardized:
+
+### 6.1. Attendance Domain
+```typescript
+export interface AttendanceStudentRow {
+  studentId: number;
+  registrationNumber: string;
+  name: string;
+  status: 'present' | 'absent' | 'leave' | 'late' | null;
+  remarks?: string;
+}
+
+export interface MarkAttendancePayload {
+  subject_id: number;
+  attendance_date: string;
+  remarks?: string;
+  attendance_data: {
+    student_id: number;
+    status: 'present' | 'absent' | 'leave' | 'late';
+  }[];
+}
+
+export interface SubjectAttendanceSummary {
+  subjectId: number;
+  subjectName: string;
+  subjectCode: string;
+  totalSessions: number;
+  attendedSessions: number;
+  percentage: number;
+  status: 'healthy' | 'warning' | 'critical'; // critical if < 75%
+}
+```
+
+### 6.2. Timetable Domain
+```typescript
+export interface TimetableSlotDTO {
+  id: number;
+  classId: number;
+  subjectId: number;
+  subjectName: string;
+  subjectCode: string;
+  facultyId: number;
+  facultyName: string;
+  day: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+  startTime: string; // '09:00'
+  endTime: string;   // '10:30'
+  room: string;
+  sessionType: 'lecture' | 'lab' | 'tutorial';
+}
+```
+
+### 6.3. Exam & Result Domain
+```typescript
+export interface ExamDTO {
+  id: number;
+  semesterId: number;
+  subjectId: number;
+  subjectName: string;
+  name: string; // 'Mid Semester 1'
+  examDate: string;
+  startTime: string;
+  endTime: string;
+  maxMarks: number;
+  status: 'scheduled' | 'ongoing' | 'completed';
+}
+
+export interface SemesterResultSummary {
+  semesterId: number;
+  semesterNumber: number;
+  academicYear: string;
+  sgpa: number;
+  cgpa: number;
+  totalCredits: number;
+  creditsEarned: number;
+  backlogs: number;
+  isPublished: boolean;
+  publishedAt: string;
+  subjects: {
+    subjectId: number;
+    subjectName: string;
+    subjectCode: string;
+    internalMarks: number;
+    externalMarks: number;
+    totalMarks: number;
+    grade: string;
+    gradePoints: number;
+    passed: boolean;
+  }[];
+}
+```
+
+### 6.4. Super Admin Domain
+```typescript
+export interface SuperAdminInstitutionDTO {
+  id: number;
+  name: string;
+  code: string;
+  slug: string;
+  adminEmail: string;
+  studentCount: number;
+  staffCount: number;
+  status: 'active' | 'suspended' | 'trial';
+  createdAt: string;
+}
+
+export interface PlatformAuditLogDTO {
+  id: number;
+  institutionId?: number;
+  institutionName?: string;
+  userName: string;
+  userRole: string;
+  action: string;
+  targetType: string;
+  ipAddress: string;
+  timestamp: string;
+}
+```
+
+---
+
+## 7. Actionable Frontend Changes Roadmap (Tickets WF-1 to WF-16)
 
 The roadmap is organized into five sequential phases:
 
@@ -405,7 +568,7 @@ WF-3 Tenant Context Header─► WF-6 Inline 422 Field Errors─► WF-9 Exam Sc
 
 ---
 
-## 7. Backend Prerequisites & Blocking Defects
+## 8. Backend Prerequisites & Blocking Defects
 
 For the frontend roadmap to be executed smoothly, the following backend defects and missing endpoints must be addressed:
 
@@ -422,15 +585,15 @@ For the frontend roadmap to be executed smoothly, the following backend defects 
 
 ---
 
-## 8. Verification & Quality Assurance Strategy
+## 9. Verification & Quality Assurance Strategy
 
-### 8.1. Automated Verification Checks
+### 9.1. Automated Verification Checks
 Every frontend pull request must pass:
 1. `npm run lint` or ESLint zero-warning checks.
 2. `npx tsc --noEmit`: Strict TypeScript typechecking with no implicit `any`.
 3. `npm run build`: Production Vite bundling.
 
-### 8.2. Multi-Tenant Isolation Smoke Test
+### 9.2. Multi-Tenant Isolation Smoke Test
 For any ticket interacting with institution data:
 1. Sign in as Admin from Institution A (`admin@demo.com`).
 2. Create or modify a record (e.g. Student, Course, Subject, Mark).
@@ -438,14 +601,14 @@ For any ticket interacting with institution data:
 4. **Assert**: Institution A's record is completely invisible.
 5. Attempting to access Institution A's record directly via URL must trigger `TenantState.tsx` displaying: **404 Record Not Found**.
 
-### 8.3. Offline Demo Mode Fallback
+### 9.3. Offline Demo Mode Fallback
 * When `VITE_API_BASE_URL` is omitted, the frontend must run in offline demo mode using `campusDemoData.ts`.
 * Any screen requiring the live Laravel backend (Marks Workflow, Sign-up) must display `Notice`:
   `"This workflow runs on the Laravel API. Set VITE_API_BASE_URL and sign in with a demo account."`
 
 ---
 
-## 9. Implementation Schedule & Owners
+## 10. Implementation Schedule & Owners
 
 | Phase | Tickets | Weeks | Lead Frontend | Supporting Backend | Milestone Review |
 |---|---|---|---|---|---|
