@@ -8,6 +8,7 @@ use App\Models\AcademicYear;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Support\Tenancy\TenantRule;
 
 class SemesterController extends Controller
 {
@@ -45,7 +46,7 @@ class SemesterController extends Controller
     public function store(Request $request): JsonResponse
     {
         $payload = $request->validate([
-            'academic_year_id' => ['required', 'exists:academic_years,id'],
+            'academic_year_id' => ['required', TenantRule::exists('academic_years', 'id')],
             'name' => ['required', 'string', 'max:255'],
             'semester_number' => ['required', 'integer', 'min:1', 'max:16'],
             'start_date' => ['required', 'date'],
@@ -65,7 +66,7 @@ class SemesterController extends Controller
     public function update(Request $request, Semester $semester): JsonResponse
     {
         $payload = $request->validate([
-            'academic_year_id' => ['required', 'exists:academic_years,id'],
+            'academic_year_id' => ['required', TenantRule::exists('academic_years', 'id')],
             'name' => ['required', 'string', 'max:255'],
             'semester_number' => ['required', 'integer', 'min:1', 'max:16'],
             'start_date' => ['required', 'date'],

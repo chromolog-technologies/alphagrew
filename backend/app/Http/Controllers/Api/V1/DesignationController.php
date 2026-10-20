@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
+use App\Support\Tenancy\TenantRule;
 
 class DesignationController extends Controller
 {
@@ -125,13 +126,13 @@ class DesignationController extends Controller
                 'sometimes',
                 'string',
                 'max:255',
-                Rule::unique('designations', 'name')->ignore($designation->id),
+                TenantRule::unique('designations', 'name')->ignore($designation->id),
             ],
             'slug' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::unique('designations', 'slug')->ignore($designation->id),
+                TenantRule::unique('designations', 'slug')->ignore($designation->id),
             ],
             'department_id' => 'nullable|integer|exists:departments,id',
             'description' => 'nullable|string|max:1000',

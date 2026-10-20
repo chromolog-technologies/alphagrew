@@ -2,6 +2,12 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CampusController;
+use App\Http\Controllers\Api\V1\StudentController;
+use App\Http\Controllers\Api\V1\StudentResumeController;
+use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\CompanyController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\MasterOptionController;
 use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SemesterController;
@@ -28,7 +34,8 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login']);
     Route::post('/auth/register', [AuthController::class, 'register']);
 
-    Route::middleware('auth:sanctum')->group(function (): void {
+    // tenant: limits every query to the signed-in user's institution (see App\Http\Middleware\SetTenant).
+    Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
@@ -38,13 +45,13 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/campus/reset', [CampusController::class, 'reset'])
             ->middleware('permission:'.CampusPermission::DEMO_RESET.',sanctum');
 
-        Route::get('/masters', [CampusController::class, 'masters'])
+        Route::get('/masters', [MasterOptionController::class, 'index'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
-        Route::post('/masters', [CampusController::class, 'storeMaster'])
+        Route::post('/masters', [MasterOptionController::class, 'store'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
-        Route::put('/masters/{master}', [CampusController::class, 'updateMaster'])
+        Route::put('/masters/{master}', [MasterOptionController::class, 'update'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
-        Route::delete('/masters/{master}', [CampusController::class, 'destroyMaster'])
+        Route::delete('/masters/{master}', [MasterOptionController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
 
         // Courses Routes
@@ -142,44 +149,44 @@ Route::prefix('v1')->group(function (): void {
         // Use /api/permissions routes instead (via PermissionController)
 
 
-        Route::get('/students', [CampusController::class, 'students'])
+        Route::get('/students', [StudentController::class, 'index'])
             ->middleware('permission:'.CampusPermission::STUDENTS_VIEW.',sanctum');
-        Route::put('/students/me/resume', [CampusController::class, 'updateMyResume'])
+        Route::put('/students/me/resume', [StudentResumeController::class, 'update'])
             ->middleware('permission:'.CampusPermission::PROFILE_VIEW.',sanctum');
-        Route::post('/students', [CampusController::class, 'storeStudent'])
+        Route::post('/students', [StudentController::class, 'store'])
             ->middleware('permission:'.CampusPermission::STUDENTS_CREATE.',sanctum');
-        Route::put('/students/{student}', [CampusController::class, 'updateStudent'])
+        Route::put('/students/{student}', [StudentController::class, 'update'])
             ->middleware('permission:'.CampusPermission::STUDENTS_CREATE.',sanctum');
-        Route::delete('/students/{student}', [CampusController::class, 'destroyStudent'])
+        Route::delete('/students/{student}', [StudentController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::STUDENTS_CREATE.',sanctum');
 
-        Route::get('/staff', [CampusController::class, 'staff'])
+        Route::get('/staff', [StaffController::class, 'index'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum');
-        Route::post('/staff', [CampusController::class, 'storeStaff'])
+        Route::post('/staff', [StaffController::class, 'store'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
-        Route::put('/staff/{staff}', [CampusController::class, 'updateStaff'])
+        Route::put('/staff/{staff}', [StaffController::class, 'update'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
-        Route::delete('/staff/{staff}', [CampusController::class, 'destroyStaff'])
+        Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
 
-        Route::get('/companies', [CampusController::class, 'companies'])
+        Route::get('/companies', [CompanyController::class, 'index'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
-        Route::post('/companies', [CampusController::class, 'storeCompany'])
+        Route::post('/companies', [CompanyController::class, 'store'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        Route::put('/companies/{company}', [CampusController::class, 'updateCompany'])
+        Route::put('/companies/{company}', [CompanyController::class, 'update'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        Route::delete('/companies/{company}', [CampusController::class, 'destroyCompany'])
+        Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        Route::post('/companies/{company}/apply', [CampusController::class, 'applyToCompany'])
+        Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum');
 
-        Route::get('/announcements', [CampusController::class, 'announcements'])
+        Route::get('/announcements', [AnnouncementController::class, 'index'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_VIEW.',sanctum');
-        Route::post('/announcements', [CampusController::class, 'storeAnnouncement'])
+        Route::post('/announcements', [AnnouncementController::class, 'store'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_CREATE.',sanctum');
-        Route::put('/announcements/{announcement}', [CampusController::class, 'updateAnnouncement'])
+        Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_CREATE.',sanctum');
-        Route::delete('/announcements/{announcement}', [CampusController::class, 'destroyAnnouncement'])
+        Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_CREATE.',sanctum');
 
         Route::get('/reports/summary', [CampusController::class, 'summary'])

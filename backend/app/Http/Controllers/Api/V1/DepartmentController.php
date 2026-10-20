@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Support\Tenancy\TenantRule;
 
 class DepartmentController extends Controller
 {
@@ -93,7 +94,7 @@ class DepartmentController extends Controller
                 'sometimes',
                 'string',
                 'max:50',
-                Rule::unique('departments', 'code')->ignore($department->id),
+                TenantRule::unique('departments', 'code')->ignore($department->id),
             ],
             'description' => 'nullable|string|max:1000',
             'hod_id' => 'nullable|integer|exists:users,id',

@@ -6,6 +6,7 @@ use App\Models\Designation;
 use App\Models\User;
 use App\Observers\DesignationObserver;
 use App\Observers\UserObserver;
+use App\Support\Tenancy\Tenant;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,7 +17,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // One tenant context per request / queued job.
+        $this->app->scoped(Tenant::class);
     }
 
     /**
@@ -25,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(function ($user, string $ability): ?bool {
-            if (($user->role ?? null) === 'admin' || $user->hasRole('super_admin')) {
+            if ($user instanceof User && $user->isAdmin()) {
                 return true;
             }
 

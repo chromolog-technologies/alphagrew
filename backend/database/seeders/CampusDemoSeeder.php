@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Institution;
 use App\Models\User;
 use App\Support\Campus\CampusPermission;
-use App\Support\Campus\CampusDataService;
-use App\Support\Campus\CampusMasterCatalog;
-use App\Support\Campus\CampusStaffAccess;
+use App\Services\Campus\CampusDataService;
+use App\Enums\UserRole;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -40,13 +40,19 @@ class CampusDemoSeeder extends Seeder
             DB::table('users')->delete();
             DB::table('designations')->delete();
 
+            $institutionId = Institution::query()->firstOrCreate(
+                ['code' => Institution::DEFAULT_CODE],
+                ['name' => 'Default Institution', 'slug' => 'default', 'status' => 'active'],
+            )->id;
+
             DB::table('users')->insert([
                 [
                     'id' => 1,
                     'name' => 'Dr. Nandita Roy',
                     'email' => 'admin@demo.com',
                     'password' => Hash::make('demo123'),
-                    'role' => 'admin',
+                    'role' => UserRole::InstitutionAdmin->value,
+                    'institution_id' => $institutionId,
                     'title' => 'Campus Administrator',
                     'department_code' => null,
                     'designation_id' => null,
@@ -59,7 +65,8 @@ class CampusDemoSeeder extends Seeder
                     'name' => 'Meera Nair',
                     'email' => 'staff@demo.com',
                     'password' => Hash::make('demo123'),
-                    'role' => 'staff',
+                    'role' => UserRole::Staff->value,
+                    'institution_id' => $institutionId,
                     'title' => 'Department Coordinator',
                     'department_code' => 'CSE',
                     'designation_id' => $defaultDesignationId,
@@ -72,9 +79,24 @@ class CampusDemoSeeder extends Seeder
                     'name' => 'Rahul Sharma',
                     'email' => 'student@demo.com',
                     'password' => Hash::make('demo123'),
-                    'role' => 'student',
+                    'role' => UserRole::Student->value,
+                    'institution_id' => $institutionId,
                     'title' => 'Final Year Student',
                     'department_code' => 'CSE',
+                    'designation_id' => null,
+                    'email_verified_at' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+                [
+                    'id' => 4,
+                    'name' => 'Arvind Menon',
+                    'email' => 'placement@demo.com',
+                    'password' => Hash::make('demo123'),
+                    'role' => UserRole::PlacementOfficer->value,
+                    'institution_id' => $institutionId,
+                    'title' => 'Training & Placement Officer',
+                    'department_code' => null,
                     'designation_id' => null,
                     'email_verified_at' => now(),
                     'created_at' => now(),
@@ -88,7 +110,7 @@ class CampusDemoSeeder extends Seeder
                         'id' => 1,
                         'name' => 'Dr. Nandita Roy',
                         'email' => 'admin@demo.com',
-                        'role' => 'admin',
+                        'role' => UserRole::InstitutionAdmin->value,
                         'title' => 'Campus Administrator',
                     ],
                     [
@@ -148,7 +170,23 @@ class CampusDemoSeeder extends Seeder
                     ['id' => 4, 'title' => 'Quarterly management review ready', 'summary' => 'Admin can download the placement dashboard summary and fee recovery report from Reports.', 'audience' => 'Admin', 'priority' => 'Low', 'postedBy' => 'Operations Desk', 'date' => '2026-04-01', 'category' => 'Governance'],
                     ['id' => 5, 'title' => 'Alumni mentoring week starts Monday', 'summary' => 'Students can book 1:1 mentoring slots for resume reviews, mock interviews, and career guidance.', 'audience' => 'Students', 'priority' => 'High', 'postedBy' => 'Career Services', 'date' => '2026-03-31', 'category' => 'Student Success'],
                 ],
-            ]);
+            ], $institutionId);
+
+            // Departments the demo students belong to. Inserted here rather than through sync(),
+            // whose department columns (hod, staff_count, intake, accent) predate the current schema.
+            DB::table('departments')->insert(collect([
+                'CSE' => 'Computer Science and Engineering',
+                'ECE' => 'Electronics and Communication Engineering',
+                'ME' => 'Mechanical Engineering',
+                'MBA' => 'Business Administration',
+            ])->map(fn (string $name, string $code) => [
+                'institution_id' => $institutionId,
+                'name' => $name,
+                'code' => $code,
+                'status' => 'active',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ])->values()->all());
 
             foreach (CampusPermission::all() as $permission) {
                 Permission::findOrCreate($permission, 'sanctum');
@@ -164,17 +202,10 @@ class CampusDemoSeeder extends Seeder
             User::query()->with('designation')->orderBy('id')->get()->each(function (User $user): void {
                 $user->syncRoles([$user->role]);
                 
-                // Determine permissions based on role
-                $permissions = CampusPermission::byRole()[$user->role] ?? [];
-
-                // Add designation-specific permissions for staff
-                if ($user->role === 'staff' && $user->designation && !empty($user->designation->permissions)) {
-                    $designationPerms = CampusStaffAccess::normalize($user->designation->permissions);
-                    $permissions = array_merge($permissions, $designationPerms);
-                }
+                $permissions = CampusPermission::forRole($user->role, $user->designation?->permissions ?? []);
 
                 if (!empty($permissions)) {
-                    $user->syncPermissions(array_unique($permissions));
+                    $user->syncPermissions($permissions);
                 }
             });
 

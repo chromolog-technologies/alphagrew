@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Models\Designation;
 use App\Support\Campus\CampusPermission;
-use App\Support\Campus\CampusStaffAccess;
 
 class DesignationObserver
 {
@@ -22,13 +21,11 @@ class DesignationObserver
      */
     private function syncUsersForDesignation(Designation $designation): void
     {
-        $designationPermissions = CampusStaffAccess::normalize($designation->resolvedPermissions());
+        $designationPermissions = $designation->resolvedPermissions();
 
         // Get all users with this designation
         $designation->users()->each(function ($user) use ($designationPermissions): void {
-            $rolePermissions = CampusPermission::byRole()[$user->role] ?? [];
-            $userPermissions = array_unique(array_merge($rolePermissions, $designationPermissions));
-            $user->syncPermissions($userPermissions);
+            $user->syncPermissions(CampusPermission::forRole($user->role, $designationPermissions));
         });
     }
 }

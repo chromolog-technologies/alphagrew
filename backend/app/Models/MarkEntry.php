@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,7 @@ use App\Traits\LogsActivity;
 
 class MarkEntry extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use BelongsToInstitution, SoftDeletes, LogsActivity;
 
     protected $fillable = [
         'exam_id',

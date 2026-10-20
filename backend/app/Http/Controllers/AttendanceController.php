@@ -8,6 +8,7 @@ use App\Models\Subject;
 use App\Models\ClassModel;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
+use App\Support\Tenancy\TenantRule;
 
 class AttendanceController extends Controller
 {
@@ -384,7 +385,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate([
             'attendance_ids' => 'required|array|min:1',
-            'attendance_ids.*' => 'exists:attendance,id',
+            'attendance_ids.*' => TenantRule::exists('attendance', 'id'),
         ]);
 
         Attendance::whereIn('id', $validated['attendance_ids'])

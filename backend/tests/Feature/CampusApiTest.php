@@ -23,13 +23,13 @@ class CampusApiTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['token'])
             ->assertJsonPath('user.email', 'admin@demo.com')
-            ->assertJsonPath('user.role', 'admin')
-            ->assertJsonPath('user.permissions.0', 'announcements.create')
+            ->assertJsonPath('user.role', 'institution_admin')
             ->assertJsonCount(4, 'data.departments')
             ->assertJsonCount(20, 'data.students')
             ->assertJsonCount(5, 'data.companies')
             ->assertJsonCount(5, 'data.announcements');
 
+        $this->assertContains('announcements.create', $response->json('user.permissions'));
         $this->assertSame(1, PersonalAccessToken::query()->count());
     }
 
@@ -64,8 +64,13 @@ class CampusApiTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('user.role', 'staff')
-            ->assertJsonMissingPath('user.permissions.9')
             ->assertJsonCount(7, 'data.students');
+
+        // Staff get the staff base permissions, not admin ones.
+        $this->assertEqualsCanonicalizing(
+            \App\Support\Campus\CampusPermission::forRole('staff'),
+            $response->json('user.permissions')
+        );
 
         $students = $response->json('data.students');
 
@@ -158,6 +163,86 @@ class CampusApiTest extends TestCase
             ->getJson('/api/v1/campus/bootstrap')
             ->assertOk()
             ->assertHeaderMissing('X-Data-Source');
+    }
+
+    public function test_students_index_is_paginated_and_scoped(): void
+    {
+        $this->seed();
+
+        $adminToken = $this->loginAndGetToken('admin@demo.com');
+
+        $this->withToken($adminToken)
+            ->getJson('/api/v1/students?per_page=5&page=2')
+            ->assertOk()
+            ->assertJsonCount(5, 'data')
+            ->assertJsonPath('data.0.id', 6)
+            ->assertJsonPath('meta.currentPage', 2)
+            ->assertJsonPath('meta.perPage', 5)
+            ->assertJsonPath('meta.total', 20)
+            ->assertJsonPath('meta.lastPage', 4);
+
+        $this->withToken($adminToken)
+            ->getJson('/api/v1/students?per_page=500')
+            ->assertUnprocessable();
+
+        $this->app['auth']->forgetGuards();
+        $staffToken = $this->loginAndGetToken('staff@demo.com');
+
+        $this->withToken($staffToken)
+            ->getJson('/api/v1/students')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 7);
+    }
+
+    public function test_student_mutations_return_only_the_changed_record(): void
+    {
+        $this->seed();
+
+        $token = $this->loginAndGetToken('admin@demo.com');
+        $payload = [
+            'name' => 'Test Student',
+            'email' => 'test.student@example.com',
+            'departmentCode' => 'CSE',
+            'year' => 'year_1',
+            'gender' => 'prefer_not_to_say',
+            'status' => 'active',
+            'cgpa' => 7.5,
+            'attendance' => 90,
+            'feeStatus' => 'pending',
+            'password' => 'secret123',
+            'skills' => ['PHP'],
+        ];
+
+        $created = $this->withToken($token)
+            ->postJson('/api/v1/students', $payload)
+            ->assertCreated()
+            ->assertJsonMissingPath('data')
+            ->assertJsonPath('student.email', 'test.student@example.com')
+            ->assertJsonPath('student.departmentCode', 'CSE')
+            ->assertJsonPath('user.email', 'test.student@example.com')
+            ->assertJsonPath('user.role', 'student');
+
+        $studentId = $created->json('student.id');
+        $this->assertSame($studentId, $created->json('user.studentId'));
+
+        $this->withToken($token)
+            ->putJson("/api/v1/students/{$studentId}", [...$payload, 'name' => 'Renamed Student', 'password' => null])
+            ->assertOk()
+            ->assertJsonMissingPath('data')
+            ->assertJsonPath('student.id', $studentId)
+            ->assertJsonPath('student.name', 'Renamed Student')
+            ->assertJsonPath('user.name', 'Renamed Student');
+
+        $this->withToken($token)
+            ->deleteJson("/api/v1/students/{$studentId}")
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('students', ['id' => $studentId]);
+        $this->assertSoftDeleted('users', ['email' => 'test.student@example.com']);
+
+        $this->withToken($token)
+            ->getJson('/api/v1/students?per_page=100')
+            ->assertJsonPath('meta.total', 20);
     }
 
     private function loginAndGetToken(string $email): string

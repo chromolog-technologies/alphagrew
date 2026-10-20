@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Designation;
+use App\Models\Institution;
 use App\Models\User;
 use App\Support\Campus\CampusPermission;
 use App\Support\Campus\CampusStaffAccess;
@@ -35,7 +36,7 @@ class PermissionEnforcementTest extends TestCase
     {
         $this->seed(\Database\Seeders\SpatiePermissionsSeeder::class);
 
-        $adminRole = \Spatie\Permission\Models\Role::where('name', 'admin')->where('guard_name', 'sanctum')->first();
+        $adminRole = \Spatie\Permission\Models\Role::where('name', 'institution_admin')->where('guard_name', 'sanctum')->first();
         $staffRole = \Spatie\Permission\Models\Role::where('name', 'staff')->where('guard_name', 'sanctum')->first();
         $studentRole = \Spatie\Permission\Models\Role::where('name', 'student')->where('guard_name', 'sanctum')->first();
 
@@ -54,6 +55,7 @@ class PermissionEnforcementTest extends TestCase
 
         // Create a designation with permissions
         $designation = Designation::create([
+            'institution_id' => Institution::defaultId(),
             'name' => 'Test Coordinator',
             'slug' => 'test-coordinator',
             'status' => 'active',
@@ -87,6 +89,7 @@ class PermissionEnforcementTest extends TestCase
 
         // Create designation with initial permissions
         $designation = Designation::create([
+            'institution_id' => Institution::defaultId(),
             'name' => 'Test Coordinator',
             'slug' => 'test-coordinator',
             'status' => 'active',
@@ -134,15 +137,17 @@ class PermissionEnforcementTest extends TestCase
 
         // Create two designations
         $designation1 = Designation::create([
+            'institution_id' => Institution::defaultId(),
             'name' => 'Coordinator 1',
             'slug' => 'coordinator-1',
             'status' => 'active',
             'permissions' => CampusStaffAccess::normalize([
-                CampusPermission::STUDENTS_VIEW,
+                CampusPermission::STUDENTS_CREATE,
             ]),
         ]);
 
         $designation2 = Designation::create([
+            'institution_id' => Institution::defaultId(),
             'name' => 'Coordinator 2',
             'slug' => 'coordinator-2',
             'status' => 'active',
@@ -161,8 +166,9 @@ class PermissionEnforcementTest extends TestCase
             'designation_id' => $designation1->id,
         ]);
 
-        // Verify initial permissions
-        $this->assertTrue($user->hasPermissionTo('students.view', 'sanctum'));
+        // Verify initial permissions (students.create comes only from designation1;
+        // students.view is part of every staff member's base permissions)
+        $this->assertTrue($user->hasPermissionTo('students.create', 'sanctum'));
         $this->assertFalse($user->hasPermissionTo('placement.view', 'sanctum'));
 
         // Change designation
@@ -170,7 +176,8 @@ class PermissionEnforcementTest extends TestCase
         $user->refresh();
 
         // Verify permissions changed
-        $this->assertFalse($user->hasPermissionTo('students.view', 'sanctum'));
+        $this->assertFalse($user->hasPermissionTo('students.create', 'sanctum'));
+        $this->assertTrue($user->hasPermissionTo('students.view', 'sanctum'));
         $this->assertTrue($user->hasPermissionTo('placement.view', 'sanctum'));
         $this->assertTrue($user->hasPermissionTo('placement.apply', 'sanctum'));
     }

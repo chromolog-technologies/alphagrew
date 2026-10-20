@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,14 +11,13 @@ use App\Traits\LogsActivity;
 
 class Student extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use BelongsToInstitution, SoftDeletes, LogsActivity;
     protected $fillable = [
         'user_id',
         'name',
         'email',
         'registration_number',
         'department_code',
-        'college_id',
         'year',
         'gender',
         'status',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,12 +13,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use App\Enums\UserRole;
 use App\Traits\LogsActivity;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes, LogsActivity;
+    use BelongsToInstitution, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes, LogsActivity;
 
     protected string $guard_name = 'sanctum';
 
@@ -33,6 +35,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'institution_id',
         'title',
         'department_code',
         'designation_id',
@@ -68,6 +71,28 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /** The role as an enum; null for a value that isn't one of the six roles. */
+    public function roleEnum(): ?UserRole
+    {
+        return UserRole::tryFrom((string) $this->role);
+    }
+
+    /** Super Admin or Institution Admin. */
+    public function isAdmin(): bool
+    {
+        return $this->roleEnum()?->isAdmin() ?? false;
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->roleEnum() === UserRole::SuperAdmin;
+    }
+
+    public function isInstitutionStaff(): bool
+    {
+        return $this->roleEnum()?->isInstitutionStaff() ?? false;
     }
 
     public function student(): HasOne

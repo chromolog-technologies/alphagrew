@@ -8,6 +8,7 @@ use App\Models\Course;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Support\Tenancy\TenantRule;
 
 class SubjectController extends Controller
 {
@@ -46,8 +47,8 @@ class SubjectController extends Controller
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'unique:subjects,code', 'max:50'],
-            'course_id' => ['required', 'exists:courses,id'],
+            'code' => ['required', 'string', TenantRule::unique('subjects', 'code'), 'max:50'],
+            'course_id' => ['required', TenantRule::exists('courses', 'id')],
             'semester_number' => ['required', 'integer', 'min:1', 'max:16'],
             'credit_hours' => ['required', 'integer', 'min:1', 'max:10'],
             'lecture_hours' => ['required', 'integer', 'min:0', 'max:50'],
@@ -71,8 +72,8 @@ class SubjectController extends Controller
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', Rule::unique('subjects', 'code')->ignore($subject->id), 'max:50'],
-            'course_id' => ['required', 'exists:courses,id'],
+            'code' => ['required', 'string', TenantRule::unique('subjects', 'code')->ignore($subject->id), 'max:50'],
+            'course_id' => ['required', TenantRule::exists('courses', 'id')],
             'semester_number' => ['required', 'integer', 'min:1', 'max:16'],
             'credit_hours' => ['required', 'integer', 'min:1', 'max:10'],
             'lecture_hours' => ['required', 'integer', 'min:0', 'max:50'],

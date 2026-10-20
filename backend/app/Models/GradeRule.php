@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
 class GradeRule extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use BelongsToInstitution, SoftDeletes, LogsActivity;
 
     protected $fillable = [
         'min_score',

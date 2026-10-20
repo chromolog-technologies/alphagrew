@@ -2,6 +2,7 @@
 
 namespace App\Support\Campus;
 
+use App\Enums\UserRole;
 final class CampusPermission
 {
     // Dashboard & Core
@@ -77,6 +78,7 @@ final class CampusPermission
     public const MARKS_EDIT = 'marks.edit';
     public const MARKS_DELETE = 'marks.delete';
     public const MARKS_PUBLISH = 'marks.publish';
+    public const MARKS_APPROVE = 'marks.approve';
 
     // Timetable Management
     public const TIMETABLE_VIEW = 'timetable.view';
@@ -224,6 +226,7 @@ final class CampusPermission
             self::MARKS_EDIT,
             self::MARKS_DELETE,
             self::MARKS_PUBLISH,
+            self::MARKS_APPROVE,
 
             // Timetable
             self::TIMETABLE_VIEW,
@@ -298,11 +301,42 @@ final class CampusPermission
         ];
     }
 
+    /**
+     * Base permissions per role (see CampusRole). Staff and Placement Officers also
+     * receive their designation's permissions on top of these.
+     */
     public static function byRole(): array
     {
         return [
-            'admin' => self::all(),
-            'staff' => [
+            UserRole::SuperAdmin->value => self::all(),
+            UserRole::InstitutionAdmin->value => self::all(),
+            UserRole::PlacementOfficer->value => [
+                self::DASHBOARD_VIEW,
+                self::PROFILE_VIEW,
+                self::STUDENTS_VIEW,
+                self::STUDENTS_VIEW_ALL,
+                self::DEPARTMENTS_VIEW,
+                self::COURSES_VIEW,
+                self::COMPANIES_VIEW,
+                self::COMPANIES_CREATE,
+                self::COMPANIES_EDIT,
+                self::COMPANIES_DELETE,
+                self::PLACEMENT_VIEW,
+                self::PLACEMENT_CREATE,
+                self::PLACEMENT_MANAGE,
+                self::PLACEMENT_SCHEDULE_ROUND,
+                self::PLACEMENT_VIEW_RESULTS,
+                self::PLACEMENT_PUBLISH_RESULTS,
+                self::ANNOUNCEMENTS_VIEW,
+                self::ANNOUNCEMENTS_CREATE,
+                self::REPORTS_VIEW,
+            ],
+            // External role; its portal and candidate sharing arrive with the Recruiter Portal phase.
+            UserRole::Recruiter->value => [
+                self::DASHBOARD_VIEW,
+                self::PROFILE_VIEW,
+            ],
+            UserRole::Staff->value => [
                 self::DASHBOARD_VIEW,
                 self::PROFILE_VIEW,
                 self::ATTENDANCE_VIEW,
@@ -315,7 +349,21 @@ final class CampusPermission
                 self::STUDENTS_VIEW,
                 self::COURSES_VIEW,
             ],
-            'student' => CampusStudentAccess::defaultPermissions(),
+            UserRole::Student->value => CampusStudentAccess::defaultPermissions(),
         ];
+    }
+
+    /**
+     * Effective permissions for a role plus an optional designation's permissions.
+     */
+    public static function forRole(?string $role, array $designationPermissions = []): array
+    {
+        $base = self::byRole()[$role] ?? [];
+
+        if (! (UserRole::tryFrom((string) $role)?->isInstitutionStaff() ?? false)) {
+            return $base;
+        }
+
+        return CampusStaffAccess::normalize(array_merge($base, $designationPermissions));
     }
 }

@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Students\CreateStudentAction;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use App\Models\Department;
-use App\Models\Student;
+use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Models\User;
-use App\Support\Campus\CampusDataService;
-use App\Support\Campus\CampusPermission;
-use App\Support\Campus\CampusStaffAccess;
-use App\Support\Campus\CampusStudentAccess;
-use App\Support\Campus\CampusMasterCatalog;
+use App\Services\Campus\CampusDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,125 +18,67 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function login(Request $request, CampusDataService $campusData): JsonResponse
+    public function __construct(private readonly CampusDataService $campusData)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+    }
 
+    public function login(LoginRequest $request): JsonResponse
+    {
         $user = User::query()
-            ->with('student:id,user_id')
-            ->where('email', $credentials['email'])
+            ->with(['student:id,user_id', 'institution'])
+            ->where('email', $request->validated('email'))
             ->first();
 
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
+            return response()->json(['message' => 'Invalid credentials.'], 422);
+        }
+
+        if (! ($user->roleEnum()?->hasPortal() ?? true)) {
             return response()->json([
-                'message' => 'Invalid credentials.',
-            ], 422);
+                'message' => 'The recruiter portal is not available yet. Contact the placement office of the institution that invited you.',
+            ], 403);
         }
 
-        // Keep Spatie permissions aligned with role policies.
-        if ($user->role === 'admin') {
-            $user->syncPermissions(CampusPermission::all());
-        } elseif ($user->role === 'student') {
-            $user->syncPermissions(CampusStudentAccess::defaultPermissions());
-        } elseif ($user->role === 'staff') {
-            $user->loadMissing('designation:id,name,permissions');
-            $designationPermissions = $user->designation?->resolvedPermissions() ?? [];
-            $staffPermissions = CampusStaffAccess::normalize(array_merge(
-                CampusPermission::byRole()['staff'] ?? [],
-                $designationPermissions
-            ));
-            $user->syncPermissions($staffPermissions);
+        if (($user->roleEnum()?->requiresInstitution() ?? true) && ! $user->institution?->isActive()) {
+            return response()->json([
+                'message' => 'Your institution account is inactive. Contact your institution administrator.',
+            ], 403);
         }
 
-        $abilities = $campusData->permissionsFor($user);
-        $tokenName = Str::limit($request->userAgent() ?: 'campus-web', 40, '');
-        $token = $user->createToken($tokenName ?: 'campus-web', $abilities)->plainTextToken;
+        // Keep Spatie permissions aligned with the role and designation.
+        $user->syncPermissions($this->campusData->permissionsFor($user));
 
-        return response()->json(
-            $campusData->authPayload($user, $token)
-        );
+        return response()->json($this->campusData->authPayload($user, $this->issueToken($request, $user)));
     }
 
-    public function register(Request $request, CampusDataService $campusData): JsonResponse
+    public function register(RegisterRequest $request, CreateStudentAction $createStudent): JsonResponse
     {
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6'],
-        ]);
+        $department = $request->department();
 
-        $user = DB::transaction(function () use ($payload): User {
-            $department = Department::query()->orderBy('id')->first();
-            $departmentCode = $department?->code ?? 'CSE';
-            $nextStudentId = ((int) Student::query()->max('id')) + 1;
-
-            $user = User::query()->create([
-                'name' => $payload['name'],
-                'email' => $payload['email'],
-                'password' => $payload['password'],
-                'role' => 'student',
-                'title' => 'Student Applicant',
-                'department_code' => $departmentCode,
-                'email_verified_at' => now(),
-            ]);
-
-            $user->syncRoles(['student']);
-
-            Student::query()->create([
-                'user_id' => $user->id,
-                'name' => $payload['name'],
-                'email' => $payload['email'],
-                'registration_number' => sprintf('BIT26%s%03d', $departmentCode, $nextStudentId),
-                'department_code' => $departmentCode,
-                'year' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_YEAR, '1st Year') ?? 'year_1',
-                'gender' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_GENDER, 'Prefer not to say') ?? 'prefer_not_to_say',
-                'status' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_STATUS, 'Active') ?? 'active',
-                'cgpa' => 0,
-                'attendance' => 0,
-                'phone' => '',
-                'mentor' => $department?->hod ?? '',
-                'fee_status' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::PAYMENT_STATUS, 'Pending') ?? 'pending',
-                'skills' => [],
-                'resume_profile' => null,
-            ]);
-
-            return $user->fresh(['student:id,user_id']);
-        });
-
-        $abilities = $campusData->permissionsFor($user);
-        $tokenName = Str::limit($request->userAgent() ?: 'campus-web', 40, '');
-        $token = $user->createToken($tokenName ?: 'campus-web', $abilities)->plainTextToken;
-
-        return response()->json(
-            $campusData->authPayload($user, $token),
-            201
+        $student = $createStudent->execute(
+            $request->toData(),
+            $department,
+            $request->institution()->id,
+            $department->hod ?? '',
         );
+
+        $user = $student->user()->firstOrFail()->load('student:id,user_id');
+
+        return response()->json($this->campusData->authPayload($user, $this->issueToken($request, $user)), 201);
     }
 
-    public function me(Request $request, CampusDataService $campusData): JsonResponse
+    public function me(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
-
         return response()->json([
-            'user' => $campusData->authenticatedUser($user),
+            'user' => $this->campusData->authenticatedUser($request->user()),
         ]);
     }
 
-    public function updateProfile(Request $request, CampusDataService $campusData): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
-
-        $payload = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
-            'title' => ['required', 'string', 'max:255'],
-            'password' => ['nullable', 'string', 'min:6'],
-        ]);
+        $payload = $request->validated();
 
         DB::transaction(function () use ($user, $payload): void {
             $user->update([
@@ -147,7 +88,7 @@ class AuthController extends Controller
                 ...(! empty($payload['password']) ? ['password' => $payload['password']] : []),
             ]);
 
-            if ($user->role === 'student' && $user->student) {
+            if ($user->role === UserRole::Student->value && $user->student) {
                 $user->student->update([
                     'name' => $payload['name'],
                     'email' => $payload['email'],
@@ -158,20 +99,25 @@ class AuthController extends Controller
         $user = $user->fresh(['student:id,user_id']);
 
         return response()->json([
-            'user' => $campusData->authenticatedUser($user),
-            'data' => $campusData->buildForUser($user),
+            'user' => $this->campusData->authenticatedUser($user),
+            'data' => $this->campusData->buildForUser($user),
         ]);
     }
 
     public function logout(Request $request): JsonResponse
     {
-        /** @var User $user */
-        $user = $request->user();
+        $request->user()->currentAccessToken()?->delete();
 
-        $user->currentAccessToken()?->delete();
+        return response()->json(['message' => 'Logged out successfully.']);
+    }
 
-        return response()->json([
-            'message' => 'Logged out successfully.',
-        ]);
+    /**
+     * Sanctum token named after the client, carrying the user's permissions as abilities.
+     */
+    private function issueToken(Request $request, User $user): string
+    {
+        $tokenName = Str::limit($request->userAgent() ?: 'campus-web', 40, '') ?: 'campus-web';
+
+        return $user->createToken($tokenName, $this->campusData->permissionsFor($user))->plainTextToken;
     }
 }

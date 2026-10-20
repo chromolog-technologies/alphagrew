@@ -175,7 +175,7 @@ class PermissionService
         $matrix = self::modulePermissionMatrix();
 
         // Admin must always see all modules.
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->isAdmin()) {
             return array_keys($matrix);
         }
 
@@ -205,7 +205,7 @@ class PermissionService
         $matrix = self::modulePermissionMatrix();
 
         // Admin must always see all module actions as allowed in the UI layer.
-        if ($user->hasRole('admin') || $user->role === 'admin') {
+        if ($user->isAdmin()) {
             return collect($matrix)
                 ->map(fn (array $actions) => collect($actions)
                     ->map(fn () => true)
@@ -233,17 +233,14 @@ class PermissionService
     {
         $roleNames = [
             'super_admin' => 'Super Admin',
-            'admin' => 'Administrator',
-            'student' => 'Student',
-            'faculty' => 'Faculty',
-            'hod' => 'HOD',
+            'institution_admin' => 'Institution Admin',
             'placement_officer' => 'Placement Officer',
-            'exam_coordinator' => 'Exam Coordinator',
-            'supervisor' => 'Supervisor',
             'staff' => 'Staff',
+            'student' => 'Student',
+            'recruiter' => 'Recruiter',
         ];
 
-        $role = $user->getRoleNames()->first();
+        $role = $user->role;
         return $roleNames[$role] ?? $role;
     }
 }

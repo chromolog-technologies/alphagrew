@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Middleware\MarkSampleData;
+use App\Http\Middleware\SetTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -21,7 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'sample-data' => MarkSampleData::class,
+            'tenant' => SetTenant::class,
         ]);
+
+        // The tenant must be known before route-model binding runs, or {student}, {company} etc.
+        // would resolve records of other institutions. SetTenant still runs after authentication.
+        $middleware->prependToPriorityList(SubstituteBindings::class, SetTenant::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

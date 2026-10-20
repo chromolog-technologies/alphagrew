@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class Department extends Model
 {
-    use SoftDeletes;
+    use BelongsToInstitution, SoftDeletes;
 
     protected $fillable = [
         'name',

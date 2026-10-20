@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 
 class Announcement extends Model
 {
+    use BelongsToInstitution;
+
     protected $fillable = [
         'title',
         'summary',

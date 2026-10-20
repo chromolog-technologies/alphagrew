@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Support\Tenancy\TenantRule;
 
 class CourseController extends Controller
 {
@@ -47,8 +48,8 @@ class CourseController extends Controller
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'unique:courses,code', 'max:50'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'code' => ['required', 'string', TenantRule::unique('courses', 'code'), 'max:50'],
+            'department_id' => ['required', TenantRule::exists('departments', 'id')],
             'course_type' => ['nullable', 'in:UG,PG,Diploma,Certification'],
             'stream' => ['nullable', 'in:Science,Commerce,Arts,Engineering,Management,Other'],
             'mode' => ['nullable', 'in:Full-Time,Part-Time,Distance,Hybrid'],
@@ -62,7 +63,7 @@ class CourseController extends Controller
             'eligibility' => ['nullable', 'string'],
             'min_qualification' => ['nullable', 'string', 'max:255'],
             'entrance_required' => ['boolean'],
-            'course_coordinator_id' => ['nullable', 'exists:users,id'],
+            'course_coordinator_id' => ['nullable', TenantRule::exists('users', 'id')],
             'total_fees' => ['nullable', 'numeric', 'min:0'],
             'fees_per_semester' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
@@ -81,8 +82,8 @@ class CourseController extends Controller
     {
         $payload = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', Rule::unique('courses', 'code')->ignore($course->id), 'max:50'],
-            'department_id' => ['required', 'exists:departments,id'],
+            'code' => ['required', 'string', TenantRule::unique('courses', 'code')->ignore($course->id), 'max:50'],
+            'department_id' => ['required', TenantRule::exists('departments', 'id')],
             'course_type' => ['nullable', 'in:UG,PG,Diploma,Certification'],
             'stream' => ['nullable', 'in:Science,Commerce,Arts,Engineering,Management,Other'],
             'mode' => ['nullable', 'in:Full-Time,Part-Time,Distance,Hybrid'],
@@ -96,7 +97,7 @@ class CourseController extends Controller
             'eligibility' => ['nullable', 'string'],
             'min_qualification' => ['nullable', 'string', 'max:255'],
             'entrance_required' => ['boolean'],
-            'course_coordinator_id' => ['nullable', 'exists:users,id'],
+            'course_coordinator_id' => ['nullable', TenantRule::exists('users', 'id')],
             'total_fees' => ['nullable', 'numeric', 'min:0'],
             'fees_per_semester' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],

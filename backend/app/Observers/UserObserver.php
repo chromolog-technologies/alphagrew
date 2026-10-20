@@ -4,13 +4,12 @@ namespace App\Observers;
 
 use App\Models\User;
 use App\Support\Campus\CampusPermission;
-use App\Support\Campus\CampusStaffAccess;
+use App\Enums\UserRole;
 
 class UserObserver
 {
     /**
      * Handle the User "created" event.
-     * When a user is created with a designation, sync their permissions.
      */
     public function created(User $user): void
     {
@@ -19,7 +18,6 @@ class UserObserver
 
     /**
      * Handle the User "updated" event.
-     * If designation or role changes, re-sync permissions.
      */
     public function updated(User $user): void
     {
@@ -30,37 +28,22 @@ class UserObserver
     }
 
     /**
-     * Sync user permissions based on their role and designation.
+     * Sync Spatie permissions from the user's role and, for institution staff, their designation.
      */
     private function syncUserPermissions(User $user): void
     {
-        $permissions = [];
+        $designationPermissions = [];
 
-        // Admin users always receive full module access.
-        if (in_array($user->role, ['admin', 'super_admin'], true)) {
-            $user->syncPermissions(CampusPermission::all());
-            return;
+        if ($user->isInstitutionStaff() && $user->designation_id) {
+            // Reload: a cached relation would still point at the previous designation.
+            $user->unsetRelation('designation');
+            $designationPermissions = $user->designation?->resolvedPermissions() ?? [];
         }
 
-        // Base permissions by role
-        if ($user->role) {
-            $rolePermissions = CampusPermission::byRole()[$user->role] ?? [];
-            $permissions = array_merge($permissions, $rolePermissions);
-        }
+        $permissions = CampusPermission::forRole($user->role, $designationPermissions);
 
-        // Additional permissions from designation (if staff)
-        if ($user->role === 'staff' && $user->designation_id && $user->designation) {
-            $designationPermissions = $user->designation->resolvedPermissions();
-            if (!empty($designationPermissions)) {
-                $normalized = CampusStaffAccess::normalize($designationPermissions);
-                $permissions = array_merge($permissions, $normalized);
-            }
-        }
-
-        // Sync to Spatie
-        if (!empty($permissions)) {
-            $unique = array_unique($permissions);
-            $user->syncPermissions($unique);
+        if (! empty($permissions)) {
+            $user->syncPermissions($permissions);
         }
     }
 }
