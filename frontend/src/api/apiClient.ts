@@ -3,6 +3,8 @@
  * This client handles API requests with authentication tokenautomatically retrieved from localStorage
  */
 
+import { ApiError, apiErrorFromResponse } from './apiError';
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
 interface RequestOptions extends Omit<RequestInit, 'headers'> {
@@ -41,7 +43,7 @@ export async function apiCall(
 
   const token = getStoredToken();
   if (!token) {
-    throw new Error('Your session has expired. Please log in again.');
+    throw new ApiError('Your session has expired. Please log in again.', 401);
   }
 
   const url = `${apiBaseUrl}${path}`;
@@ -62,11 +64,7 @@ export async function apiCall(
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const message =
-      (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string'
-        ? payload.message
-        : null) ?? `API request failed with status ${response.status}`;
-    throw new Error(message);
+    throw apiErrorFromResponse(response.status, payload, `API request failed with status ${response.status}`);
   }
 
   return payload;

@@ -69,8 +69,8 @@ class MarkSchemeController extends Controller
             'external_marks' => 'required|integer|min:0',
             'total_marks' => 'required|integer|min:1',
             'pass_mark' => 'required|integer|min:0',
-            'extra_marks_allowed' => 'integer|min:0|default:0',
-            'is_active' => 'boolean|default:true',
+            'extra_marks_allowed' => 'integer|min:0',
+            'is_active' => 'boolean',
         ]);
 
         // Validate total_marks = internal + external

@@ -54,7 +54,7 @@ class GradeRuleController extends Controller
             'grade' => 'required|string|max:3',
             'gpa' => 'required|numeric|min:0|max:4',
             'description' => 'nullable|string',
-            'sort_order' => 'integer|default:0',
+            'sort_order' => 'integer',
         ]);
 
         // Check for overlap
@@ -120,8 +120,9 @@ class GradeRuleController extends Controller
      */
     public function setupDefaults()
     {
-        // Clear existing rules
-        GradeRule::truncate();
+        // Clear this institution's rules. truncate() would ignore the institution scope and empty the
+        // table for every institution; force-delete so the per-institution unique score bands are free.
+        GradeRule::withTrashed()->get()->each->forceDelete();
 
         $defaults = [
             ['min_score' => 90, 'max_score' => 100, 'grade' => 'A+', 'gpa' => 4.0, 'sort_order' => 1],

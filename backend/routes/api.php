@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\V1\SubjectController;
 use App\Http\Controllers\Api\V1\SemesterController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
+use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
@@ -212,6 +213,10 @@ Route::prefix('v1')->group(function (): void {
         // ============================================
         // MARKS MANAGEMENT SYSTEM ROUTES
         // ============================================
+
+        // Exams to enter marks against (read-only until exam scheduling is built)
+        Route::get('/exams', [ExamController::class, 'index'])
+            ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
 
         // 1. MASTER SETUP (Admin Phase)
         // Grade Rules - Configure A+, A, B, etc.

@@ -138,7 +138,7 @@ class MarkEntryController extends Controller
             'marks.*.internal_marks' => 'nullable|numeric|min:0',
             'marks.*.external_marks' => 'nullable|numeric|min:0',
             'marks.*.extra_marks' => 'nullable|numeric|min:0',
-            'marks.*.is_absent' => 'boolean|default:false',
+            'marks.*.is_absent' => 'boolean',
             'remarks' => 'nullable|string',
         ]);
 
@@ -220,7 +220,7 @@ class MarkEntryController extends Controller
             'internal_marks' => 'nullable|numeric|min:0',
             'external_marks' => 'nullable|numeric|min:0',
             'extra_marks' => 'nullable|numeric|min:0',
-            'is_absent' => 'boolean|default:false',
+            'is_absent' => 'boolean',
             'remarks' => 'nullable|string',
         ]);
 

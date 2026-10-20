@@ -16,9 +16,11 @@ import {
   deleteStaffWithCampusApi,
   deleteStudentWithCampusApi,
   fetchCampusBootstrap,
+  isApiError,
   isCampusApiConfigured,
   loginWithCampusApi,
   logoutFromCampusApi,
+  registerWithCampusApi,
   resetCampusDemo,
   updateCampusProfile,
   updateAnnouncementWithCampusApi,
@@ -32,7 +34,7 @@ import {
   type StudentRecordResponse,
 } from './api/campusApi';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
-import { CampusLogin } from './components/auth';
+import { CampusLogin, CampusSignUp, type DemoAccount, type SignUpPayload } from './components/auth';
 import CampusWorkspace from './components/layouts/CampusWorkspace';
 import {
   campusDefaultDesignations,
@@ -42,6 +44,7 @@ import {
   campusStaffAssignablePermissions,
   createDefaultCampusStudentResume,
   getCampusMasterLabel,
+  isInstitutionStaffRole,
   normalizeCampusMasterValue,
   normalizeCampusRole,
   normalizeCampusStudentResume,
@@ -51,6 +54,7 @@ import {
   type CampusPermission,
   type CampusSession,
   type CampusStudentResume,
+  type TenantError,
 } from './campusTypes';
 
 const AUTH_KEY = 'chromolog-campus-auth';
@@ -61,6 +65,16 @@ type StoredAuth = {
   token?: string;
   user: CampusSession;
 };
+
+/** Accounts created by backend/database/seeders/CampusDemoSeeder.php. */
+const apiDemoAccounts: DemoAccount[] = [
+  { email: 'admin@demo.com', role: 'institution_admin', label: 'Institution Admin' },
+  { email: 'placement@demo.com', role: 'placement_officer', label: 'Placement Officer' },
+  { email: 'staff@demo.com', role: 'staff', label: 'Staff' },
+  { email: 'student@demo.com', role: 'student', label: 'Student' },
+];
+
+const SESSION_EXPIRED_NOTICE = 'Your session has expired. Sign in again to continue.';
 
 function slugifyDesignation(name: string) {
   return name
@@ -133,7 +147,7 @@ function applyBrandAccents(dataset: CampusData): CampusData {
     ...designation,
     staffCount: normalizedUsers.filter(
       (account) =>
-        account.role === 'staff' &&
+        isInstitutionStaffRole(account.role) &&
         (account.designationId === designation.id ||
           (account.designationName ?? account.title).trim().toLowerCase() === designation.name.trim().toLowerCase()),
     ).length,
@@ -219,6 +233,29 @@ export default function App() {
   const [data, setData] = useState<CampusData>(loadDemoData);
   const [auth, setAuth] = useState<StoredAuth | null>(loadStoredAuth);
   const [error, setError] = useState('');
+  // Informational message on the login screen (expired session, recruiter or inactive institution).
+  const [loginNotice, setLoginNotice] = useState('');
+  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
+  const [tenantError, setTenantError] = useState<TenantError | null>(null);
+
+  // 401 signs the user out; 403 and 404 replace the current tab; anything else shows the error banner.
+  const reportApiError = (apiError: unknown, fallbackMessage: string) => {
+    if (isApiError(apiError) && apiError.status === 401) {
+      setAuth(null);
+      setAuthView('login');
+      setLoginNotice(SESSION_EXPIRED_NOTICE);
+      setError('');
+      return;
+    }
+
+    if (isApiError(apiError) && (apiError.status === 403 || apiError.status === 404)) {
+      setTenantError({ status: apiError.status, message: apiError.message });
+      setError('');
+      return;
+    }
+
+    setError(apiError instanceof Error ? apiError.message : fallbackMessage);
+  };
 
   useEffect(() => {
     localStorage.setItem(DATA_KEY, JSON.stringify(data));
@@ -252,6 +289,11 @@ export default function App() {
       })
       .catch((apiError) => {
         setAuth(null);
+        if (isApiError(apiError) && apiError.status === 401) {
+          setLoginNotice(SESSION_EXPIRED_NOTICE);
+          setError('');
+          return;
+        }
         setError(apiError instanceof Error ? apiError.message : 'Unable to restore your session.');
       });
   }, [apiConfigured, auth?.token]);
@@ -263,7 +305,16 @@ export default function App() {
         setData(applyBrandAccents(response.data));
         setAuth({ token: response.token, user: response.user });
         setError('');
+        setLoginNotice('');
+        setTenantError(null);
       } catch (apiError) {
+        // 403 at login means the account exists but has no portal yet (recruiter) or its institution is inactive.
+        if (isApiError(apiError) && apiError.status === 403) {
+          setLoginNotice(apiError.message);
+          setError('');
+          return;
+        }
+        setLoginNotice('');
         setError(apiError instanceof Error ? apiError.message : 'Laravel API login failed.');
       }
       return;
@@ -280,6 +331,22 @@ export default function App() {
 
     setAuth({ user: toSessionUser(account) });
     setError('');
+    setLoginNotice('');
+    setTenantError(null);
+  };
+
+  // Student self-registration. Field errors (422) are thrown back to the form so it can place them.
+  const handleRegister = async (payload: SignUpPayload) => {
+    if (!apiConfigured) {
+      throw new Error('Sign-up needs the Laravel API. Set VITE_API_BASE_URL, or use a demo account.');
+    }
+
+    const response = await registerWithCampusApi(payload);
+    setData(applyBrandAccents(response.data));
+    setAuth({ token: response.token, user: response.user });
+    setError('');
+    setLoginNotice('');
+    setTenantError(null);
   };
 
   const requireToken = () => {
@@ -317,7 +384,7 @@ export default function App() {
         setAuth((current) => (current ? { ...current, user: response.user } : current));
         setError('');
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to reset Laravel demo data.');
+        reportApiError(apiError, 'Unable to reset Laravel demo data.');
       }
       return;
     }
@@ -349,7 +416,7 @@ export default function App() {
       try {
         applyStudentRecord(await createStudentWithCampusApi(requireToken(), payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the student.');
+        reportApiError(apiError, 'Unable to create the student.');
         throw apiError;
       }
       return;
@@ -445,7 +512,7 @@ export default function App() {
       try {
         applyStudentRecord(await updateStudentWithCampusApi(requireToken(), studentId, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the student.');
+        reportApiError(apiError, 'Unable to update the student.');
         throw apiError;
       }
       return;
@@ -528,7 +595,7 @@ export default function App() {
         }));
         setError('');
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the student.');
+        reportApiError(apiError, 'Unable to delete the student.');
         throw apiError;
       }
       return;
@@ -568,7 +635,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => createDepartmentWithCampusApi(token, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the department.');
+        reportApiError(apiError, 'Unable to create the department.');
         throw apiError;
       }
       return;
@@ -628,7 +695,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => updateDepartmentWithCampusApi(token, departmentId, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the department.');
+        reportApiError(apiError, 'Unable to update the department.');
         throw apiError;
       }
       return;
@@ -720,7 +787,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteDepartmentWithCampusApi(token, departmentId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the department.');
+        reportApiError(apiError, 'Unable to delete the department.');
         throw apiError;
       }
       return;
@@ -765,7 +832,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => createCompanyWithCampusApi(token, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the company drive.');
+        reportApiError(apiError, 'Unable to create the company drive.');
         throw apiError;
       }
       return;
@@ -814,7 +881,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => updateCompanyWithCampusApi(token, companyId, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the company drive.');
+        reportApiError(apiError, 'Unable to update the company drive.');
         throw apiError;
       }
       return;
@@ -848,7 +915,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteCompanyWithCampusApi(token, companyId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the company drive.');
+        reportApiError(apiError, 'Unable to delete the company drive.');
         throw apiError;
       }
       return;
@@ -876,7 +943,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => createAnnouncementWithCampusApi(token, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the announcement.');
+        reportApiError(apiError, 'Unable to create the announcement.');
         throw apiError;
       }
       return;
@@ -919,7 +986,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => updateAnnouncementWithCampusApi(token, announcementId, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the announcement.');
+        reportApiError(apiError, 'Unable to update the announcement.');
         throw apiError;
       }
       return;
@@ -950,7 +1017,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteAnnouncementWithCampusApi(token, announcementId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the announcement.');
+        reportApiError(apiError, 'Unable to delete the announcement.');
         throw apiError;
       }
       return;
@@ -975,7 +1042,7 @@ export default function App() {
         setAuth((current) => (current ? { ...current, user: response.user } : current));
         setError('');
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update your profile.');
+        reportApiError(apiError, 'Unable to update your profile.');
         throw apiError;
       }
       return;
@@ -1038,7 +1105,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => updateStudentResumeWithCampusApi(token, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to save the resume profile.');
+        reportApiError(apiError, 'Unable to save the resume profile.');
         throw apiError;
       }
       return;
@@ -1086,7 +1153,7 @@ export default function App() {
           }),
         );
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the staff account.');
+        reportApiError(apiError, 'Unable to create the staff account.');
         throw apiError;
       }
       return;
@@ -1160,7 +1227,7 @@ export default function App() {
           }),
         );
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the staff account.');
+        reportApiError(apiError, 'Unable to update the staff account.');
         throw apiError;
       }
       return;
@@ -1210,7 +1277,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteStaffWithCampusApi(token, staffId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the staff account.');
+        reportApiError(apiError, 'Unable to delete the staff account.');
         throw apiError;
       }
       return;
@@ -1247,7 +1314,7 @@ export default function App() {
           }),
         );
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the designation.');
+        reportApiError(apiError, 'Unable to create the designation.');
         throw apiError;
       }
       return;
@@ -1311,7 +1378,7 @@ export default function App() {
           }),
         );
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the designation.');
+        reportApiError(apiError, 'Unable to update the designation.');
         throw apiError;
       }
       return;
@@ -1354,7 +1421,7 @@ export default function App() {
             : designation,
         ),
         users: current.users.map((account) =>
-          account.role === 'staff' && account.designationId === designationId
+          isInstitutionStaffRole(account.role) && account.designationId === designationId
             ? {
                 ...account,
                 title: name,
@@ -1373,7 +1440,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteDesignationWithCampusApi(token, designationId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the designation.');
+        reportApiError(apiError, 'Unable to delete the designation.');
         throw apiError;
       }
       return;
@@ -1386,7 +1453,10 @@ export default function App() {
       throw missingError;
     }
 
-    const linkedStaff = data.users.some((account) => account.role === 'staff' && account.designationId === designationId);
+    // Placement officers keep their designation as a job title, so they count as linked staff too.
+    const linkedStaff = data.users.some(
+      (account) => isInstitutionStaffRole(account.role) && account.designationId === designationId,
+    );
     if (linkedStaff) {
       const inUseError = new Error('This designation is still assigned to staff accounts. Reassign those staff members before deleting it.');
       setError(inUseError.message);
@@ -1412,7 +1482,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => createMasterWithCampusApi(token, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to create the master option.');
+        reportApiError(apiError, 'Unable to create the master option.');
         throw apiError;
       }
       return;
@@ -1461,7 +1531,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => updateMasterWithCampusApi(token, masterId, payload));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to update the master option.');
+        reportApiError(apiError, 'Unable to update the master option.');
         throw apiError;
       }
       return;
@@ -1509,7 +1579,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => deleteMasterWithCampusApi(token, masterId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to delete the master option.');
+        reportApiError(apiError, 'Unable to delete the master option.');
         throw apiError;
       }
       return;
@@ -1552,7 +1622,7 @@ export default function App() {
       try {
         await replaceDataFromApi((token) => applyToCompanyWithCampusApi(token, companyId));
       } catch (apiError) {
-        setError(apiError instanceof Error ? apiError.message : 'Unable to submit the application.');
+        reportApiError(apiError, 'Unable to submit the application.');
         throw apiError;
       }
       return;
@@ -1594,12 +1664,45 @@ export default function App() {
   };
 
   if (!auth?.user) {
-    return <CampusLogin error={error} onLogin={handleLogin} />;
+    if (authView === 'signup') {
+      return (
+        <CampusSignUp
+          onRegister={handleRegister}
+          onShowLogin={() => {
+            setAuthView('login');
+            setError('');
+          }}
+        />
+      );
+    }
+
+    // Offline demo mode signs in against the local dataset, so list one account per role from it.
+    const demoAccounts: DemoAccount[] = apiConfigured
+      ? apiDemoAccounts
+      : data.users
+          .filter((account, index, accounts) => accounts.findIndex((other) => other.role === account.role) === index)
+          .map((account) => ({ email: account.email, role: account.role, label: account.title }));
+
+    return (
+      <CampusLogin
+        error={error}
+        notice={loginNotice}
+        demoAccounts={demoAccounts}
+        onLogin={handleLogin}
+        onShowSignUp={() => {
+          setAuthView('signup');
+          setError('');
+          setLoginNotice('');
+        }}
+      />
+    );
   }
 
   return (
     <CampusWorkspace
       error={error}
+      tenantError={tenantError}
+      onDismissTenantError={() => setTenantError(null)}
       user={auth.user}
       data={data}
       onLogout={handleLogout}

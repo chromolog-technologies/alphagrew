@@ -204,6 +204,23 @@ class TenantIsolationTest extends TestCase
             ->assertJsonValidationErrors('departmentCode');
     }
 
+    public function test_resetting_grade_rules_keeps_other_institutions_rules(): void
+    {
+        DB::table('grade_rules')->insert([
+            'institution_id' => $this->institutionB, 'min_score' => 0, 'max_score' => 100, 'grade' => 'P', 'gpa' => 4,
+            'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->withToken($this->tokenFor('admin@demo.com'))->postJson('/api/v1/grade-rules/setup-defaults')
+            ->assertOk()
+            ->assertJsonCount(7, 'data');
+
+        // Running it twice must not trip the per-institution unique score bands.
+        $this->withToken($this->tokenFor('admin@demo.com'))->postJson('/api/v1/grade-rules/setup-defaults')->assertOk();
+
+        $this->assertSame(1, DB::table('grade_rules')->where('institution_id', $this->institutionB)->count());
+    }
+
     public function test_an_account_without_an_institution_is_refused(): void
     {
         $token = $this->tokenFor('staff@demo.com');

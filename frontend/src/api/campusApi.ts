@@ -12,6 +12,9 @@ import type {
   CompanyType,
   FeeStatus,
 } from '../campusTypes';
+import { apiErrorFromResponse } from './apiError';
+
+export { ApiError, isApiError } from './apiError';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
@@ -147,11 +150,7 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
-    const message =
-      (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string'
-        ? payload.message
-        : null) ?? 'API request failed.';
-    throw new Error(message);
+    throw apiErrorFromResponse(response.status, payload, 'API request failed.');
   }
 
   return payload as T;
@@ -605,7 +604,7 @@ export function submitStudentAssignment(token: string, assignmentId: number, for
   }).then(async (response) => {
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload?.message ?? 'Assignment submission failed');
+      throw apiErrorFromResponse(response.status, payload, 'Assignment submission failed');
     }
     return payload;
   });
@@ -806,7 +805,7 @@ export function uploadMarksFromFile(token: string, file: File, examId: number, s
   }).then(async (response) => {
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload?.message ?? 'Marks upload failed');
+      throw apiErrorFromResponse(response.status, payload, 'Marks upload failed');
     }
     return payload;
   });
