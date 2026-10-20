@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, BarChart3, Filter, Loader, AlertCircle } from 'lucide-react';
 import { fetchStudentMarks } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 
 interface ExamMark {
   id: number;
@@ -21,25 +22,8 @@ interface SubjectPerformance {
   status: 'excellent' | 'good' | 'average' | 'needs-improvement';
 }
 
-const AUTH_KEY = 'chromolog-campus-auth';
-
 function getTokenFromStorage(): string | null {
-  const legacyToken = localStorage.getItem('auth_token');
-  if (legacyToken) {
-    return legacyToken;
-  }
-
-  const raw = localStorage.getItem(AUTH_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as { token?: string };
-    return parsed.token ?? null;
-  } catch {
-    return null;
-  }
+  return getStoredToken();
 }
 
 export const StudentMarksView: React.FC = () => {

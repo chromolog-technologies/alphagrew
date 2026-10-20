@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Upload, Calendar, FileText, BookOpen, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
 import { fetchStudentMaterials, fetchStudentAssignments } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
+
 
 interface Material {
   id: number;
@@ -43,7 +45,7 @@ export const StudentAssignmentsMaterials: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;

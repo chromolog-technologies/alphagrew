@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, X, Check, CheckCheck, Filter, Search, Loader, AlertCircle } from 'lucide-react';
 import { fetchStudentNotifications, markNotificationAsRead, deleteNotification, markAllNotificationsAsRead, deleteAllNotifications } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
 
 interface Notification {
@@ -28,11 +29,12 @@ export const StudentNotifications: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
         }
+
 
         const response = await fetchStudentNotifications(token);
 

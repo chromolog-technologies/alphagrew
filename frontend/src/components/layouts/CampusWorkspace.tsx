@@ -483,9 +483,12 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
-    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
+    { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'profile.view' },
+    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'profile.view' },
+    { id: 'marks', label: 'Marks & Results', icon: ChartColumn, permission: 'marks.view' },
+    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'marks.view' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
   ],
@@ -510,14 +513,15 @@ const navByRole: Record<CampusRole, NavItem[]> = {
 };
 
 const sidebarNavGroups: SidebarNavGroup[] = [
-  { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity'] },
+  { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'roles'] },
-  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable'] },
+  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'timetable', 'student_assignments', 'exams', 'marks', 'fees'] },
   { id: 'finance', label: 'Finance', itemIds: [] },
   { id: 'placement', label: 'Placement', itemIds: ['placement'] },
   { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'profile'] },
 ];
+
 
 const monthTrend = [
   { month: 'Jan', offers: 8, drives: 2 },

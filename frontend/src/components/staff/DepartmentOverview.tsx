@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
 import { fetchDepartmentOverview, fetchDepartmentPerformance, fetchDepartmentBudget } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
 
 interface DepartmentStats {
@@ -27,7 +28,7 @@ export const DepartmentOverview: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication token not found');
           return;

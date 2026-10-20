@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, AlertCircle, Loader, Save, Plus, Trash2 } from 'lucide-react';
+import { getStoredToken } from '../../api/apiClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
@@ -30,7 +31,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const token = localStorage.getItem('auth_token');
+  const token = getStoredToken();
 
   // Load subjects on mount
   useEffect(() => {

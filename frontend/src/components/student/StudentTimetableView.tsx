@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, MapPin, User, Clock, Loader, AlertCircle } from 'lucide-react';
 import { fetchStudentTimetable, fetchStudentTimetableByDay } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 
 interface ClassSession {
   id: number;
@@ -30,11 +31,12 @@ export const StudentTimetableView: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
         }
+
 
         const response = await fetchStudentTimetable(token);
 

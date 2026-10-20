@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Briefcase, Users, TrendingUp, MapPin } from 'lucide-react';
 import { fetchPlacementDrives, createPlacementDrive, updatePlacementDrive, fetchPlacementStatistics } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
+
 
 interface Company {
   id: number;
@@ -91,7 +93,7 @@ export const PlacementOfficerModule: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication token not found');
           return;

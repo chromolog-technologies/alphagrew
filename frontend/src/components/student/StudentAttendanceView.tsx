@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, CheckCircle, AlertCircle, BarChart3, Loader } from 'lucide-react';
 import { fetchStudentAttendance, fetchStudentAttendanceDetailed } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 
 interface AttendanceRecord {
   id: number;
@@ -33,11 +34,12 @@ export const StudentAttendanceView: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
         }
+
 
         // Fetch summary and detailed records
         const [summaryResponse, detailedResponse] = await Promise.all([

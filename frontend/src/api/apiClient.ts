@@ -14,8 +14,10 @@ interface RequestOptions extends Omit<RequestInit, 'headers'> {
 /**
  * Get the stored authentication token from localStorage
  */
-function getStoredToken(): string | null {
+export function getStoredToken(): string | null {
   try {
+    const legacy = localStorage.getItem('auth_token');
+    if (legacy) return legacy;
     const stored = localStorage.getItem('chromolog-campus-auth');
     if (!stored) return null;
     const auth = JSON.parse(stored);
@@ -24,6 +26,7 @@ function getStoredToken(): string | null {
     return null;
   }
 }
+
 
 /**
  * Make an authenticated API request
@@ -125,3 +128,62 @@ export const semesterApi = {
   getAcademicYears: () => apiCall('/semesters/list/academic-years', 'GET'),
   getSemesterOptions: () => apiCall('/semesters/list/options', 'GET'),
 };
+
+/**
+ * Exam API calls
+ */
+export const examApi = {
+  list: (filters?: { semester_id?: number; subject_id?: number; search?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.semester_id) params.append('semester_id', filters.semester_id.toString());
+    if (filters?.subject_id) params.append('subject_id', filters.subject_id.toString());
+    if (filters?.search) params.append('search', filters.search);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiCall(`/exams${query}`, 'GET');
+  },
+};
+
+/**
+ * Attendance API calls (real V1 /attendance endpoints)
+ */
+export const attendanceApi = {
+  list: (filters?: { subject_id?: number; student_id?: number; from_date?: string; to_date?: string; status?: string }) => {
+    const params = new URLSearchParams();
+    if (filters?.subject_id) params.append('subject_id', filters.subject_id.toString());
+    if (filters?.student_id) params.append('student_id', filters.student_id.toString());
+    if (filters?.from_date) params.append('from_date', filters.from_date);
+    if (filters?.to_date) params.append('to_date', filters.to_date);
+    if (filters?.status) params.append('status', filters.status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return apiCall(`/attendance${query}`, 'GET');
+  },
+  mark: (data: { subject_id: number; attendance_date: string; attendance_data: Array<{ student_id: number; status: string }>; remarks?: string }) =>
+    apiCall('/attendance/mark', 'POST', data),
+  getStudentsForSubject: (subjectId: number) =>
+    apiCall(`/attendance/subject/${subjectId}/students`, 'GET'),
+  getStudentReport: (studentId: number) =>
+    apiCall(`/attendance/student/${studentId}/report`, 'GET'),
+  getSubjectReport: (subjectId: number) =>
+    apiCall(`/attendance/subject/${subjectId}/report`, 'GET'),
+  approve: (data: any) =>
+    apiCall('/attendance/approve', 'POST', data),
+};
+
+/**
+ * Timetable API calls (real V1 /student/timetable endpoints)
+ */
+export const timetableApi = {
+  getStudentTimetable: () => apiCall('/student/timetable', 'GET'),
+  getStudentTimetableByDay: (day: string) => apiCall(`/student/timetable/day?day=${encodeURIComponent(day)}`, 'GET'),
+};
+
+/**
+ * Generic typed HTTP request helpers
+ */
+export const api = {
+  get: <T = any>(path: string) => apiCall(path, 'GET') as Promise<T>,
+  post: <T = any>(path: string, data?: any) => apiCall(path, 'POST', data) as Promise<T>,
+  put: <T = any>(path: string, data?: any) => apiCall(path, 'PUT', data) as Promise<T>,
+  delete: <T = any>(path: string) => apiCall(path, 'DELETE') as Promise<T>,
+};
+
