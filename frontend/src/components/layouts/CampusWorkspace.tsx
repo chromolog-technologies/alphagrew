@@ -80,6 +80,8 @@ import {
   campusStaffBasePermissions,
   createDefaultCampusStudentResume,
   getCampusMasterLabel,
+  isAdminRole,
+  isInstitutionStaffRole,
   normalizeCampusStudentResume,
   normalizeStaffPermissions,
 } from '../../campusTypes';
@@ -418,7 +420,7 @@ type SidebarNavGroup = {
 
 type CardTone = 'navy' | 'sky' | 'teal' | 'amber' | 'indigo' | 'emerald';
 
-const navByRole: Record<CampusRole, NavItem[]> = {
+const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
   admin: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
@@ -466,6 +468,24 @@ const navByRole: Record<CampusRole, NavItem[]> = {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
   ],
+};
+
+const navByRole: Record<CampusRole, NavItem[]> = {
+  super_admin: baseNavByRole.admin,
+  institution_admin: baseNavByRole.admin,
+  placement_officer: [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+    { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
+    { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
+    { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
+    { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
+    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+  ],
+  staff: baseNavByRole.staff,
+  student: baseNavByRole.student,
+  // Recruiters cannot sign in yet; the recruiter portal is a later phase.
+  recruiter: [],
 };
 
 const sidebarNavGroups: SidebarNavGroup[] = [
@@ -556,11 +576,11 @@ function audienceMatches(role: CampusRole, audience: AnnouncementAudience) {
   if (audience === 'all' || audience === 'All') {
     return true;
   }
-  if (role === 'admin') {
+  if (isAdminRole(role)) {
     return true;
   }
   return (
-    (role === 'staff' && (audience === 'staff' || audience === 'Staff')) ||
+    (isInstitutionStaffRole(role) && (audience === 'staff' || audience === 'Staff')) ||
     (role === 'student' && (audience === 'students' || audience === 'Students'))
   );
 }
@@ -1115,7 +1135,7 @@ export default function CampusWorkspace({
   const createAnnouncementDraft = (): AnnouncementDraft => ({
     title: '',
     summary: '',
-    audience: user.role === 'admin' ? 'all' : 'students',
+    audience: isAdminRole(user.role) ? 'all' : 'students',
     priority: defaultMasterCode('announcement_priority', 'medium'),
     category: 'Campus Update',
   });
@@ -1248,7 +1268,7 @@ export default function CampusWorkspace({
   }, [activeTab, availableNav]);
 
   useEffect(() => {
-    if (user.role !== 'admin') {
+    if (!isAdminRole(user.role)) {
       return;
     }
 
@@ -1277,7 +1297,7 @@ export default function CampusWorkspace({
   }, [user.role]);
 
   useEffect(() => {
-    if (user.role !== 'admin' || activeTab !== 'courses') {
+    if (!isAdminRole(user.role) || activeTab !== 'courses') {
       return;
     }
 
@@ -1306,7 +1326,7 @@ export default function CampusWorkspace({
   }, [activeTab, user.role]);
 
   useEffect(() => {
-    if (user.role !== 'admin') {
+    if (!isAdminRole(user.role)) {
       return;
     }
 
@@ -1343,7 +1363,7 @@ export default function CampusWorkspace({
   }, [user.role]);
 
   useEffect(() => {
-    if (user.role !== 'admin' || (activeTab !== 'designations' && activeTab !== 'staff')) {
+    if (!isAdminRole(user.role) || (activeTab !== 'designations' && activeTab !== 'staff')) {
       return;
     }
 
@@ -1518,7 +1538,7 @@ export default function CampusWorkspace({
     return matchesSearch && matchesDepartment && matchesHeader;
   });
 
-  const staffMembers = data.users.filter((account) => account.role === 'staff');
+  const staffMembers = data.users.filter((account) => isInstitutionStaffRole(account.role));
   const filteredStaffMembers = staffMembers.filter((account) =>
     matchesHeaderSearch(
       account.name,
@@ -1738,9 +1758,12 @@ export default function CampusWorkspace({
     .sort((left, right) => (right.rate - left.rate) || (right.placed - left.placed))
     .slice(0, 4);
   const roleSubtitle: Record<CampusRole, string> = {
-    admin: 'Campus overview',
+    super_admin: 'Platform overview',
+    institution_admin: 'Campus overview',
+    placement_officer: 'Placement overview',
     staff: 'Department overview',
     student: 'Student overview',
+    recruiter: 'Recruiter overview',
   };
   const adminAnalyticsViews = {
     placement: {
@@ -1845,13 +1868,16 @@ export default function CampusWorkspace({
     'reports',
     'placement',
   ]);
-  const isPhase1LockedTab = (tabId: string) => user.role === 'admin' && !isPhase1Complete && phase1LockedTabIds.has(tabId);
+  const isPhase1LockedTab = (tabId: string) => isAdminRole(user.role) && !isPhase1Complete && phase1LockedTabIds.has(tabId);
   const activeNavLabel = availableNav.find((item) => item.id === activeTab)?.label ?? 'Dashboard';
   const breadcrumbItems = activeTab === 'dashboard' ? ['Dashboard'] : ['Dashboard', activeNavLabel];
   const headerRoleLabel: Record<CampusRole, string> = {
-    admin: 'Campus admin',
+    super_admin: 'Super admin',
+    institution_admin: 'Campus admin',
+    placement_officer: 'Placement office',
     staff: 'Staff workspace',
     student: 'Student workspace',
+    recruiter: 'Recruiter workspace',
   };
   const userInitials =
     user.name
@@ -5109,7 +5135,7 @@ export default function CampusWorkspace({
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return user.role === 'admin' ? renderAdminDashboard() : user.role === 'staff' ? renderStaffDashboard() : renderStudentDashboard();
+        return isAdminRole(user.role) ? renderAdminDashboard() : isInstitutionStaffRole(user.role) ? renderStaffDashboard() : renderStudentDashboard();
       case 'activity':
         return renderActivityTab();
       case 'masters':
@@ -5169,7 +5195,7 @@ export default function CampusWorkspace({
       case 'attendance':
         return user.role === 'student'
           ? <StudentAttendanceView />
-          : <AttendanceMarking staffRole={user.role === 'admin' ? 'admin' : 'faculty'} />;
+          : <AttendanceMarking staffRole={isAdminRole(user.role) ? 'admin' : 'faculty'} />;
       default:
         return renderAdminDashboard();
     }
@@ -5569,7 +5595,7 @@ export default function CampusWorkspace({
             </aside>
 
             <main className="min-w-0 flex-1 space-y-5">
-              {user.role === 'admin' && !isPhase1Complete ? (
+              {isAdminRole(user.role) && !isPhase1Complete ? (
                 <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-[0_14px_28px_-24px_rgba(217,119,6,0.35)]">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Phase 1 Setup</p>
                   <p className="mt-2 text-sm">

@@ -29,6 +29,7 @@ import {
   updateStaffWithCampusApi,
   updateStudentWithCampusApi,
   updateStudentResumeWithCampusApi,
+  type StudentRecordResponse,
 } from './api/campusApi';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
 import { CampusLogin } from './components/auth';
@@ -42,6 +43,7 @@ import {
   createDefaultCampusStudentResume,
   getCampusMasterLabel,
   normalizeCampusMasterValue,
+  normalizeCampusRole,
   normalizeCampusStudentResume,
   normalizeStaffPermissions,
   type CampusData,
@@ -74,6 +76,12 @@ function slugifyMasterCode(label: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+}
+
+function upsertById<T extends { id: number }>(items: T[], record: T): T[] {
+  return items.some((item) => item.id === record.id)
+    ? items.map((item) => (item.id === record.id ? record : item))
+    : [...items, record];
 }
 
 function extractAssignablePermissions(permissions: CampusPermission[]) {
@@ -171,7 +179,12 @@ function loadDemoData() {
   }
 
   try {
-    return applyBrandAccents(JSON.parse(stored) as CampusData);
+    const parsed = JSON.parse(stored) as CampusData;
+
+    return applyBrandAccents({
+      ...parsed,
+      users: parsed.users.map((account) => ({ ...account, role: normalizeCampusRole(account.role) })),
+    });
   } catch {
     return applyBrandAccents(createCampusDemoData());
   }
@@ -184,7 +197,9 @@ function loadStoredAuth() {
   }
 
   try {
-    return JSON.parse(stored) as StoredAuth;
+    const parsed = JSON.parse(stored) as StoredAuth;
+
+    return { ...parsed, user: { ...parsed.user, role: normalizeCampusRole(parsed.user.role) } };
   } catch {
     return null;
   }
@@ -282,6 +297,18 @@ export default function App() {
     setError('');
   };
 
+  // Merge a single student (and, for admins, its login account) instead of reloading the whole dataset.
+  const applyStudentRecord = (response: StudentRecordResponse) => {
+    setData((current) =>
+      applyBrandAccents({
+        ...current,
+        students: upsertById(current.students, response.student),
+        users: response.user ? upsertById(current.users, response.user) : current.users,
+      }),
+    );
+    setError('');
+  };
+
   const handleResetDemo = async () => {
     if (apiConfigured) {
       try {
@@ -320,7 +347,7 @@ export default function App() {
   }) => {
     if (apiConfigured) {
       try {
-        await replaceDataFromApi((token) => createStudentWithCampusApi(token, payload));
+        applyStudentRecord(await createStudentWithCampusApi(requireToken(), payload));
       } catch (apiError) {
         setError(apiError instanceof Error ? apiError.message : 'Unable to create the student.');
         throw apiError;
@@ -416,7 +443,7 @@ export default function App() {
   ) => {
     if (apiConfigured) {
       try {
-        await replaceDataFromApi((token) => updateStudentWithCampusApi(token, studentId, payload));
+        applyStudentRecord(await updateStudentWithCampusApi(requireToken(), studentId, payload));
       } catch (apiError) {
         setError(apiError instanceof Error ? apiError.message : 'Unable to update the student.');
         throw apiError;
@@ -493,7 +520,13 @@ export default function App() {
   const handleDeleteStudent = async (studentId: number) => {
     if (apiConfigured) {
       try {
-        await replaceDataFromApi((token) => deleteStudentWithCampusApi(token, studentId));
+        await deleteStudentWithCampusApi(requireToken(), studentId);
+        setData((current) => ({
+          ...current,
+          students: current.students.filter((student) => student.id !== studentId),
+          users: current.users.filter((account) => account.studentId !== studentId),
+        }));
+        setError('');
       } catch (apiError) {
         setError(apiError instanceof Error ? apiError.message : 'Unable to delete the student.');
         throw apiError;

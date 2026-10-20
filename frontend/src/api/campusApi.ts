@@ -6,6 +6,7 @@ import type {
   CampusMasterCategory,
   CampusPermission,
   CampusSession,
+  CampusStudent,
   CampusStudentResume,
   CompanyStatus,
   CompanyType,
@@ -32,6 +33,17 @@ type ProfileResponse = {
 
 type DataResponse = {
   data: CampusData;
+};
+
+export type StudentRecordResponse = {
+  student: CampusStudent;
+  /** Linked login account; only returned to admins, whose dataset lists other users. */
+  user: CampusAccount | null;
+};
+
+export type StudentPage = {
+  data: CampusStudent[];
+  meta: { currentPage: number; perPage: number; total: number; lastPage: number };
 };
 
 type StudentPayload = {
@@ -156,10 +168,16 @@ export function loginWithCampusApi(email: string, password: string) {
   });
 }
 
-export function registerWithCampusApi(name: string, email: string, password: string) {
+export function registerWithCampusApi(payload: {
+  name: string;
+  email: string;
+  password: string;
+  institutionCode: string;
+  departmentCode: string;
+}) {
   return request<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify(payload),
   });
 }
 
@@ -189,8 +207,12 @@ export function resetCampusDemo(token: string) {
   return request<BootstrapResponse>('/campus/reset', { method: 'POST' }, token);
 }
 
+export function fetchStudentsPage(token: string, page = 1, perPage = 25) {
+  return request<StudentPage>(`/students?page=${page}&per_page=${perPage}`, undefined, token);
+}
+
 export function createStudentWithCampusApi(token: string, payload: StudentPayload) {
-  return request<DataResponse>(
+  return request<StudentRecordResponse>(
     '/students',
     {
       method: 'POST',
@@ -201,7 +223,7 @@ export function createStudentWithCampusApi(token: string, payload: StudentPayloa
 }
 
 export function updateStudentWithCampusApi(token: string, studentId: number, payload: StudentPayload) {
-  return request<DataResponse>(
+  return request<StudentRecordResponse>(
     `/students/${studentId}`,
     {
       method: 'PUT',
@@ -223,7 +245,7 @@ export function updateStudentResumeWithCampusApi(token: string, payload: Student
 }
 
 export function deleteStudentWithCampusApi(token: string, studentId: number) {
-  return request<DataResponse>(
+  return request<null>(
     `/students/${studentId}`,
     {
       method: 'DELETE',

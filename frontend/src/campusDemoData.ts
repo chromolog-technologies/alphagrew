@@ -524,9 +524,9 @@ const users = [
     name: 'Dr. Nandita Roy',
     email: 'admin@demo.com',
     password: 'demo123',
-    role: 'admin',
+    role: 'institution_admin',
     title: 'Campus Administrator',
-    permissions: [...campusRolePermissions.admin],
+    permissions: [...campusRolePermissions.institution_admin],
   },
   {
     id: 2,

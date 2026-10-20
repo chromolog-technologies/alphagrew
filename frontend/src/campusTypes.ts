@@ -1,4 +1,26 @@
-export type CampusRole = 'admin' | 'staff' | 'student';
+export type CampusRole =
+  | 'super_admin'
+  | 'institution_admin'
+  | 'placement_officer'
+  | 'staff'
+  | 'student'
+  | 'recruiter';
+
+/** Super Admin or Institution Admin. */
+export function isAdminRole(role: CampusRole | undefined): boolean {
+  return role === 'super_admin' || role === 'institution_admin';
+}
+
+/** Institution employees: staff and placement officers use the staff portal. */
+export function isInstitutionStaffRole(role: CampusRole | undefined): boolean {
+  return role === 'staff' || role === 'placement_officer';
+}
+
+/** Maps role names saved by older versions ('admin') to the current ones. */
+export function normalizeCampusRole(role: string): CampusRole {
+  return role === 'admin' ? 'institution_admin' : (role as CampusRole);
+}
+
 export type CampusPermission =
   | 'dashboard.view'
   | 'students.view'
@@ -21,27 +43,42 @@ export type CampusPermission =
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
+const campusAdminPermissions: CampusPermission[] = [
+  'dashboard.view',
+  'students.view',
+  'students.create',
+  'departments.view',
+  'departments.create',
+  'marks.view',
+  'marks.create',
+  'marks.approve',
+  'marks.publish',
+  'placement.view',
+  'placement.create',
+  'placement.apply',
+  'announcements.view',
+  'announcements.create',
+  'reports.view',
+  'profile.view',
+  'demo.reset',
+  'attendance.view',
+];
+
 export const campusRolePermissions: Record<CampusRole, CampusPermission[]> = {
-  admin: [
+  super_admin: campusAdminPermissions,
+  institution_admin: campusAdminPermissions,
+  placement_officer: [
     'dashboard.view',
     'students.view',
-    'students.create',
     'departments.view',
-    'departments.create',
-    'marks.view',
-    'marks.create',
-    'marks.approve',
-    'marks.publish',
     'placement.view',
     'placement.create',
-    'placement.apply',
     'announcements.view',
     'announcements.create',
     'reports.view',
     'profile.view',
-    'demo.reset',
-    'attendance.view',
   ],
+  recruiter: ['dashboard.view', 'profile.view'],
   staff: [
     'dashboard.view',
     'marks.view',
@@ -152,7 +189,7 @@ export function normalizeStaffPermissions(permissions: CampusPermission[]) {
   }
 
   return Array.from(new Set([...campusStaffBasePermissions, ...permissions, ...impliedPermissions]))
-    .filter((permission) => campusRolePermissions.admin.includes(permission))
+    .filter((permission) => campusAdminPermissions.includes(permission))
     .sort() as CampusPermission[];
 }
 
@@ -332,6 +369,8 @@ export interface CampusAccount {
   email: string;
   password?: string;
   role: CampusRole;
+  /** Null for Super Admin and Recruiter, who sit outside any institution. */
+  institutionId?: number | null;
   title: string;
   departmentCode?: string;
   designationId?: number;
