@@ -69,6 +69,11 @@ Route::prefix('v1')->group(function (): void {
         ->middleware('signed')
         ->name('students.photo');
 
+    Route::get('/files/resumes/{resume}', [ResumeController::class, 'file'])
+        ->whereNumber('resume')
+        ->middleware('signed')
+        ->name('resumes.download');
+
     // tenant: limits every query to the signed-in user's institution (see App\Http\Middleware\SetTenant).
     Route::middleware(['auth:sanctum', 'tenant'])->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
@@ -220,6 +225,8 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/resumes', [ResumeController::class, 'store'])->middleware($resumes);
             Route::get('/resumes/{resume}', [ResumeController::class, 'show'])->whereNumber('resume')->middleware($resumes);
             Route::get('/resumes/{resume}/analysis', [ResumeController::class, 'analysis'])->whereNumber('resume')->middleware($resumes);
+            Route::get('/resumes/{resume}/download', [ResumeController::class, 'download'])->whereNumber('resume')->middleware($resumes);
+            Route::post('/resumes/{resume}/analysis', [ResumeController::class, 'queueAnalysis'])->whereNumber('resume')->middleware($resumes);
             Route::delete('/resumes/{resume}', [ResumeController::class, 'destroy'])->whereNumber('resume')->middleware($resumes);
 
             $practice = 'permission:'.CampusPermission::INTERVIEWS_PRACTICE.',sanctum';
@@ -227,6 +234,9 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/interviews', [InterviewController::class, 'history'])->middleware($practice);
 
             Route::get('/recommendations', [ReadinessController::class, 'recommendations'])->middleware($view);
+            Route::patch('/recommendations/{recommendation}', [ReadinessController::class, 'updateRecommendation'])->whereNumber('recommendation')->middleware($view);
+            Route::get('/readiness', [ReadinessController::class, 'readiness'])->middleware($view);
+            Route::get('/readiness/history', [ReadinessController::class, 'readinessHistory'])->middleware($view);
             Route::get('/readiness-score', [ReadinessController::class, 'readinessScore'])->middleware($view);
         });
 
@@ -237,8 +247,10 @@ Route::prefix('v1')->group(function (): void {
             ->group(function (): void {
                 Route::get('/', [InterviewController::class, 'show']);
                 Route::post('/start', [InterviewController::class, 'start']);
+                Route::post('/answers', [InterviewController::class, 'answerFromSpec']);
                 Route::post('/turns/{turn}/answer', [InterviewController::class, 'answer'])->whereNumber('turn')->scopeBindings();
                 Route::post('/finish', [InterviewController::class, 'finish']);
+                Route::get('/report', [InterviewController::class, 'report']);
                 Route::get('/evaluation', [InterviewController::class, 'evaluation']);
                 Route::get('/skill-gap', [InterviewController::class, 'skillGap']);
             });
@@ -386,6 +398,8 @@ Route::prefix('v1')->group(function (): void {
 
         // Attendance Routes
         Route::prefix('attendance')->group(function (): void {
+            Route::get('/subjects', [AttendanceController::class, 'subjects'])
+                ->middleware('permission:attendance.mark,sanctum');
             Route::get('/', [AttendanceController::class, 'index'])
                 ->middleware('permission:attendance.view,sanctum');
             Route::post('/mark', [AttendanceController::class, 'markAttendance'])

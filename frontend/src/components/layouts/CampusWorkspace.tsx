@@ -66,7 +66,7 @@ import { HODStaffManagement } from '../staff/HODStaffManagement';
 import { HODReportsAnalytics } from '../staff/HODReportsAnalytics';
 import { PlacementOfficerModule } from '../staff/PlacementOfficerModule';
 import { ExamCoordinatorModule } from '../staff/ExamCoordinatorModule';
-import { AttendanceMarking } from '../staff/AttendanceMarking';
+import { AttendanceModule } from '../staff/AttendanceModule';
 import { StudentTimetableView } from '../student/StudentTimetableView';
 import { StudentAssignmentsMaterials } from '../student/StudentAssignmentsMaterials';
 import { StudentAttendanceView } from '../student/StudentAttendanceView';
@@ -5195,7 +5195,7 @@ export default function CampusWorkspace({
       case 'attendance':
         return user.role === 'student'
           ? <StudentAttendanceView />
-          : <AttendanceMarking staffRole={isAdminRole(user.role) ? 'admin' : 'faculty'} />;
+          : <AttendanceModule />;
       default:
         return renderAdminDashboard();
     }

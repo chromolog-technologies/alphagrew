@@ -102,7 +102,7 @@ class StudentController extends Controller
 
     private function mentorFor(User $actor, Department $department): string
     {
-        return $actor->role === UserRole::Staff->value ? $actor->name : ($department->hod ?? '');
+        return $actor->role === UserRole::Staff->value ? $actor->name : ($department->hod?->name ?? '');
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Actions\Interviews\FinishInterviewAction;
 use App\Actions\Interviews\StartInterviewAction;
 use App\Enums\InterviewStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Interviews\AnswerInterviewRequest;
 use App\Http\Requests\Interviews\AnswerTurnRequest;
 use App\Http\Requests\Interviews\FinishInterviewRequest;
 use App\Http\Requests\Interviews\OwnInterviewRequest;
@@ -74,12 +75,36 @@ class InterviewController extends Controller
         ]]);
     }
 
+    /** POST /interviews/{interview}/answers — spec step 10. turnId and text in the body. */
+    public function answerFromSpec(AnswerInterviewRequest $request, AiInterview $interview, AnswerTurnAction $answer): JsonResponse
+    {
+        $turn = AiInterviewTurn::query()
+            ->where('interview_id', $interview->id)
+            ->whereKey($request->integer('turnId'))
+            ->firstOrFail();
+
+        ['nextTurn' => $next, 'isCompleted' => $completed] = $answer->execute($interview, $turn, $request->answerText(), $request->file('audio'));
+
+        return response()->json(['data' => [
+            'next' => $next ? new TurnResource($next) : null,
+            'nextTurn' => $next ? new TurnResource($next) : null,
+            'done' => $completed,
+            'isCompleted' => $completed,
+        ]]);
+    }
+
     /** POST /interviews/{interview}/finish — 202 while the evaluation is queued. */
     public function finish(FinishInterviewRequest $request, AiInterview $interview, FinishInterviewAction $finish): JsonResponse
     {
         $finish->execute($interview, $request->validated('reason') ?? 'user_ended');
 
         return response()->json(['data' => ['status' => $interview->status->value]], 202);
+    }
+
+    /** GET /interviews/{interview}/report — spec step 11. Same payload as /evaluation. */
+    public function report(OwnInterviewRequest $request, AiInterview $interview): JsonResponse
+    {
+        return $this->evaluation($request, $interview);
     }
 
     /** GET /interviews/{interview}/evaluation — 404 until evaluated. */

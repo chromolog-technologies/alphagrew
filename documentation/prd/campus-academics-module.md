@@ -211,8 +211,8 @@ Placement in the delivery plan: **Phase 3b**, directly after the tenant foundati
 
 ### Defects to fix as part of this work
 
-- Attendance controller queries `classes.subject_id` and `students.roll_number`, which don't exist.
-- Staff attendance and marks screens post to sample-data controllers that save nothing.
+- Attendance roster no longer queries `classes.subject_id` or `students.roll_number`. It uses the course's classes for the subject's semester and returns `registration_number`.
+- The staff attendance tab mounts `AttendanceModule`, which posts to `/api/v1/attendance/mark`. `/api/v1/staff/attendance` is still sample data and is no longer the mounted screen.
 - `marks.approve` is used by routes and seeders but not declared in `CampusPermission`.
 - `departments.hod` is read when creating students but no longer exists in the schema; new students get an empty mentor.
 - Two `classes` migrations with different columns.

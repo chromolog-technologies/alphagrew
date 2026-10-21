@@ -41,4 +41,31 @@ class ReadinessController extends Controller
 
         return response()->json(['data' => new StudentReadinessResource($latest, $history)]);
     }
+
+    /** GET /students/me/readiness — spec step 11. Same payload as readiness-score. */
+    public function readiness(OwnStudentRequest $request, ReadinessCalculator $readiness): JsonResponse
+    {
+        return $this->readinessScore($request, $readiness);
+    }
+
+    /** GET /students/me/readiness/history — the time series already stored with the score. */
+    public function readinessHistory(OwnStudentRequest $request, ReadinessCalculator $readiness): JsonResponse
+    {
+        $payload = $this->readinessScore($request, $readiness)->getData(true);
+
+        return response()->json(['data' => $payload['data']['history'] ?? []]);
+    }
+
+    /** PATCH /students/me/recommendations/{recommendation} — status open, done, or dismissed. */
+    public function updateRecommendation(OwnStudentRequest $request, AiRecommendation $recommendation): JsonResponse
+    {
+        abort_unless($recommendation->student_id === $request->student()->id, 404);
+
+        $validated = $request->validate([
+            'status' => ['required', 'in:open,done,dismissed'],
+        ]);
+        $recommendation->update(['status' => $validated['status']]);
+
+        return response()->json(['data' => new AiRecommendationResource($recommendation)]);
+    }
 }
