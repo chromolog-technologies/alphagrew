@@ -10,6 +10,13 @@ Changes to the Alphagrew Master Product Documentation v1.0 (Chromolog Technologi
 
 Acceptance criteria continue the numbering of Section 30: 15–22 in Campus Academics, 23–27 in User Roles and Access.
 
+Gap registers (what the code does today, against these specs):
+
+- [Backend gaps](../gaps/backend-gaps.md): implemented routes, sample-data routes, spec-only placement and recruiter work, and modules that have code but no spec.
+- [Frontend gaps](../gaps/frontend-gaps.md): each screen's data source (Laravel, sample data, local component state, or the Express server) and whether it is mounted.
+
+Workflows for keeping those registers current: `.agents/workflows/backend-documentation.md` and `.agents/workflows/frontend-documentation.md`.
+
 Implementation specs built on these addenda:
 
 - [Student Journey — Backend Specification](../student-journey-backend-spec.md): all 16 steps of §7.1 with endpoints, tables, rules, events and build order.
