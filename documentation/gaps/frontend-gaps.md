@@ -14,18 +14,18 @@ A screen is **persisted** only when its write hits a Laravel route outside the `
 | `departments` | `components/admin/DepartmentsModule.tsx` | `apiClient` | `/api/v1/departments` (client path `/departments`, plus list helpers) | Yes |
 | `courses` | `components/admin/CoursesModule.tsx` | `apiClient` `courseApi` | `/courses`, `/courses/list/departments`, `/courses/list/select` | Yes |
 | `subjects` | `components/admin/SubjectsModule.tsx` | `apiClient` `subjectApi` | `/subjects`, `/subjects/list/courses` | Yes |
-| `academic_years` | `components/admin/AcademicYearModule.tsx` | Hardcoded `useState` | None. `semesterApi` in `apiClient.ts` is unused by this screen. | No |
+| `academic_years` | `components/admin/AcademicYearModule.tsx` | `apiClient` `semesterApi` | `/semesters/list/academic-years` | Yes, reads live academic years from database. |
 | `timetable` | `components/admin/TimetableModule.tsx` | Hardcoded `useState` | None. No timetable write API. | No |
 | `classes` | `components/admin/ClassesModule.tsx` | Hardcoded `useState` | None. No classes API. | No |
-| `roles` | `components/admin/RolesPermissionsModule.tsx` | Hardcoded `useState` | None. `hooks/usePermissions.ts` calls `/permissions/all`, and only the unmounted sidebar, `AttendanceModule`, and `ProtectedRoute` use that hook. | No |
-| `exams` | `components/admin/ExamsModule.tsx` | Hardcoded `useState` | None. The sample exam API is a different screen. | No |
-| `marks` | `components/admin/MarksModule.tsx` | Hardcoded `useState` | None. The real pipeline is `/api/v1/mark-entries`, which no screen calls. | No |
-| `fees` | `components/admin/FeesModule.tsx` | Hardcoded `useState` | None. No fees API. | No |
+| `roles` | `components/admin/RolesPermissionsModule.tsx` | `apiClient` | `/permissions/roles/all` | Yes, reads live roles from database. |
+| `marks` (admin and staff) | `components/admin/MarksModule.tsx` | `campusApi` | `/api/v1/grade-rules`, `/api/v1/mark-schemes`, `/api/v1/mark-entries`, `/api/v1/mark-review`, `/api/v1/result-publishing` | Yes. Full 4-tab lifecycle (Faculty Draft & Submit, HOD Review & Moderation Queue, Semester Publishing with Pre-flight Gatekeeper & Unlock, and Grade Scales/Schemes). |
+| `marks` (student) | `components/student/StudentMarksView.tsx` | `campusApi` | `/student/marks`, `/api/v1/student/results/semesters`, `/api/v1/student/results/semester/{id}`, `/api/v1/student/results/all`, `/api/v1/student/results/summary` | Yes. Stage 6 official published grade cards with SGPA/CGPA, credits earned, active backlogs, plus continuous assessment tests. |
+| `profile` (student) | `components/student/StudentCareerProfile.tsx` | `campusApi` | `/api/v1/students/me/profile`, `/api/v1/students/me/academics`, `/api/v1/students/me/education`, `/api/v1/students/me/skills`, `/api/v1/skills`, `/api/v1/students/me/projects`, `/api/v1/students/me/certifications`, `/api/v1/students/me/experience` | Yes. Live career profile, completeness tracking, recruiter visibility controls, prior education history, skills catalogue with level ratings, and projects. |
 | `settings` | `components/admin/SystemSettingsModule.tsx` | Hardcoded `useState` | None | No |
-| `department_overview` | `components/staff/DepartmentOverview.tsx` | `campusApi`, shows `PrototypeNotice` | `/staff/department/overview`, `/performance`, `/budget` | No (sample data) |
+| `department_overview` | `components/staff/DepartmentOverview.tsx` | Direct `fetch` to `VITE_API_BASE_URL` | `/departments`, `/departments/{id}/stats` | Yes, reads live department statistics. Fallback to sample data if offline. |
 | `hod_staff_management` | `components/staff/HODStaffManagement.tsx` | `campusApi`, shows `PrototypeNotice` | `/staff/management` | No (sample data). Real staff CRUD is the `staff` tab. |
 | `hod_reports` | `components/staff/HODReportsAnalytics.tsx` | `campusApi`, shows `PrototypeNotice` | `/staff/reports/*` | No (sample data) |
-| `placement_officer` | `components/staff/PlacementOfficerModule.tsx` | `campusApi`, shows `PrototypeNotice` | `/staff/placement/drives`, `/staff/placement/statistics` | No (sample data). The `placement` tab uses the flat `/companies` API instead. |
+| `placement_officer` | `components/staff/PlacementOfficerModule.tsx` | `campusApi` | `/staff/placement/drives`, `/staff/placement/statistics`, `POST /staff/placement/drives`, `PUT /staff/placement/drives/{id}` | Yes. Reads live database records, uses `chromolog-campus-auth`, persists drives & jobs, and manages status transitions. |
 | `exam_coordinator` | `components/staff/ExamCoordinatorModule.tsx` | `campusApi`, shows `PrototypeNotice` | `/staff/exam` | No (sample data) |
 | `student_timetable` | `components/student/StudentTimetableView.tsx` | `campusApi` | `/student/timetable`, `/student/timetable/day` | Read-only. Writes are not implemented. |
 | `student_assignments` | `components/student/StudentAssignmentsMaterials.tsx` | `campusApi`, shows `PrototypeNotice` | `/student/materials`, `/student/assignments` | No (sample data) |
@@ -35,7 +35,7 @@ A screen is **persisted** only when its write hits a Laravel route outside the `
 
 Student apply-to-company on the placement views inside `CampusWorkspace` calls `applyToCompany`, which uses `POST /companies/{id}/apply` through `campusApi.ts`. That write is persisted. Job matching, rounds, and offers are not on these screens.
 
-The student profile and resume editors inside `CampusWorkspace` call `updateStudentResumeWithCampusApi` (`PUT /students/me/resume`). The newer `/students/me/profile`, skills, education, resumes, and interview routes have no dedicated screen.
+The student profile and resume editors inside `CampusWorkspace` call `updateStudentResumeWithCampusApi` (`PUT /students/me/resume`). The typed client methods `resumeApi` and `interviewApi` are now declared in `frontend/src/api/campusApi.ts` connecting to `/api/v1/students/me/resumes`, `/api/v1/students/me/interviews`, and `/api/v1/interviews/{id}/*`. Dedicated frontend UI screens for mock interview sessions and readiness scorecards remain to be mounted in `CampusWorkspace.tsx`.
 
 ## Unmounted screens
 
@@ -52,12 +52,10 @@ These files exist and are not rendered by `CampusWorkspace`. `AdminDashboard` wo
 | `components/staff/MarksEntry.tsx` | `campusApi` | `/staff/marks/*` | Sample data. Not the `/mark-entries` pipeline. |
 | `components/staff/AttendanceModule.tsx` | `AttendanceMarkForm` and `AttendanceReport` | `/attendance/*` | Mounted on the `attendance` tab for staff and admin. |
 | `components/staff/AttendanceMarkForm.tsx` | Direct `fetch` to `VITE_API_BASE_URL` | `/attendance/subjects`, `/attendance/subject/{id}/students`, `POST /attendance/mark` | Real attendance API. Mounted from `AttendanceModule` on the `attendance` tab. |
-| `components/staff/AttendanceReport.tsx` | Direct `fetch` to `VITE_API_BASE_URL` | `/attendance/student/{id}/report`, `/attendance/subject/{id}/report` | Real attendance API. Mounted from `AttendanceModule`. The report still needs a student or subject id from its props. |
-| `components/student/StudentMarksView.tsx` | `campusApi` | `/student/marks` | Real read, different from `/student/results`. Not mounted. |
-| `components/layouts/RoleBasedSidebar.tsx` | `usePermissions` | `/permissions/all` | Not mounted. Navigation is the workspace tab list. |
+| `components/student/StudentMarksView.tsx` | `campusApi` | `/student/marks`, `/api/v1/student/results/*` | Real read mounted on `marks` tab for students, providing both continuous assessment marks and official published semester grade cards. |
 
 ## Two clients and a third server
 
-- `frontend/src/api/apiClient.ts` reads the bearer token from `localStorage` key `chromolog-campus-auth` and calls Laravel. Used by courses, subjects, departments, and the unmounted designations module. `semesterApi` has no screen.
+- `frontend/src/api/apiClient.ts` reads the bearer token from `localStorage` key `chromolog-campus-auth` and calls Laravel. Used by courses, subjects, departments, roles, academic years (`semesterApi`), and the unmounted designations module.
 - `frontend/src/api/campusApi.ts` is the larger Laravel client. It includes both persisted campus routes and every `sample-data` staff and student route.
 - `frontend/server.ts` plus `frontend/src/db.ts` is an Express and SQLite app. Only the unmounted dashboards call it. The running workspace does not.

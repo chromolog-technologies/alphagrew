@@ -301,6 +301,24 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum');
 
+        // Placement Module Routes (documentation/placement-officer-journey-backend-spec.md)
+        Route::prefix('placement')->group(function (): void {
+            Route::get('/drives', [PlacementController::class, 'getDrives'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+            Route::get('/applications', [PlacementController::class, 'getApplications'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+            Route::post('/drives', [PlacementController::class, 'createDrive'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+            Route::put('/drives/{driveId}', [PlacementController::class, 'updateDrive'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+            Route::get('/statistics', [PlacementController::class, 'getStatistics'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+            Route::get('/results-by-batch', [PlacementController::class, 'getResultsByBatch'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW_RESULTS.',sanctum');
+            Route::get('/report', [PlacementController::class, 'exportReport'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+        });
+
         Route::get('/announcements', [AnnouncementController::class, 'index'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_VIEW.',sanctum');
         Route::post('/announcements', [AnnouncementController::class, 'store'])
@@ -532,23 +550,6 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('permission:'.CampusPermission::STAFF_VIEW.',sanctum');
             });
 
-            // Placement Routes
-            Route::prefix('placement')->group(function (): void {
-                Route::get('/drives', [PlacementController::class, 'getDrives'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-                Route::get('/applications', [PlacementController::class, 'getApplications'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-                Route::post('/drives', [PlacementController::class, 'createDrive'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-                Route::put('/drives/{driveId}', [PlacementController::class, 'updateDrive'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-                Route::get('/statistics', [PlacementController::class, 'getStatistics'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-                Route::get('/results-by-batch', [PlacementController::class, 'getResultsByBatch'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW_RESULTS.',sanctum');
-                Route::get('/report', [PlacementController::class, 'exportReport'])
-                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
-            });
 
             // Exam Coordinator Routes
             Route::prefix('exam')->group(function (): void {
@@ -606,5 +607,28 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('permission:'.CampusPermission::REPORTS_GENERATE.',sanctum');
             });
         });
+
+        // Real Database-Backed Placement Officer Routes (Outside sample-data)
+        $registerPlacementRoutes = function (string $prefix): void {
+            Route::prefix($prefix)->group(function (): void {
+                Route::get('/drives', [PlacementController::class, 'getDrives'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+                Route::get('/applications', [PlacementController::class, 'getApplications'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+                Route::post('/drives', [PlacementController::class, 'createDrive'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+                Route::put('/drives/{driveId}', [PlacementController::class, 'updateDrive'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+                Route::get('/statistics', [PlacementController::class, 'getStatistics'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+                Route::get('/results-by-batch', [PlacementController::class, 'getResultsByBatch'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW_RESULTS.',sanctum');
+                Route::get('/report', [PlacementController::class, 'exportReport'])
+                    ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+            });
+        };
+
+        $registerPlacementRoutes('staff/placement');
+        $registerPlacementRoutes('placement');
     });
 });

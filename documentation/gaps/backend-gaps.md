@@ -12,6 +12,7 @@ The `sample-data` middleware is `App\Http\Middleware\MarkSampleData`, aliased in
 |---|---|---|
 | Student self-service through readiness | `/api/v1/students/me` (profile, photo, skills, education, resumes, interviews, recommendations, readiness-score) and `/api/v1/interviews/{interview}` | `documentation/student-journey-backend-spec.md` steps 1–11; `documentation/ai-interview-journey-backend-spec.md` |
 | Academic results pipeline | `/api/v1/grade-rules`, `/api/v1/mark-schemes`, `/api/v1/mark-entries`, `/api/v1/mark-review`, `/api/v1/result-publishing`, `/api/v1/student/results`, `/api/v1/students/{student}/academic-summary` | `documentation/academic-results-backend-spec.md` |
+| Placement officer core drives, statistics & reports | `/api/v1/placement/*` and `/api/v1/staff/placement/*` (`drives`, `applications`, `statistics`, `results-by-batch`, `report`) | `documentation/placement-officer-journey-backend-spec.md` steps 1–3, 13 |
 | Apply to a company | `POST /api/v1/companies/{company}/apply` | Student journey step 13, only this call. Steps 12 and 14–16 are spec only. |
 
 ## Implemented, no module spec
@@ -45,7 +46,7 @@ The journey specs already describe the target. This table only points at them.
 
 | Gap | Evidence | Spec |
 |---|---|---|
-| Placement officer steps 1–13 | `/api/v1/staff/placement` is inside `sample-data`. `companies` still stores role, package, and drive date on one row. | `documentation/placement-officer-journey-backend-spec.md` |
+| Placement officer steps 4–12 | `/api/v1/placement` and `/api/v1/staff/placement` core drives, statistics, and reports persist and query live DB. Advanced eligibility rule engine, sequential round scheduling, and formal offer letters remain to be implemented. | `documentation/placement-officer-journey-backend-spec.md` |
 | Recruiter steps 1–10 | `UserRole::Recruiter` exists. No recruiter route group. | `documentation/recruiter-journey-backend-spec.md` |
 | Student placement steps 12, 14–16 | No job-match, assessment-round, interview-round, or placement-record routes. Only `POST /api/v1/companies/{company}/apply`. | `documentation/student-journey-backend-spec.md` |
 | Classes, batches, subject allocations | No `/batches`, `/classes`, or `/subject-allocations` routes. | Campus academics A9 "To add" |
@@ -63,9 +64,9 @@ The same job is exposed twice. The first path persists. The second is `sample-da
 | Mark attendance | `POST /api/v1/attendance/mark` and `GET /api/v1/attendance/subject/{subject}/students` (roster is the course's classes for that subject's semester; `roll_number` in the JSON is `students.registration_number`). `GET /api/v1/attendance/subjects` lists subjects for staff who can mark attendance. | `POST /api/v1/staff/attendance/submit` |
 | Enter marks | `POST /api/v1/mark-entries/save-draft` and `POST /api/v1/mark-entries/submit` | `POST /api/v1/staff/marks/submit` |
 | Staff directory | `/api/v1/staff` | `/api/v1/staff/management` |
-| Department stats | `GET /api/v1/departments/{department}/stats` | `GET /api/v1/staff/department/overview` |
+| Department stats | `GET /api/v1/departments/{department}/stats` (computes live `total_students`, `total_faculty`, `average_cgpa`, `placement_rate`; used by `DepartmentOverview.tsx`). | `GET /api/v1/staff/department/overview` |
 
-Also sample-only, with no persisted twin: `/api/v1/staff/placement`, `/api/v1/staff/exam`, `/api/v1/staff/reports`, `/api/v1/student/materials`, `/api/v1/student/assignments`, `/api/v1/student/notifications`.
+Also sample-only, with no persisted twin: `/api/v1/staff/exam`, `/api/v1/staff/reports`, `/api/v1/student/materials`, `/api/v1/student/assignments`, `/api/v1/student/notifications`. Placement routes (`/api/v1/placement` and `/api/v1/staff/placement`) now query real DB tables and are outside `sample-data`. Academic years select endpoint `GET /api/v1/semesters/list/academic-years` now queries live `academic_years` rows and feeds `AcademicYearModule.tsx`.
 
 ## Controllers still on the old style
 

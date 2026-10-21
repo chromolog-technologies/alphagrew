@@ -54,6 +54,24 @@ flowchart TD
 | 12 | **Skill Gap** | Benchmarks demonstrated skills against the target role competency model | Evaluation + Role Profile | `skill_gap_reports` | Async queued (< 5s) |
 | 13 | **Recommendations** | Prescribes targeted practice tests, revision topics, and updates institutional readiness score | Skill gap report | `ai_recommendations` & `readiness_scores` | Async queued (< 3s) |
 
+### Module Status Matrix: Today vs Target
+
+| # | Step | Today (`alphagrew` repo) | Target Architecture | Status |
+|---|---|---|---|---|
+| 1 | **Resume Upload** | ✅ Encrypted tenant disk storage (`resumes`), SHA-256 deduplication, MIME & 5MB file validation, automatic default resume promotion (`UploadResumeAction`, `StoreResumeRequest`). | Multi-resume repository with version tracking, privacy masking, and tenant S3 isolation. | Implemented |
+| 2 | **Resume Parsing** | ✅ `PdfParser` & `DocxParser` text extraction + `AiClient` structured entity extraction with schema validation; deterministic regex fallback when LLM key is absent. Automated skill sync to `student_skills` via `SyncResumeSkillsAction`. | High-accuracy hybrid OCR + LLM structured document pipeline with multi-language parsing. | Implemented |
+| 3 | **Candidate Profile** | ✅ Graph synthesis combining parsed resume entities with verified college academics (CGPA, verified university coursework, standing backlogs) and verified badges (`CandidateProfileBuilder`). | Unified multi-dimensional student profile incorporating live repository signals, coursework, and verifiable credentials. | Implemented |
+| 4 | **Target Role & Mode** | ✅ Selection of mode (`technical`, `hr`, `resume_deep_dive`, `system_design`, `mixed`), target role, base difficulty (1–5), or link to campus drive (`job_posting_id`). Single active session concurrency lock enforced (`CreateInterviewAction`, `CreateInterviewRequest`). | Role competency ontologies linked to employer campus job requirements and difficulty calibration. | Implemented |
+| 5 | **Interview Plan** | ✅ Synchronous plan generation (`InterviewPlanner`) detailing competency weights, planned turn allocations, pacing, and time limit budgets. | Dynamic blueprint generation based on employer rubrics, candidate blindspots, and target role level. | Implemented |
+| 6 | **Question Generation** | ✅ Context-aware prompt engine combining target role demands, candidate academic context, stated skills, and turn history (`QuestionGenerator`, `InterviewConductor`). Few-shot engineering prompt architecture. | Conversational AI interviewer with contextual depth, enterprise domain specialization, and few-shot constraints. | Implemented |
+| 7 | **Student Answer** | ✅ Multi-modal response intake: JSON text answer OR multipart audio file (`audio/webm`, `audio/wav`). Whisper transcription via external STT engine with tenant auth header. Row lock (`lockForUpdate`) protects against double submission race conditions (`AnswerTurnAction`, `SpeechTranscriber`). | Low-latency streaming voice-to-text with filler word detection and pause analysis. | Implemented |
+| 8 | **Turn Analysis** | ✅ Fast sub-second evaluation: relevance score (0–100), technical accuracy (0–100), depth signal (`shallow`, `adequate`, `profound`), and claim detection (`AnalyzeTurnAction`). | Real-time sentiment, technical precision, and factual integrity analysis. | Implemented |
+| 9 | **Follow-up Probe** | ✅ Dynamic clarifying questions or technical proof probes triggered when answers are evasive or make unsubstantiated claims without technical rationale (`InterviewConductor`, `TurnFollowUpTest`). | Multi-turn probing state machine detecting superficial answers and testing depth of ownership. | Implemented |
+| 10 | **Adaptive Difficulty** | ✅ Dynamic difficulty calibration ($1 \le D \le 5$). Consecutive high scores escalate complexity ($\Delta = +1$); failing answers de-escalate and pivot to foundational concepts ($\Delta = -1$) (`AdaptiveDifficulty`). | Continuous calibration matrix adapting to candidate frontier of knowledge. | Implemented |
+| 11 | **Final Evaluation** | ✅ Async queued evaluation (`EvaluateInterviewJob`, `InterviewEvaluator`) across 5 core dimensions: Technical Depth (30%), Problem Solving (25%), Communication (20%), Role Fit (15%), Behavioral (10%). Per-turn breakdown and actionable recommendations. | Comprehensive holistic scorecard with benchmarked peer percentile and rubrics. | Implemented |
+| 12 | **Skill Gap Report** | ✅ Async queued report (`GenerateSkillGapReportJob`, `SkillGapAnalyzer`) benchmarking candidate's demonstrated competencies against target role requirements. Identifies `exceeds`, `meets`, `gap`, `missing` skills with remediation advice. | Granular competency gap analysis against target role job descriptions with actionable learning path. | Implemented |
+| 13 | **Recommendations & Readiness** | ✅ Targeted practice recommendations (`RecommendationGenerator`, `ai_recommendations`) and recalculation of institutional readiness score (`RecalculateReadinessJob`, `ReadinessCalculator`) using 4-component weighted model. Never used as an exclusionary blocker. | Closed-loop career coaching flywheel connecting mock evaluations to remedial practice and drive readiness. | Implemented |
+
 ---
 
 ## 2. Architecture & Data Model
@@ -213,9 +231,12 @@ All student self-service routes live under `/api/v1/students/me/...` and enforce
 | Method | Path | Permission | Request Body | Response |
 |---|---|---|---|---|
 | POST | `/api/v1/students/me/resumes` | `resumes.manage` | Multipart: `file` (PDF/DOCX ≤ 5MB), `title` | 201 `ResumeResource` (`status: "parsing"`) |
-| GET | `/api/v1/students/me/resumes` | `resumes.manage` | — | 200 `[ResumeResource]` |
-| GET | `/api/v1/students/me/resumes/{resume}` | `resumes.manage` | — | 200 `ResumeDetailResource` (includes parsed JSON) |
-| GET | `/api/v1/students/me/resumes/{resume}/analysis` | `resumes.manage` | — | 200 `ResumeAnalysisResource` (ATS score & tips) |
+| GET | `/api/v1/students/me/resumes` | `resumes.manage` | — | 200 `[ResumeResource]` (Newest first, includes ATS score) |
+| GET | `/api/v1/students/me/resumes/{resume}` | `resumes.manage` | — | 200 `ResumeDetailResource` (Includes parsed JSON & sections) |
+| GET | `/api/v1/students/me/resumes/{resume}/analysis` | `resumes.manage` | — | 200 `ResumeAnalysisResource` (ATS compatibility & tips) |
+| GET | `/api/v1/students/me/resumes/{resume}/download` | `resumes.manage` | — | 200 `{ url: string, expiresAt: ISO8601 }` (Signed 5-minute URL) |
+| GET | `/api/v1/files/resumes/{resume}` | Signed URL route | — | 200 Streamed binary file (`Content-Disposition: inline`) |
+| POST | `/api/v1/students/me/resumes/{resume}/analysis` | `resumes.manage` | — | 202 `{ data: { status: "queued" } }` (Re-queue ATS analysis) |
 | DELETE | `/api/v1/students/me/resumes/{resume}` | `resumes.manage` | — | 200 `{ message: "Resume deleted" }` |
 
 #### Resume Parser Queued Job (`ParseResumeJob`)
@@ -239,11 +260,12 @@ All student self-service routes live under `/api/v1/students/me/...` and enforce
 | Method | Path | Permission | Request Body | Response |
 |---|---|---|---|---|
 | POST | `/api/v1/students/me/interviews` | `interviews.practice` | See schema below | 201 `InterviewSessionResource` (`status: "planned"`) |
-| POST | `/api/v1/interviews/{interview}/start` | owner | `{ consentAccepted: true }` | 200 `{ data: { firstTurn: TurnResource } }` |
-| POST | `/api/v1/interviews/{interview}/turns/{turn}/answer` | owner | Text: `{ answerText: "..." }` OR Multipart: `audio` (WebM/WAV) | 200 `{ data: { nextTurn: TurnResource \| null, isCompleted: bool } }` |
-| POST | `/api/v1/interviews/{interview}/finish` | owner | `{ reason?: "user_ended" }` | 202 `{ data: { status: "evaluating" } }` |
-| GET | `/api/v1/interviews/{interview}` | owner | — | 200 `InterviewDetailResource` (session state + all turns) |
-| GET | `/api/v1/students/me/interviews` | owner | `page=1&status=` | 200 Paginated `InterviewHistoryResource` |
+| GET | `/api/v1/students/me/interviews` | `interviews.practice` | Query: `status=&page=1&perPage=15` | 200 Paginated `[InterviewSessionResource]` |
+| GET | `/api/v1/interviews/{interview}` | owner (`interviews.practice`) | — | 200 `InterviewDetailResource` (Session state + all turns) |
+| POST | `/api/v1/interviews/{interview}/start` | owner (`interviews.practice`) | `{ consentAccepted: true }` | 200 `{ data: { firstTurn: TurnResource } }` |
+| POST | `/api/v1/interviews/{interview}/turns/{turn}/answer` | owner (`interviews.practice`) | Text: `{ answerText: "..." }` OR Multipart: `audio` (WebM/WAV) | 200 `{ data: { nextTurn: TurnResource \| null, isCompleted: bool } }` |
+| POST | `/api/v1/interviews/{interview}/answers` | owner (`interviews.practice`) | JSON / Multipart: `{ turnId, text \| answerText, audio? }` | 200 `{ data: { nextTurn: TurnResource \| null, isCompleted: bool } }` |
+| POST | `/api/v1/interviews/{interview}/finish` | owner (`interviews.practice`) | `{ reason?: "user_ended" }` | 202 `{ data: { status: "evaluating" } }` |
 
 #### Request Schema: Initialize Interview Session
 ```json
@@ -344,10 +366,14 @@ Where $\Delta$ is determined by the last two turns:
 
 | Method | Path | Permission | Request Body | Response |
 |---|---|---|---|---|
-| GET | `/api/v1/interviews/{interview}/evaluation` | owner | — | 200 `InterviewEvaluationResource` (Detailed scores & rubric breakdown) |
-| GET | `/api/v1/interviews/{interview}/skill-gap` | owner | — | 200 `SkillGapReportResource` |
-| GET | `/api/v1/students/me/recommendations` | `profile.view` | — | 200 `[AiRecommendationResource]` |
-| GET | `/api/v1/students/me/readiness-score` | `profile.view` | — | 200 `StudentReadinessResource` |
+| GET | `/api/v1/interviews/{interview}/evaluation` | owner (`interviews.practice`) | — | 200 `InterviewEvaluationResource` (Detailed scores & rubric breakdown) |
+| GET | `/api/v1/interviews/{interview}/report` | owner (`interviews.practice`) | — | 200 `InterviewEvaluationResource` (Alias for `/evaluation`) |
+| GET | `/api/v1/interviews/{interview}/skill-gap` | owner (`interviews.practice`) | — | 200 `SkillGapReportResource` |
+| GET | `/api/v1/students/me/recommendations` | `profile.view` | Query: `status=open\|done\|dismissed` | 200 `[AiRecommendationResource]` (Sorted by priority) |
+| PATCH | `/api/v1/students/me/recommendations/{recommendation}` | `profile.view` | `{ "status": "open" \| "done" \| "dismissed" }` | 200 `AiRecommendationResource` |
+| GET | `/api/v1/students/me/readiness-score` | `profile.view` | — | 200 `StudentReadinessResource` (Current score + 20-point history) |
+| GET | `/api/v1/students/me/readiness` | `profile.view` | — | 200 `StudentReadinessResource` (Alias for `/readiness-score`) |
+| GET | `/api/v1/students/me/readiness/history` | `profile.view` | — | 200 `[{ overall, trigger, calculatedAt }]` |
 
 ### 5.1 Multi-Dimensional Evaluation Rubrics (`EvaluateInterviewJob`)
 

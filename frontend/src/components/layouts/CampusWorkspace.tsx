@@ -70,7 +70,9 @@ import { AttendanceModule } from '../staff/AttendanceModule';
 import { StudentTimetableView } from '../student/StudentTimetableView';
 import { StudentAssignmentsMaterials } from '../student/StudentAssignmentsMaterials';
 import { StudentAttendanceView } from '../student/StudentAttendanceView';
+import { StudentMarksView } from '../student/StudentMarksView';
 import { StudentNotifications } from '../student/StudentNotifications';
+import { StudentCareerProfile } from '../student/StudentCareerProfile';
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
 import {
@@ -791,7 +793,7 @@ function Panel({ children, className }: { children: ReactNode; className?: strin
   return (
     <section
       className={classNames(
-        'rounded-[18px] border border-[#e2eaf3] bg-white shadow-[0_22px_45px_-34px_rgba(15,23,42,0.18)]',
+        'heroui-card',
         className,
       )}
     >
@@ -810,10 +812,10 @@ function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-1">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-slate-500">{title}</p>
-        <h2 className="mt-2 text-2xl font-bold text-slate-950">{description}</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">{title}</p>
+        <h2 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">{description}</h2>
       </div>
       {action}
     </div>
@@ -867,26 +869,34 @@ function MetricCard({
   const toneStyles = cardToneStyles[tone];
   
   const colors: Record<CardTone, string> = {
-    navy: '#2563eb',
-    sky: '#0ea5e9',
-    teal: '#0d766e',
+    navy: '#006fee',
+    sky: '#0284c7',
+    teal: '#0d9488',
     amber: '#d97706',
-    indigo: '#4f46e5',
-    emerald: '#059669'
+    indigo: '#6366f1',
+    emerald: '#10b981'
   };
-  const strokeColor = colors[tone] || '#2563eb';
+  const strokeColor = colors[tone] || '#006fee';
 
   return (
-    <section className="rounded-lg p-3 bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-3">
-      <div className="flex-1 min-w-0">
-        <p className="text-xl font-bold text-slate-900 leading-none tracking-tight">{value}</p>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
-        <p className="mt-0.5 text-[9px] text-emerald-600 font-bold flex items-center gap-1">
-          {helper}
-        </p>
+    <section className="heroui-card p-4 transition-all duration-200 hover:-translate-y-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
+          <Icon size={18} />
+        </div>
+        <span className="trend-chip trend-chip-up">
+          <TrendingUp size={12} />
+          {helper || '+8.4%'}
+        </span>
       </div>
-      <div className="flex-shrink-0 flex items-center justify-center">
-        <Sparkline points={sparklineData} color={strokeColor} />
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
+          <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
+        </div>
+        <div className="flex-shrink-0">
+          <Sparkline points={sparklineData} color={strokeColor} />
+        </div>
       </div>
     </section>
   );
@@ -910,18 +920,18 @@ function DashboardHighlightCard({
   const toneStyles = cardToneStyles[tone];
 
   return (
-    <section className={classNames('rounded-xl p-4 bg-white border border-slate-200/80 shadow-sm', toneStyles.highlight)}>
+    <section className="heroui-card p-5 transition-all duration-200 hover:-translate-y-0.5">
       <div className="flex items-start justify-between gap-3">
-        <div className={classNames('flex h-8 w-8 items-center justify-center rounded-lg', toneStyles.icon)}>
-          <Icon size={16} />
+        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
+          <Icon size={18} />
         </div>
-        <span className={classNames('rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider', toneStyles.helper)}>
+        <span className={classNames('rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider', toneStyles.helper)}>
           {meta}
         </span>
       </div>
-      <p className="mt-3.5 text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-black text-slate-900 leading-none">{value}</p>
-      <p className="mt-2 text-xs text-slate-500 leading-relaxed">{detail}</p>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-zinc-400">{label}</p>
+      <p className="mt-1 text-3xl font-black text-zinc-900 tracking-tight leading-none">{value}</p>
+      <p className="mt-2 text-xs text-zinc-500 leading-relaxed">{detail}</p>
     </section>
   );
 }
@@ -945,24 +955,34 @@ function AdminSnapshotCard({
   const toneStyles = cardToneStyles[tone];
   
   const colors: Record<CardTone, string> = {
-    navy: '#2563eb',
-    sky: '#0ea5e9',
-    teal: '#0d766e',
+    navy: '#006fee',
+    sky: '#0284c7',
+    teal: '#0d9488',
     amber: '#d97706',
-    indigo: '#4f46e5',
-    emerald: '#059669'
+    indigo: '#6366f1',
+    emerald: '#10b981'
   };
-  const strokeColor = colors[tone] || '#2563eb';
+  const strokeColor = colors[tone] || '#006fee';
 
   return (
-    <section className="rounded-lg p-3 bg-white border border-slate-200 shadow-sm flex items-center justify-between gap-3">
-      <div className="flex-1 min-w-0">
-        <p className="text-xl font-bold text-slate-900 leading-none tracking-tight">{value}</p>
-        <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
-        <p className="mt-0.5 text-[9px] text-emerald-600 font-bold">{note}</p>
+    <section className="heroui-card p-4 transition-all duration-200 hover:-translate-y-0.5">
+      <div className="flex items-center justify-between gap-3">
+        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
+          <Icon size={18} />
+        </div>
+        <span className="trend-chip trend-chip-up">
+          <TrendingUp size={12} />
+          {note}
+        </span>
       </div>
-      <div className="flex-shrink-0 flex items-center justify-center">
-        <Sparkline points={sparklineData} color={strokeColor} />
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
+          <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
+        </div>
+        <div className="flex-shrink-0">
+          <Sparkline points={sparklineData} color={strokeColor} />
+        </div>
       </div>
     </section>
   );
@@ -993,28 +1013,28 @@ function Modal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-4 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-md"
       >
         <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 20, scale: 0.98 }}
-          className={`my-4 w-full rounded-[18px] bg-white shadow-[0_30px_80px_-40px_rgba(15,23,42,0.55)] ${
+          exit={{ opacity: 0, y: 16, scale: 0.98 }}
+          className={`my-6 w-full rounded-2xl border border-zinc-200/90 bg-white shadow-2xl ${
             compact ? 'max-w-md p-6' : 'max-w-2xl p-7'
           }`}
         >
-          <div className={`flex items-start justify-between gap-4 ${compact ? 'mb-5' : 'mb-6'}`}>
+          <div className={`flex items-start justify-between gap-4 ${compact ? 'mb-4' : 'mb-5'}`}>
             <div>
-              <h3 className={`${compact ? 'text-xl' : 'text-2xl'} font-bold text-slate-950`}>{title}</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
+              <h3 className={`${compact ? 'text-lg' : 'text-xl'} font-extrabold tracking-tight text-zinc-900`}>{title}</h3>
+              <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{description}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
               aria-label="Close modal"
             >
-              <X size={18} />
+              <X size={16} />
             </button>
           </div>
           {children}
@@ -1199,12 +1219,16 @@ export default function CampusWorkspace({
 
   const [activeTab, setActiveTab] = useState(availableNav[0]?.id ?? 'dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [sidebarDropdowns, setSidebarDropdowns] = useState<Record<SidebarNavGroup['id'], boolean>>({
+  const [sidebarDropdowns, setSidebarDropdowns] = useState<Record<string, boolean>>({
     overview: true,
     master_data: true,
-    management: true,
-    workspace: true,
+    users_roles: true,
+    academic: true,
+    finance: true,
+    placement: true,
+    other: true,
   });
+  const [placementViewMode, setPlacementViewMode] = useState<'kanban' | 'table'>('kanban');
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
@@ -2613,22 +2637,31 @@ export default function CampusWorkspace({
   };
 
   const dashboardHero = (
-    <Panel className="overflow-hidden border border-sky-100 bg-[linear-gradient(135deg,#38bdf8,#7dd3fc)] p-7 text-white md:p-8">
-      <div className="grid gap-7 xl:grid-cols-[1.25fr_0.75fr]">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-slate-900 to-zinc-900 p-6 text-white shadow-xl md:p-8">
+      {/* Background glow */}
+      <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-indigo-600/15 blur-3xl" />
+
+      <div className="relative grid gap-6 xl:grid-cols-[1.3fr_0.7fr] items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-blue-50">
-            <Sparkles size={14} />
-            Campus view
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-blue-300 backdrop-blur-md">
+            <Sparkles size={13} className="text-blue-400" />
+            <span>Campus Workspace</span>
           </div>
-          <h1 className="mt-5 text-3xl font-bold leading-tight md:text-4xl">{campusBrand.campusName}</h1>
-          <p className="mt-4 text-base leading-7 text-blue-50/90">{roleSubtitle[user.role]}</p>
-          <div className="mt-6 flex flex-wrap gap-3">
+          <h1 className="mt-3 text-2xl font-black tracking-tight text-white md:text-3xl lg:text-4xl">
+            {campusBrand.campusName}
+          </h1>
+          <p className="mt-2 text-sm text-zinc-300 leading-relaxed max-w-xl">
+            {roleSubtitle[user.role]}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2.5">
             {can('students.create') ? (
               <button
                 type="button"
                 onClick={() => openStudentEditor()}
-                className="rounded-[18px] bg-white px-4 py-3 text-sm font-semibold text-sky-700 transition hover:bg-sky-50"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition"
               >
+                <Plus size={14} />
                 Add student
               </button>
             ) : null}
@@ -2636,28 +2669,33 @@ export default function CampusWorkspace({
               <button
                 type="button"
                 onClick={() => openAnnouncementEditor()}
-                className="rounded-[18px] border border-white/25 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/16"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-white/10 hover:bg-white/15 px-4 py-2 text-xs font-semibold text-white backdrop-blur-md transition"
               >
+                <Megaphone size={14} />
                 Post update
               </button>
             ) : null}
           </div>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-[18px] border border-white/15 bg-white/10 p-5 backdrop-blur">
-            <p className="text-sm text-blue-100">Live metrics</p>
-            <p className="mt-3 text-3xl font-bold">{placementRate}%</p>
-            <p className="mt-2 text-sm text-blue-50/80">Placement rate</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Placement Rate</p>
+            <p className="mt-1 text-2xl font-black text-white">{placementRate}%</p>
+            <p className="mt-1 text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+              <TrendingUp size={12} /> {placedStudents} Placed
+            </p>
           </div>
-          <div className="rounded-[18px] border border-white/15 bg-white/10 p-5 backdrop-blur">
-            <p className="text-sm text-blue-100">This week</p>
-            <p className="mt-3 text-3xl font-bold">{openDrives}</p>
-            <p className="mt-2 text-sm text-blue-50/80">Open drives</p>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Open Drives</p>
+            <p className="mt-1 text-2xl font-black text-white">{openDrives}</p>
+            <p className="mt-1 text-[11px] text-blue-300 font-semibold flex items-center gap-1">
+              <BriefcaseBusiness size={12} /> Live tracking
+            </p>
           </div>
         </div>
       </div>
-    </Panel>
+    </div>
   );
 
   const renderAdminDashboard = () => {
@@ -2671,10 +2709,10 @@ export default function CampusWorkspace({
 
     return (
       <div className="space-y-5">
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a93ac]">
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
           {breadcrumbItems.map((item, index) => (
             <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-[#9ab1c8]" /> : null}
+              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-zinc-300" /> : null}
               <span className="truncate">{item}</span>
             </div>
           ))}
@@ -2791,8 +2829,8 @@ export default function CampusWorkspace({
 
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.55fr)_330px]">
           <div className="space-y-5">
-            <Panel className="overflow-hidden border-[#e5ebf3] px-0 py-0">
-              <div className="flex flex-col gap-4 border-b border-[#edf2f7] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
+            <Panel className="overflow-hidden border-zinc-200/90 px-0 py-0">
+              <div className="flex flex-col gap-4 border-b border-zinc-200/80 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Sales analytics</p>
                   <h3 className="mt-2 text-2xl font-bold text-slate-950">{activeAdminAnalytics.title}</h3>
@@ -2811,8 +2849,8 @@ export default function CampusWorkspace({
                       className={classNames(
                         'rounded-[18px] border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition',
                         adminAnalyticsTab === tab.id
-                          ? 'border-[#123a66] bg-[#123a66] text-white'
-                          : 'border-[#d9e3ed] bg-white text-[#123a66] hover:bg-[#f7fbff]',
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                          : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900',
                       )}
                     >
                       {tab.label}
@@ -2821,7 +2859,7 @@ export default function CampusWorkspace({
                 </div>
               </div>
 
-              <div className="grid gap-3 border-b border-[#edf2f7] bg-[#f8fafc] px-6 py-4 md:grid-cols-4">
+              <div className="grid gap-3 border-b border-zinc-200/80 bg-zinc-50/50 px-6 py-4 md:grid-cols-4">
                 <div className="rounded-[18px] border border-white bg-white px-4 py-3 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.18)]">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Placed</p>
                   <p className="mt-2 text-2xl font-bold text-slate-950">{placedStudents}</p>
@@ -2869,7 +2907,7 @@ export default function CampusWorkspace({
               </div>
             </Panel>
 
-            <Panel className="border-[#e5ebf3] p-6">
+            <Panel className="border-zinc-200/90 p-6">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Application sales</p>
@@ -2878,16 +2916,16 @@ export default function CampusWorkspace({
                 <button
                   type="button"
                   onClick={() => setActiveTab('placement')}
-                  className="inline-flex items-center gap-2 rounded-[18px] border border-[#dce7f1] bg-white px-4 py-2.5 text-sm font-semibold text-[#133b67] transition hover:bg-[#f8fbff]"
+                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                 >
                   Open placement
                   <ChevronRight size={16} />
                 </button>
               </div>
 
-              <div className="mt-5 overflow-hidden rounded-[18px] border border-[#e7edf4]">
-                <table className="min-w-full divide-y divide-[#e7edf4]">
-                  <thead className="bg-[#f8fafc]">
+              <div className="mt-5 overflow-hidden rounded-2xl border border-zinc-200">
+                <table className="min-w-full divide-y divide-zinc-200">
+                  <thead className="bg-zinc-50/70">
                     <tr>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Application</th>
                       <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Users</th>
@@ -2896,9 +2934,9 @@ export default function CampusWorkspace({
                       <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#eef2f7] bg-white">
+                  <tbody className="divide-y divide-zinc-100 bg-white">
                     {pipelineRows.map((company) => (
-                      <tr key={company.id} className="hover:bg-[#fbfdff]">
+                      <tr key={company.id} className="hover:bg-zinc-50/70">
                         <td className="px-4 py-4">
                           <p className="font-semibold text-slate-950">{company.name}</p>
                           <p className="mt-1 text-sm text-slate-500">{company.role}</p>
@@ -2930,7 +2968,7 @@ export default function CampusWorkspace({
           </div>
 
           <div className="space-y-5">
-            <Panel className="border-[#e5ebf3] p-6">
+            <Panel className="border-zinc-200/90 p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Project stats</p>
@@ -3005,7 +3043,7 @@ export default function CampusWorkspace({
               </Panel>
             ) : null}
 
-            <Panel className="border-[#e5ebf3] p-6">
+            <Panel className="border-zinc-200/90 p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">User activity</p>
@@ -3016,8 +3054,8 @@ export default function CampusWorkspace({
 
               <div className="mt-5 space-y-3">
                 {activityFeed.map((announcement) => (
-                  <div key={announcement.id} className="flex gap-3 rounded-[18px] border border-[#edf2f7] bg-[#f8fafc] px-4 py-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-[18px] bg-[#e8f5ff] text-[#18a2da]">
+                  <div key={announcement.id} className="flex gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/50 px-4 py-4">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                       <Bell size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -3259,21 +3297,21 @@ export default function CampusWorkspace({
                     type="button"
                     onClick={() => setActiveMasterCategory(category)}
                     className={classNames(
-                      'rounded-[18px] border px-4 py-4 text-left transition',
+                      'rounded-2xl border px-4 py-4 text-left transition',
                       isActive
-                        ? 'border-[#b7d8ef] bg-[#f3faff] shadow-[0_18px_35px_-30px_rgba(15,23,42,0.28)]'
-                        : 'border-[#e7edf4] bg-white hover:border-[#d7e4f0] hover:bg-[#fbfdff]',
+                        ? 'border-blue-500 bg-blue-50/60 shadow-sm ring-1 ring-blue-500/20'
+                        : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/60',
                     )}
                   >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Category</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-950">{label}</p>
-                    <p className="mt-3 text-2xl font-bold text-[#123a66]">{masterOptions(category).length}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">Category</p>
+                    <p className="mt-2 text-sm font-semibold text-zinc-900">{label}</p>
+                    <p className="mt-3 text-2xl font-bold text-blue-600">{masterOptions(category).length}</p>
                   </button>
                 );
               })}
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 border-b border-[#edf2f7] pb-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-6 flex flex-col gap-3 border-b border-zinc-200/80 pb-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Selected category</p>
                 <h3 className="mt-2 text-2xl font-bold text-slate-950">{campusMasterCategoryLabels[activeMasterCategory]}</h3>
@@ -3283,9 +3321,9 @@ export default function CampusWorkspace({
               </span>
             </div>
 
-            <div className="mt-5 overflow-hidden rounded-[18px] border border-[#e7edf4]">
-              <table className="min-w-full divide-y divide-[#e7edf4]">
-                <thead className="bg-[#f8fafc]">
+            <div className="mt-5 overflow-hidden rounded-2xl border border-zinc-200">
+              <table className="min-w-full divide-y divide-zinc-200">
+                <thead className="bg-zinc-50/70">
                   <tr>
                     <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Label</th>
                     <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Code</th>
@@ -3294,7 +3332,7 @@ export default function CampusWorkspace({
                     <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#eef2f7] bg-white">
+                <tbody className="divide-y divide-zinc-100 bg-white">
                   {visibleMasters.map((master) => (
                     <tr key={master.id} className="hover:bg-[#fbfdff]">
                       <td className="px-4 py-4 font-semibold text-slate-950">{master.label}</td>
@@ -3352,7 +3390,7 @@ export default function CampusWorkspace({
                 <button
                   type="button"
                   onClick={() => handleNavSelection('departments')}
-                  className="flex w-full items-center justify-between rounded-[18px] border border-[#e7edf4] bg-[#fbfdff] px-4 py-4 text-left transition hover:border-[#d7e4f0]"
+                  className="flex w-full items-center justify-between rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left transition hover:border-zinc-300 hover:bg-zinc-50"
                 >
                   <div>
                     <p className="font-semibold text-slate-950">Departments</p>
@@ -3363,7 +3401,7 @@ export default function CampusWorkspace({
                 <button
                   type="button"
                   onClick={() => handleNavSelection('designations')}
-                  className="flex w-full items-center justify-between rounded-[18px] border border-[#e7edf4] bg-[#fbfdff] px-4 py-4 text-left transition hover:border-[#d7e4f0]"
+                  className="flex w-full items-center justify-between rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left transition hover:border-zinc-300 hover:bg-zinc-50"
                 >
                   <div>
                     <p className="font-semibold text-slate-950">Designations</p>
@@ -3779,8 +3817,8 @@ export default function CampusWorkspace({
 
       <Panel className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#e7edf4]">
-            <thead className="bg-[#f8fafc]">
+          <table className="min-w-full divide-y divide-zinc-200">
+            <thead className="bg-zinc-50/70">
               <tr>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Designation</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Description</th>
@@ -3967,8 +4005,8 @@ export default function CampusWorkspace({
       <SectionHeader title="Placement module" description="Open company drives matched to the current student profile." />
       <Panel className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#e7edf4]">
-            <thead className="bg-[#f8fafc]">
+          <table className="min-w-full divide-y divide-zinc-200">
+            <thead className="bg-zinc-50/70">
               <tr>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Company</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Type</th>
@@ -4026,99 +4064,259 @@ export default function CampusWorkspace({
     </div>
   );
 
-  const renderPlacementManagementTable = () => (
-    <div className="space-y-6">
-      <SectionHeader
-        title="Placement module"
-        description="Drive management, applicant momentum, and recruiter readiness."
-        action={can('placement.create') ? (
-            <button
-              type="button"
-              onClick={() => openCompanyEditor()}
-              className="inline-flex items-center gap-2 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              <Plus size={16} />
-              Add company
-            </button>
-          ) : null}
-      />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Company Drives" value={data.companies.length} helper="All records" icon={Building2} tone="navy" />
-        <MetricCard label="Applicants" value={data.companies.reduce((sum, company) => sum + company.applicants, 0)} helper="Live count" icon={Users} tone="sky" />
-        <MetricCard label="Shortlisted" value={data.companies.reduce((sum, company) => sum + company.shortlisted, 0)} helper="Pipeline" icon={ShieldCheck} tone="teal" />
-        <MetricCard label="Internship Drives" value={data.companies.filter((company) => company.type === 'Internship').length} helper="Blended demo" icon={ClipboardList} tone="amber" />
-      </div>
+  const renderPlacementManagementTable = () => {
+    const kanbanStages: Array<{
+      id: string;
+      label: string;
+      badge: string;
+      statusFilter: (status: CompanyStatus) => boolean;
+      color: string;
+    }> = [
+      {
+        id: 'upcoming',
+        label: 'Upcoming Drives',
+        badge: 'bg-sky-50 text-sky-700 border-sky-200',
+        statusFilter: (s) => s.toLowerCase() === 'upcoming',
+        color: '#0284c7',
+      },
+      {
+        id: 'open',
+        label: 'Active & Open',
+        badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        statusFilter: (s) => s.toLowerCase() === 'open',
+        color: '#10b981',
+      },
+      {
+        id: 'closing_soon',
+        label: 'Closing Soon',
+        badge: 'bg-amber-50 text-amber-700 border-amber-200',
+        statusFilter: (s) => s.toLowerCase().includes('closing'),
+        color: '#f59e0b',
+      },
+      {
+        id: 'closed',
+        label: 'Completed / Closed',
+        badge: 'bg-zinc-100 text-zinc-600 border-zinc-200',
+        statusFilter: (s) => s.toLowerCase() === 'closed',
+        color: '#71717a',
+      },
+    ];
 
-      <Panel className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#e7edf4]">
-            <thead className="bg-[#f8fafc]">
-              <tr>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Company</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Type</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Package</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Drive Date</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Applicants</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Shortlisted</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#eef2f7] bg-white">
-              {filteredPlacementCompanies.map((company) => (
-                <tr key={company.id} className="hover:bg-[#fbfdff]">
-                  <td className="px-4 py-4">
-                    <p className="font-semibold text-slate-950">{company.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{company.role}</p>
-                    <p className="mt-1 text-xs text-slate-400">{company.location} | {company.eligibleDepartments.join(', ')}</p>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-slate-700">{company.type}</td>
-                  <td className="px-4 py-4 text-sm font-medium text-slate-700">{company.packageOffered}</td>
-                  <td className="px-4 py-4 text-sm text-slate-700">{formatDate(company.driveDate)}</td>
-                  <td className="px-4 py-4 text-sm text-slate-700">{company.applicants}</td>
-                  <td className="px-4 py-4 text-sm text-slate-700">{company.shortlisted}</td>
-                  <td className="px-4 py-4">
-                    <span className={classNames('rounded-full px-3 py-1 text-xs font-semibold', statusTone(company.status))}>
-                      {company.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-right">
-                    {can('placement.create') ? (
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openCompanyEditor(company)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-slate-200 text-slate-700 transition hover:bg-slate-50"
-                          aria-label={`Edit ${company.name}`}
-                        >
-                          <Pencil size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteCompany(company)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-red-200 text-red-600 transition hover:bg-red-50"
-                          aria-label={`Delete ${company.name}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-slate-400">View only</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          title="Campus CRM & Placement"
+          description="Drive Pipeline, Applicant Momentum & Recruiter Management"
+          action={
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="inline-flex items-center rounded-xl border border-zinc-200 bg-zinc-100/80 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPlacementViewMode('kanban')}
+                  className={classNames(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                    placementViewMode === 'kanban'
+                      ? 'bg-white text-zinc-900 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-900',
+                  )}
+                >
+                  <LayoutDashboard size={13} />
+                  <span>Pipeline</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlacementViewMode('table')}
+                  className={classNames(
+                    'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition',
+                    placementViewMode === 'table'
+                      ? 'bg-white text-zinc-900 shadow-sm'
+                      : 'text-zinc-500 hover:text-zinc-900',
+                  )}
+                >
+                  <ClipboardList size={13} />
+                  <span>Table View</span>
+                </button>
+              </div>
+
+              {can('placement.create') ? (
+                <button
+                  type="button"
+                  onClick={() => openCompanyEditor()}
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <Plus size={15} />
+                  Add company
+                </button>
+              ) : null}
+            </div>
+          }
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Company Drives" value={data.companies.length} helper="All records" icon={Building2} tone="navy" />
+          <MetricCard label="Applicants" value={data.companies.reduce((sum, company) => sum + company.applicants, 0)} helper="Live count" icon={Users} tone="sky" />
+          <MetricCard label="Shortlisted" value={data.companies.reduce((sum, company) => sum + company.shortlisted, 0)} helper="Pipeline" icon={ShieldCheck} tone="teal" />
+          <MetricCard label="Internship Drives" value={data.companies.filter((company) => company.type === 'Internship').length} helper="Blended demo" icon={ClipboardList} tone="amber" />
         </div>
-        {filteredPlacementCompanies.length === 0 ? (
-          <div className="border-t border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
-            No company drives match the current search.
+
+        {placementViewMode === 'kanban' ? (
+          <div className="grid gap-4 lg:grid-cols-4 items-start">
+            {kanbanStages.map((stage) => {
+              const stageCompanies = filteredPlacementCompanies.filter((company) => stage.statusFilter(company.status));
+              return (
+                <div key={stage.id} className="flex flex-col rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3 shadow-sm min-h-[420px]">
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-200/80 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
+                      <h4 className="text-xs font-bold text-zinc-800 uppercase tracking-wider">{stage.label}</h4>
+                    </div>
+                    <span className={classNames('rounded-full border px-2 py-0.5 text-[11px] font-bold', stage.badge)}>
+                      {stageCompanies.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 flex-1 overflow-y-auto">
+                    {stageCompanies.map((company) => (
+                      <div
+                        key={company.id}
+                        className="heroui-card p-4 transition-all duration-150 hover:-translate-y-0.5 hover:border-zinc-300"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-sm">
+                              {company.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="font-bold text-zinc-900 text-sm truncate">{company.name}</h5>
+                              <p className="text-xs text-zinc-500 truncate">{company.role}</p>
+                            </div>
+                          </div>
+                          {can('placement.create') && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => openCompanyEditor(company)}
+                                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={`Edit ${company.name}`}
+                              >
+                                <Pencil size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteCompany(company)}
+                                className="rounded-lg p-1 text-zinc-400 hover:bg-red-50 hover:text-red-600"
+                                aria-label={`Delete ${company.name}`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
+                          <span className="rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 font-bold">
+                            {company.packageOffered}
+                          </span>
+                          <span className="rounded-full bg-zinc-100 text-zinc-600 px-2 py-0.5 font-medium text-[11px]">
+                            {company.type}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5 text-[11px] text-zinc-500">
+                          <span className="flex items-center gap-1">
+                            <Users size={12} className="text-blue-500" />
+                            {company.applicants} applied
+                          </span>
+                          <span className="flex items-center gap-1 font-medium text-zinc-600">
+                            <Calendar size={12} className="text-zinc-400" />
+                            {formatDate(company.driveDate)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+
+                    {stageCompanies.length === 0 && (
+                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300/80 py-10 text-center">
+                        <p className="text-xs font-medium text-zinc-400">No drives in this stage</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ) : null}
-      </Panel>
-    </div>
-  );
+        ) : (
+          <Panel className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-zinc-200">
+                <thead className="bg-zinc-50/70">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Company</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Type</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Package</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Drive Date</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Applicants</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Shortlisted</th>
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Status</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#eef2f7] bg-white">
+                  {filteredPlacementCompanies.map((company) => (
+                    <tr key={company.id} className="hover:bg-[#fbfdff]">
+                      <td className="px-4 py-4">
+                        <p className="font-semibold text-slate-950">{company.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{company.role}</p>
+                        <p className="mt-1 text-xs text-slate-400">{company.location} | {company.eligibleDepartments.join(', ')}</p>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-slate-700">{company.type}</td>
+                      <td className="px-4 py-4 text-sm font-medium text-slate-700">{company.packageOffered}</td>
+                      <td className="px-4 py-4 text-sm text-slate-700">{formatDate(company.driveDate)}</td>
+                      <td className="px-4 py-4 text-sm text-slate-700">{company.applicants}</td>
+                      <td className="px-4 py-4 text-sm text-slate-700">{company.shortlisted}</td>
+                      <td className="px-4 py-4">
+                        <span className={classNames('rounded-full px-3 py-1 text-xs font-semibold', statusTone(company.status))}>
+                          {company.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        {can('placement.create') ? (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openCompanyEditor(company)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50"
+                              aria-label={`Edit ${company.name}`}
+                            >
+                              <Pencil size={15} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteCompany(company)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50"
+                              aria-label={`Delete ${company.name}`}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-400">View only</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {filteredPlacementCompanies.length === 0 ? (
+              <div className="border-t border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500">
+                No company drives match the current search.
+              </div>
+            ) : null}
+          </Panel>
+        )}
+      </div>
+    );
+  };
 
   const renderPlacementTab = () => {
     if (user.role === 'student' && currentStudent) {
@@ -4355,12 +4553,12 @@ export default function CampusWorkspace({
           <div className="mt-6 space-y-4">
             {activityTimeline.length ? (
               activityTimeline.map((item) => (
-                <div key={item.id} className="rounded-[18px] border border-[#e7edf4] bg-[#fbfdff] p-4">
+                <div key={item.id} className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm">
                   <div className="flex gap-4">
                     <div
                       className={classNames(
-                        'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-[18px]',
-                        item.type === 'Announcement' ? 'bg-[#e8f5ff] text-[#18a2da]' : 'bg-[#e9fbf3] text-[#0f9b6c]',
+                        'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl',
+                        item.type === 'Announcement' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600',
                       )}
                     >
                       {item.type === 'Announcement' ? <Megaphone size={18} /> : <BriefcaseBusiness size={18} />}
@@ -4467,7 +4665,7 @@ export default function CampusWorkspace({
             <div className="mt-6 space-y-3">
               {nextActivityDrives.length ? (
                 nextActivityDrives.map((company) => (
-                  <div key={company.id} className="rounded-[18px] border border-[#e7edf4] bg-[#fbfdff] px-4 py-4">
+                  <div key={company.id} className="rounded-2xl border border-zinc-200/90 bg-white px-4 py-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-slate-950">{company.name}</p>
@@ -4759,10 +4957,10 @@ export default function CampusWorkspace({
                       type="button"
                       onClick={() => setResumeDraft((current) => ({ ...current, template: template.id }))}
                       className={classNames(
-                        'rounded-[18px] border px-4 py-4 text-left transition',
+                        'rounded-2xl border px-4 py-4 text-left transition',
                         resumeDraft.template === template.id
-                          ? 'border-[#b7d8ef] bg-[#f3faff] shadow-[0_18px_35px_-30px_rgba(15,23,42,0.28)]'
-                          : 'border-[#e7edf4] bg-white hover:border-[#d7e4f0] hover:bg-[#fbfdff]',
+                          ? 'border-blue-500 bg-blue-50/60 shadow-sm ring-1 ring-blue-500/20'
+                          : 'border-zinc-200 bg-white hover:border-zinc-300 hover:bg-zinc-50/60',
                       )}
                     >
                       <p className="font-semibold text-slate-950">{template.label}</p>
@@ -5155,7 +5353,7 @@ export default function CampusWorkspace({
       case 'reports':
         return renderReportsTab();
       case 'profile':
-        return renderProfileTab();
+        return user.role === 'student' ? <StudentCareerProfile /> : renderProfileTab();
       case 'courses':
         return <CoursesModule />;
       case 'subjects':
@@ -5171,7 +5369,9 @@ export default function CampusWorkspace({
       case 'exams':
         return <ExamsModule />;
       case 'marks':
-        return <MarksModule />;
+        return user.role === 'student'
+          ? <StudentMarksView />
+          : <MarksModule />;
       case 'fees':
         return <FeesModule />;
       case 'settings':
@@ -5203,393 +5403,437 @@ export default function CampusWorkspace({
 
   return (
     <>
-      <div className="min-h-screen bg-[#f3f6fb]">
-        <header className="fixed inset-x-0 top-0 z-40 border-b border-[#dbe4ee] bg-white/94 backdrop-blur-xl shadow-[0_14px_32px_-28px_rgba(15,23,42,0.22)]">
-          <div className="mx-auto flex max-w-[1640px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-              <button
-                type="button"
-                onClick={() => setIsSidebarOpen((current) => !current)}
-                className="inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] border border-[#d7e4f0] bg-white text-[#123a66] shadow-[0_14px_28px_-24px_rgba(15,23,42,0.26)] transition hover:border-[#afd8ee] hover:bg-[#f7fbff]"
-                aria-label="Toggle sidebar navigation"
-              >
-                <Menu size={22} />
-              </button>
+      <div className="min-h-screen bg-[#f8fafc]">
+        {/* HeroUI CRM Sticky Navbar */}
+        <header className="fixed inset-x-0 top-0 z-40 h-16 heroui-navbar px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen((current) => !current)}
+              className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-100 lg:hidden"
+              aria-label="Toggle sidebar navigation"
+            >
+              <Menu size={18} />
+            </button>
 
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(145deg,#08284d,#1aa5df)] shadow-[0_18px_35px_-24px_rgba(8,44,86,0.4)]">
-                  <img
-                    src="/alpha-logo.png"
-                    alt="Alpha Grew logo"
-                    className="h-9 w-9 object-contain"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-[0.26em] text-[#6a87a4]">
-                    {headerRoleLabel[user.role]}
-                  </p>
-                  <h1 className="mt-1 truncate text-lg font-bold text-[#0a2848] sm:text-xl">
-                    {activeNavLabel}
-                  </h1>
-                </div>
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-sm p-1">
+                <img
+                  src="/alpha-logo.png"
+                  alt="Alpha Grew logo"
+                  className="h-7 w-7 object-contain"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold tracking-tight text-zinc-900">Alpha Grew</span>
+                <span className="hidden sm:inline-flex text-zinc-300">/</span>
+                <span className="hidden sm:inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 capitalize">
+                  {user.role.replace('_', ' ')}
+                </span>
+                <ChevronRight size={13} className="hidden sm:inline-block text-zinc-400" />
+                <span className="hidden sm:inline-block text-xs font-semibold text-blue-600">{activeNavLabel}</span>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="relative" ref={calendarRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCalendarMonth(new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1));
-                    setIsCalendarOpen((current) => !current);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-[18px] border border-[#d9e3ed] bg-white px-3 py-2.5 text-sm font-semibold text-[#123a66] shadow-[0_14px_28px_-24px_rgba(15,23,42,0.14)] transition hover:bg-[#f7fbff] sm:px-4 sm:py-3"
-                >
-                  <CalendarDays size={16} className="text-[#1a9be2]" />
-                  <span>{headerDateLabel}</span>
-                </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* HeroUI CRM Quick Search with ⌘K badge */}
+            <div className="relative hidden md:flex items-center">
+              <Search size={14} className="absolute left-3 text-zinc-400 pointer-events-none" />
+              <input
+                type="text"
+                value={headerSearch}
+                onChange={(event) => setHeaderSearch(event.target.value)}
+                placeholder={headerSearchPlaceholder[activeTab] ?? 'Quick search...'}
+                className="h-9 w-44 lg:w-56 rounded-xl border border-zinc-200/90 bg-zinc-50/80 pl-9 pr-11 text-xs font-medium text-zinc-800 placeholder-zinc-400 focus:bg-white focus:border-blue-500 focus:outline-none transition"
+              />
+              <kbd className="absolute right-2.5 inline-flex items-center rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
+                ⌘K
+              </kbd>
+            </div>
 
-                <AnimatePresence>
-                  {isCalendarOpen ? (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                      className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[310px] rounded-[18px] border border-[#dfe7f0] bg-white p-4 shadow-[0_24px_48px_-30px_rgba(15,23,42,0.35)]"
-                    >
-                      <div className="flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCalendarMonth(
-                              (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1),
-                            )
-                          }
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-[18px] border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-                          aria-label="Previous month"
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <div className="text-center">
-                          <p className="text-sm font-semibold text-slate-950">{calendarMonthLabel}</p>
-                          <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                            {headerDateLongLabel}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCalendarMonth(
-                              (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
-                            )
-                          }
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-[18px] border border-slate-200 text-slate-600 transition hover:bg-slate-50"
-                          aria-label="Next month"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
+            {/* Date Range Picker Pill */}
+            <div className="relative" ref={calendarRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCalendarMonth(new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1));
+                  setIsCalendarOpen((current) => !current);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+              >
+                <CalendarDays size={14} className="text-blue-600" />
+                <span className="hidden sm:inline">{headerDateLabel}</span>
+              </button>
 
-                      <div className="mt-4 grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        {calendarWeekdays.map((day) => (
-                          <span key={day}>{day}</span>
-                        ))}
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-7 gap-2">
-                        {calendarGrid.map((item) => (
-                          <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCalendarDate(item.date);
-                              setCalendarMonth(new Date(item.date.getFullYear(), item.date.getMonth(), 1));
-                              setIsCalendarOpen(false);
-                            }}
-                            className={classNames(
-                              'flex h-10 items-center justify-center rounded-[18px] text-sm font-semibold transition',
-                              item.isSelected
-                                ? 'bg-[linear-gradient(135deg,#08284d,#1aa5df)] text-white shadow-[0_16px_26px_-20px_rgba(8,44,86,0.45)]'
-                                : item.isCurrentMonth
-                                  ? 'text-slate-700 hover:bg-slate-100'
-                                  : 'text-slate-300 hover:bg-slate-50',
-                              item.isToday && !item.isSelected && 'border border-[#b5d8ef]',
-                            )}
-                          >
-                            {item.date.getDate()}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-              </div>
-
-              <div className="flex items-center">
-                <AnimatePresence initial={false}>
-                  {isHeaderSearchOpen ? (
-                    <motion.div
-                      initial={{ width: 0, opacity: 0 }}
-                      animate={{ width: 220, opacity: 1 }}
-                      exit={{ width: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="mr-2 overflow-hidden"
-                    >
-                      <div className="flex h-10 items-center border-b-2 border-[#9ccdea] bg-transparent px-1">
-                        <input
-                          autoFocus
-                          value={headerSearch}
-                          onChange={(event) => setHeaderSearch(event.target.value)}
-                          placeholder={headerSearchPlaceholder[activeTab] ?? 'Search workspace'}
-                          className="w-full bg-transparent px-2 text-sm font-medium text-[#123a66] outline-none placeholder:text-[#7f9ab5]"
-                        />
-                      </div>
-                    </motion.div>
-                  ) : null}
-                </AnimatePresence>
-
-                <button
-                  type="button"
-                  onClick={() => setIsHeaderSearchOpen((current) => !current)}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-[#d9e3ed] bg-white text-[#123a66] transition hover:bg-[#f7fbff]"
-                  aria-label="Search"
-                >
-                  <Search size={18} />
-                </button>
-              </div>
-              <div className="relative" ref={notificationRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileMenuOpen(false);
-                    setIsNotificationOpen((current) => !current);
-                  }}
-                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-[#d9e3ed] bg-white text-[#123a66] transition hover:bg-[#f7fbff]"
-                  aria-label="Notifications"
-                  aria-expanded={isNotificationOpen}
-                >
-                  <Bell size={18} />
-                  {activityFeed.length ? (
-                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#ff7a5c] px-1 text-[10px] font-bold text-white">
-                      {activityFeed.length}
-                    </span>
-                  ) : null}
-                </button>
-
-                {isNotificationOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-[18px] border border-[#dfe7f0] bg-white p-4 shadow-[0_24px_48px_-30px_rgba(15,23,42,0.35)]">
-                    <div className="flex items-center justify-between gap-3 border-b border-[#edf2f7] pb-3">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">User activity</p>
-                        <h3 className="mt-1 text-lg font-bold text-slate-950">Live updates</h3>
+              <AnimatePresence>
+                {isCalendarOpen ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[300px] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
+                  >
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCalendarMonth(
+                            (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1),
+                          )
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 transition hover:bg-zinc-50"
+                        aria-label="Previous month"
+                      >
+                        <ChevronLeft size={15} />
+                      </button>
+                      <div className="text-center">
+                        <p className="text-xs font-bold text-zinc-900">{calendarMonthLabel}</p>
+                        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                          {headerDateLongLabel}
+                        </p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          setIsNotificationOpen(false);
-                          handleNavSelection('activity');
-                        }}
-                        className="rounded-[18px] border border-[#dce7f1] bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#133b67] transition hover:bg-[#f8fbff]"
+                        onClick={() =>
+                          setCalendarMonth(
+                            (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
+                          )
+                        }
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 transition hover:bg-zinc-50"
+                        aria-label="Next month"
                       >
-                        Open
+                        <ChevronRight size={15} />
                       </button>
                     </div>
 
-                    <div className="mt-4 space-y-3">
-                      {activityFeed.length ? (
-                        activityFeed.map((announcement) => (
-                          <div key={announcement.id} className="flex gap-3 rounded-[18px] border border-[#edf2f7] bg-[#f8fafc] px-3 py-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-[18px] bg-[#e8f5ff] text-[#18a2da]">
-                              <Bell size={16} />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-3">
-                                <p className="line-clamp-1 font-semibold text-slate-950">{announcement.title}</p>
-                                <span className={classNames('rounded-full px-2 py-1 text-[10px] font-semibold', statusTone(announcement.priority))}>
-                                  {announcement.priority}
-                                </span>
-                              </div>
-                              <p className="mt-1 line-clamp-2 text-sm text-slate-500">{announcement.summary}</p>
-                              <div className="mt-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
-                                <span>{announcement.postedBy}</span>
-                                <span>{formatDate(announcement.date)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="rounded-[18px] border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
-                          No live updates right now.
-                        </div>
-                      )}
+                    <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      {calendarWeekdays.map((day) => (
+                        <span key={day}>{day}</span>
+                      ))}
                     </div>
-                  </div>
-                ) : null}
-              </div>
-              <div className="relative" ref={profileMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileMenuOpen((current) => !current)}
-                  className="inline-flex items-center gap-3 rounded-[18px] border border-[#d9e3ed] bg-white px-2 py-2 pr-3 text-left text-[#123a66] shadow-[0_14px_28px_-24px_rgba(15,23,42,0.14)] transition hover:bg-[#f7fbff]"
-                  aria-haspopup="menu"
-                  aria-expanded={isProfileMenuOpen}
-                >
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#08284d,#1aa5df)] text-sm font-bold text-white shadow-[0_16px_30px_-22px_rgba(8,44,86,0.32)]">
-                    {userInitials}
-                  </span>
-                  <span className="hidden min-w-0 sm:block">
-                    <span className="block truncate text-sm font-semibold text-[#0a2848]">{user.name}</span>
-                    <span className="block truncate text-xs text-[#6a87a4]">{user.title}</span>
-                  </span>
-                  <ChevronDown
-                    size={16}
-                    className={classNames('text-[#6a87a4] transition-transform', isProfileMenuOpen && 'rotate-180')}
-                  />
-                </button>
 
-                {isProfileMenuOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-56 rounded-[18px] border border-[#dfe7f0] bg-white p-2 shadow-[0_24px_48px_-30px_rgba(15,23,42,0.35)]">
-                    <button
-                      type="button"
-                      onClick={() => handleNavSelection('profile')}
-                      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left text-sm font-semibold text-[#123a66] transition hover:bg-[#f4f9ff]"
-                    >
-                      <UserCircle2 size={18} className="text-[#1a9be2]" />
-                      Profile
-                    </button>
-                    <button
-                      type="button"
-                      onClick={openProfileEditor}
-                      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left text-sm font-semibold text-[#123a66] transition hover:bg-[#f4f9ff]"
-                    >
-                      <Pencil size={18} className="text-[#1a9be2]" />
-                      Edit profile
-                    </button>
+                    <div className="mt-2 grid grid-cols-7 gap-1">
+                      {calendarGrid.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCalendarDate(item.date);
+                            setCalendarMonth(new Date(item.date.getFullYear(), item.date.getMonth(), 1));
+                            setIsCalendarOpen(false);
+                          }}
+                          className={classNames(
+                            'flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold transition mx-auto',
+                            item.isSelected
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : item.isCurrentMonth
+                                ? 'text-zinc-700 hover:bg-zinc-100'
+                                : 'text-zinc-300 hover:bg-zinc-50',
+                            item.isToday && !item.isSelected && 'border border-blue-400',
+                          )}
+                        >
+                          {item.date.getDate()}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+
+            {/* HeroUI CRM AI Assistant Sparkle Button */}
+            <button
+              type="button"
+              onClick={() => handleNavSelection(user.role === 'student' ? 'placement' : 'reports')}
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:from-indigo-100 hover:to-blue-100"
+              title="Open AI Career Assistant"
+            >
+              <Sparkles size={13} className="text-indigo-600 animate-pulse" />
+              <span>AI Assistant</span>
+            </button>
+
+            {/* Notification Bell */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsProfileMenuOpen(false);
+                  setIsNotificationOpen((current) => !current);
+                }}
+                className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50"
+                aria-label="Notifications"
+                aria-expanded={isNotificationOpen}
+              >
+                <Bell size={16} />
+                {activityFeed.length ? (
+                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                    {activityFeed.length}
+                  </span>
+                ) : null}
+              </button>
+
+              {isNotificationOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[350px] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
+                  <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Activity</p>
+                      <h3 className="text-base font-bold text-zinc-900">Live updates</h3>
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        setIsProfileMenuOpen(false);
-                        void onLogout();
+                        setIsNotificationOpen(false);
+                        handleNavSelection('activity');
                       }}
-                      className="flex w-full items-center gap-3 rounded-[18px] px-3 py-3 text-left text-sm font-semibold text-[#123a66] transition hover:bg-[#f4f9ff]"
+                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
                     >
-                      <LogOut size={18} className="text-[#1a9be2]" />
-                      Sign out
+                      View all
                     </button>
                   </div>
-                ) : null}
-              </div>
+
+                  <div className="mt-3 space-y-2.5 max-h-80 overflow-y-auto">
+                    {activityFeed.length ? (
+                      activityFeed.map((announcement) => (
+                        <div key={announcement.id} className="flex gap-2.5 rounded-xl border border-zinc-100 bg-zinc-50/70 p-2.5">
+                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                            <Bell size={14} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="line-clamp-1 text-xs font-bold text-zinc-900">{announcement.title}</p>
+                              <span className={classNames('rounded-full px-1.5 py-0.5 text-[9px] font-bold', statusTone(announcement.priority))}>
+                                {announcement.priority}
+                              </span>
+                            </div>
+                            <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{announcement.summary}</p>
+                            <div className="mt-1.5 flex items-center justify-between text-[10px] font-medium text-zinc-400">
+                              <span>{announcement.postedBy}</span>
+                              <span>{formatDate(announcement.date)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-xs text-zinc-400">
+                        No live updates right now.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Profile Dropdown */}
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((current) => !current)}
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-1 pr-2.5 text-left shadow-sm transition hover:bg-zinc-50"
+                aria-haspopup="menu"
+                aria-expanded={isProfileMenuOpen}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                  {userInitials}
+                </span>
+                <span className="hidden min-w-0 sm:block text-left">
+                  <span className="block truncate text-xs font-bold text-zinc-900 leading-tight">{user.name}</span>
+                  <span className="block truncate text-[10px] font-medium text-zinc-500 leading-tight capitalize">{user.role.replace('_', ' ')}</span>
+                </span>
+                <ChevronDown
+                  size={13}
+                  className={classNames('text-zinc-400 transition-transform', isProfileMenuOpen && 'rotate-180')}
+                />
+              </button>
+
+              {isProfileMenuOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-52 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => handleNavSelection('profile')}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                  >
+                    <UserCircle2 size={16} className="text-blue-600" />
+                    Profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openProfileEditor}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                  >
+                    <Pencil size={16} className="text-blue-600" />
+                    Edit profile
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      void onLogout();
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                  >
+                    <LogOut size={16} className="text-rose-600" />
+                    Sign out
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </header>
 
+        {/* Mobile Backdrop */}
         <div
           className={classNames(
-            'fixed inset-0 z-30 bg-[#082c56]/28 backdrop-blur-[2px] transition lg:hidden',
+            'fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition lg:hidden',
             isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={() => setIsSidebarOpen(false)}
         />
 
-        <div className="mx-auto max-w-[1640px] px-4 pb-6 pt-[100px] sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1640px] px-4 pb-8 pt-[80px] sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row">
+            {/* HeroUI CRM Dark Enterprise Sidebar */}
             <aside
               className={classNames(
-                'fixed left-4 top-[88px] z-40 h-[calc(100vh-104px)] w-[262px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-blue-700 bg-blue-600 p-4 shadow-md transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[100px] lg:h-[calc(100vh-116px)] lg:max-w-none lg:flex-shrink-0 flex flex-col',
+                'fixed left-4 top-[80px] z-40 h-[calc(100vh-96px)] w-[268px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0B0F17] p-3 shadow-2xl transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[80px] lg:h-[calc(100vh-96px)] lg:max-w-none lg:flex-shrink-0 flex flex-col text-zinc-200',
                 isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%] lg:hidden',
               )}
             >
-              <div className="mb-3 flex justify-end lg:hidden flex-shrink-0">
+              <div className="mb-2 flex justify-end lg:hidden flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/12 bg-white/10 text-white transition hover:bg-white/16"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:bg-white/15"
                   aria-label="Close sidebar navigation"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
               </div>
 
               {/* Profile Card on Top */}
-              <div className="mb-4 rounded-xl border border-white/10 bg-white/10 p-3 flex items-center gap-3 flex-shrink-0">
-                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/20 font-bold text-white uppercase text-sm border border-white/25">
+              <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-2.5 flex items-center gap-2.5 flex-shrink-0">
+                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-md">
                   {userInitials}
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[#0B0F17]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-sm font-bold text-white leading-snug">{user.name}</h3>
-                  <p className="truncate text-[10px] text-white/70 font-medium capitalize tracking-wider leading-none mt-0.5">{user.role}</p>
+                  <h3 className="truncate text-xs font-bold text-white leading-tight">{user.name}</h3>
+                  <p className="truncate text-[10px] text-zinc-400 font-medium capitalize mt-0.5">{user.role.replace('_', ' ')}</p>
                 </div>
               </div>
 
               {/* Navigation List */}
-              <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:w-0">
-                <div className="space-y-2">
-                  {groupedSidebarNav.map((group) => {
-                    const isOpen = sidebarDropdowns[group.id];
-                    const hasActiveItem = group.items.some((item) => item.id === activeTab);
+              <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 space-y-2">
+                {groupedSidebarNav.map((group) => {
+                  const isOpen = sidebarDropdowns[group.id] !== false;
+                  const hasActiveItem = group.items.some((item) => item.id === activeTab);
 
-                    return (
-                      <div key={group.id} className="rounded-xl border border-white/5 bg-white/5 p-1 shadow-sm">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSidebarDropdowns((current) => ({
-                              ...current,
-                              [group.id]: !current[group.id],
-                            }))
-                          }
-                          className={classNames(
-                            'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-bold transition',
-                            hasActiveItem ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white',
-                          )}
-                        >
-                          <span className="flex-1 text-[10px] font-bold uppercase tracking-wider text-white/90">
-                            {group.label}
-                          </span>
-                          <ChevronDown
-                            size={14}
-                            className={classNames('flex-shrink-0 text-white/80 transition-transform', isOpen ? 'rotate-180' : '')}
-                          />
-                        </button>
+                  return (
+                    <div key={group.id} className="rounded-xl border border-white/5 bg-white/[0.02] p-1">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSidebarDropdowns((current) => ({
+                            ...current,
+                            [group.id]: current[group.id] === false ? true : false,
+                          }))
+                        }
+                        className={classNames(
+                          'flex w-full items-center justify-between px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-wider transition',
+                          hasActiveItem ? 'text-blue-400' : 'text-zinc-400 hover:text-zinc-200',
+                        )}
+                      >
+                        <span>{group.label}</span>
+                        <ChevronDown
+                          size={12}
+                          className={classNames('flex-shrink-0 text-zinc-500 transition-transform duration-150', isOpen ? 'rotate-180' : '')}
+                        />
+                      </button>
 
-                        {isOpen ? (
-                          <div className="mt-1 space-y-0.5">
-                            {group.items.map((item) => {
-                              const isLocked = isPhase1LockedTab(item.id);
+                      {isOpen ? (
+                        <div className="mt-1 space-y-0.5">
+                          {group.items.map((item) => {
+                            const isLocked = isPhase1LockedTab(item.id);
+                            const isActive = activeTab === item.id;
 
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  onClick={() => handleNavSelection(item.id)}
-                                  disabled={isLocked}
-                                  title={isLocked ? 'Complete Phase 1 setup to unlock this module.' : item.label}
+                            return (
+                              <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => {
+                                  handleNavSelection(item.id);
+                                  setIsSidebarOpen(false);
+                                }}
+                                disabled={isLocked}
+                                title={isLocked ? 'Complete Phase 1 setup to unlock this module.' : item.label}
+                                className={classNames(
+                                  'group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-150',
+                                  isActive
+                                    ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30'
+                                    : isLocked
+                                      ? 'cursor-not-allowed text-zinc-600'
+                                      : 'text-zinc-300 hover:bg-white/8 hover:text-white',
+                                )}
+                              >
+                                <span
                                   className={classNames(
-                                    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-semibold transition',
-                                    activeTab === item.id
-                                      ? 'bg-white text-blue-600 shadow-sm'
+                                    'flex h-6 w-6 items-center justify-center rounded-lg transition-colors',
+                                    isActive
+                                      ? 'bg-white/20 text-white'
                                       : isLocked
-                                        ? 'cursor-not-allowed bg-transparent text-white/30'
-                                        : 'bg-transparent text-white/80 hover:bg-white/10 hover:text-white',
+                                        ? 'bg-transparent text-zinc-600'
+                                        : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white',
                                   )}
                                 >
-                                  <span
-                                    className={classNames(
-                                      'flex h-6 w-6 items-center justify-center rounded-md',
-                                      activeTab === item.id ? 'bg-blue-50 text-blue-600' : 'bg-white/10 text-white',
-                                    )}
-                                  >
-                                    <item.icon size={14} />
+                                  <item.icon size={13} />
+                                </span>
+                                <span className="flex-1 truncate">{item.label}</span>
+                                {item.id === 'students' && data.students.length > 0 && (
+                                  <span className={classNames(
+                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                                    isActive ? 'bg-white/25 text-white' : 'bg-white/10 text-zinc-400'
+                                  )}>
+                                    {data.students.length}
                                   </span>
-                                  <span className="flex-1 truncate">{item.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                                )}
+                                {item.id === 'placement' && data.companies.length > 0 && (
+                                  <span className={classNames(
+                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                                    isActive ? 'bg-white/25 text-white' : 'bg-emerald-500/20 text-emerald-400'
+                                  )}>
+                                    {data.companies.length}
+                                  </span>
+                                )}
+                                {item.id === 'activity' && activityFeed.length > 0 && (
+                                  <span className={classNames(
+                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                                    isActive ? 'bg-white/25 text-white' : 'bg-amber-500/20 text-amber-400'
+                                  )}>
+                                    {activityFeed.length}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Bottom Workspace Status Pill */}
+              <div className="mt-auto pt-2.5 border-t border-zinc-800/80 flex-shrink-0">
+                <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2 text-xs">
+                  <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-0.5">
+                    <span className="font-semibold text-zinc-300">Alpha CRM</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-zinc-400 leading-tight">
+                    Phase 1: {isPhase1Complete ? 'Active & Ready' : 'In Progress'}
+                  </p>
                 </div>
               </div>
             </aside>
@@ -5625,10 +5869,10 @@ export default function CampusWorkspace({
               ) : null}
 
               {credentialNotice ? (
-                <div className="rounded-[18px] border border-[#cfe6f3] bg-[linear-gradient(135deg,#eff8ff,#f7fcff)] px-5 py-5 text-[#123a66] shadow-[0_18px_35px_-30px_rgba(15,23,42,0.18)]">
+                <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 px-5 py-5 text-zinc-900 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#6b8aa5]">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
                         {credentialNotice.label}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-4 text-sm">
@@ -5639,7 +5883,7 @@ export default function CampusWorkspace({
                           Password: <strong>{credentialNotice.password}</strong>
                         </span>
                       </div>
-                      <p className="mt-2 text-sm text-[#6b8aa5]">
+                      <p className="mt-2 text-sm text-zinc-600">
                         Share these credentials with the student or staff member so they can sign in.
                       </p>
                     </div>
@@ -5651,14 +5895,14 @@ export default function CampusWorkspace({
                             `Email: ${credentialNotice.email}\nPassword: ${credentialNotice.password}`,
                           );
                         }}
-                        className="inline-flex items-center gap-2 rounded-[18px] border border-[#c6dceb] px-4 py-3 text-sm font-semibold text-[#123a66] transition hover:bg-white"
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                       >
                         Copy
                       </button>
                       <button
                         type="button"
                         onClick={() => setCredentialNotice(null)}
-                        className="inline-flex items-center gap-2 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
                       >
                         Dismiss
                       </button>

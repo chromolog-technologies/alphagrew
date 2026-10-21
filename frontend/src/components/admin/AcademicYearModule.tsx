@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Edit2, Trash2, Calendar, Loader } from 'lucide-react';
+import { semesterApi } from '../../api/apiClient';
 
 interface AcademicYear {
   id: number;
@@ -11,16 +12,57 @@ interface AcademicYear {
 }
 
 export const AcademicYearModule: React.FC = () => {
-  const [years, setYears] = useState<AcademicYear[]>([
-    {
-      id: 1,
-      year: '2025-2026',
-      startDate: '2025-06-01',
-      endDate: '2026-05-31',
-      status: 'active',
-      semesters: 2,
-    },
-  ]);
+  const [years, setYears] = useState<AcademicYear[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAcademicData = async () => {
+      try {
+        setLoading(true);
+        const data = await semesterApi.getAcademicYears();
+        const list = Array.isArray(data) ? data : (data?.data || []);
+        if (list.length > 0) {
+          setYears(list.map((ay: any) => ({
+            id: ay.id,
+            year: ay.year || ay.name || 'Academic Year',
+            startDate: ay.start_date || ay.startDate || '2025-06-01',
+            endDate: ay.end_date || ay.endDate || '2026-05-31',
+            status: ay.is_active ? 'active' : 'upcoming',
+            semesters: 2,
+          })));
+        } else {
+          // Default initial academic year
+          setYears([
+            {
+              id: 1,
+              year: '2025-2026',
+              startDate: '2025-06-01',
+              endDate: '2026-05-31',
+              status: 'active',
+              semesters: 2,
+            },
+          ]);
+        }
+      } catch (err) {
+        console.warn('Could not load academic years from API, using fallback:', err);
+        setYears([
+          {
+            id: 1,
+            year: '2025-2026',
+            startDate: '2025-06-01',
+            endDate: '2026-05-31',
+            status: 'active',
+            semesters: 2,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAcademicData();
+  }, []);
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ year: '', startDate: '', endDate: '', semesters: 2 });

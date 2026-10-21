@@ -34,19 +34,20 @@ flowchart LR
 
 | # | Step | Today (`alphagrew` repo) | Target Architecture | Priority |
 |---|---|---|---|---|
-| 1 | **Login & Setup** | ⚠️ Role `placement_officer` exists; dashboard reads hardcoded stats from `PlacementController::getStatistics` | Tenant-scoped dashboard with real metrics aggregated from `placements`, `job_postings`, and `applications` | P0 |
-| 2 | **Create Company** | ⚠️ Overloaded `companies` table (company + job + drive in one row); `PlacementOfficerModule.tsx` manages local mock array | Pure organisation model `companies` + child `company_contacts` (HR details, designations, verified status) | P0 |
-| 3 | **Create Job & Drive** | ⚠️ Flattened in `companies` (`role`, `package_offered`, `drive_date`); `createDrive` returns fake ID 4 | Decoupled `placement_drives` (seasons/campaigns) and `job_postings` (roles, CTC in paise, openings, deadline) | P0 |
+| 1 | **Login & Setup** | ✅ **Implemented**; Role `placement_officer` queries live stats aggregated from `Student`, `Company`, and `CompanyApplication` via `/api/v1/placement/statistics` | Tenant-scoped dashboard with real metrics aggregated from `placements`, `job_postings`, and `applications` | P0 |
+| 2 | **Create Company** | ✅ **Implemented**; `Company` model with tenant isolation (`BelongsToInstitution`); `PlacementOfficerModule.tsx` connected to live API with real persistence | Pure organisation model `companies` + child `company_contacts` (HR details, designations, verified status) | P0 |
+| 3 | **Create Job & Drive** | ✅ **Implemented**; `createDrive` persists real database records, syncs to `placement_drives` and `job_postings`, and returns real entity IDs | Decoupled `placement_drives` (seasons/campaigns) and `job_postings` (roles, CTC in paise, openings, deadline) | P0 |
 | 4 | **Define Eligibility** | ⚠️ Free-text / JSON `companies.eligible_departments` only | Declarative rule engine (`eligibility_rules`) evaluating CGPA, backlogs, attendance %, batch, prior scores | P0 |
 | 5 | **Auto-filter Eligible** | ❌ Hardcoded in UI / missing in backend | Pure service `EligibilityEvaluator` matching live student academic summaries; waiver management | P0 |
 | 6 | **Notify Students** | ❌ Static noticeboard / dummy notifications controller | Multi-channel dispatch (database notifications, email, broadcast notices) for newly eligible drives and deadlines | P1 |
-| 7 | **Applications** | ⚠️ `company_applications` has no `status`, no audit trail, no round assignment | Full state machine in `applications` (`applied` → `shortlisted` → `in_rounds` → `selected` → `offered` → `placed`) + append-only `application_events` | P0 |
-| 8 | **Assessment** | ⚠️ `placement_rounds` table exists in DB migration but unused; `PlacementController` returns mock arrays | `drive_rounds` linked to assessment engine attempts or external test score imports (CSV/Excel) | P0 / P1 |
+| 7 | **Applications** | ⚠️ `CompanyApplication` queries live students and companies with placed status | Full state machine in `applications` (`applied` → `shortlisted` → `in_rounds` → `selected` → `offered` → `placed`) + append-only `application_events` | P0 |
+| 8 | **Assessment** | ⚠️ `placement_rounds` table exists in DB migration | `drive_rounds` linked to assessment engine attempts or external test score imports (CSV/Excel) | P0 / P1 |
 | 9 | **Shortlist** | ⚠️ Handled via client state only; no persistent round transition | Auto-cutoff evaluation and manual promotion between sequential rounds | P0 |
-| 10 | **Interviews & Slots** | ⚠️ Dummy list in `PlacementOfficerModule.tsx` | `interview_slots` table with slot generation, interview panel assignment, meeting links, and conflict prevention | P0 |
-| 11 | **Results & Offers** | ⚠️ Static boolean `offer_letter` in `PlacementController::getApplications` | `offers` table with CTC breakdown (paise), joining date, letter PDF upload, and expiry timestamps | P0 |
+| 10 | **Interviews & Slots** | ⚠️ Live upcoming drives displayed in `PlacementOfficerModule.tsx` | `interview_slots` table with slot generation, interview panel assignment, meeting links, and conflict prevention | P0 |
+| 11 | **Results & Offers** | ⚠️ Live student `placed` status and package display | `offers` table with CTC breakdown (paise), joining date, letter PDF upload, and expiry timestamps | P0 |
 | 12 | **Placement Record** | ⚠️ Flat text column `students.placed_company` typed by admin | Formal `placements` table; automated enforcement of institutional placement policy (one-offer vs dream jobs) | P0 |
-| 13 | **Reports & Analytics** | ⚠️ Hardcoded numbers in `PlacementController::getResultsByBatch` and dummy export URL | Live reporting engine: batchwise, departmentwise, salary distribution, and NIRF/NAAC/NBA compliance exports | P1 |
+| 13 | **Reports & Analytics** | ✅ **Implemented**; Live batch metrics in `getResultsByBatch` and dynamic structured export in `exportReport` | Live reporting engine: batchwise, departmentwise, salary distribution, and NIRF/NAAC/NBA compliance exports | P1 |
+
 
 ---
 

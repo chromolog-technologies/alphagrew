@@ -46,6 +46,35 @@ class InterviewSessionLifecycleTest extends TestCase
         Storage::disk('local')->assertExists($answered->answer_audio_path);
     }
 
+    public function test_answers_endpoint_accepts_turn_id_with_text_and_voice(): void
+    {
+        [$id, $turn] = $this->startInterview();
+
+        // 1. Text submission via /answers
+        $response = $this->asUser()->postJson("/api/v1/interviews/{$id}/answers", [
+            'turnId' => $turn['id'],
+            'text' => 'An answer about database indexing using B-Trees.',
+        ]);
+        $response->assertOk()->assertJsonPath('data.isCompleted', false);
+
+        $nextTurn = $response->json('data.nextTurn');
+        $this->assertNotNull($nextTurn);
+
+        // 2. Voice submission via /answers with audio upload
+        config(['ai.transcription.url' => 'https://stt.example.test/v1/audio/transcriptions', 'ai.transcription.key' => 'stt-key']);
+        Http::fake(['stt.example.test/*' => Http::response(['text' => 'ACID transactions guarantee isolation.'])]);
+
+        $audio = UploadedFile::fake()->createWithContent('turn2.webm', str_repeat("\x1A\x45\xDF\xA3", 64));
+        $this->asUser()->post("/api/v1/interviews/{$id}/answers", [
+            'turnId' => $nextTurn['id'],
+            'audio' => $audio,
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $answeredTurn = AiInterview::query()->findOrFail($id)->turns()->whereKey($nextTurn['id'])->first();
+        $this->assertSame('ACID transactions guarantee isolation.', $answeredTurn->answer_text);
+        Storage::disk('local')->assertExists($answeredTurn->answer_audio_path);
+    }
+
     public function test_only_the_current_unanswered_question_can_be_answered(): void
     {
         [$id, $first] = $this->startInterview();

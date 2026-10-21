@@ -2,16 +2,34 @@
 
 :root {
   color-scheme: light;
-  --brand-blue: #2563eb;
-  --brand-blue-strong: #1d4ed8;
-  --brand-cyan: #60a5fa;
+  --heroui-background: #f8fafc;
+  --heroui-foreground: #09090b;
+  --heroui-primary: #006FEE;
+  --heroui-primary-hover: #005bc4;
+  --heroui-primary-foreground: #ffffff;
+  --heroui-secondary: #7828c8;
+  --heroui-success: #17c964;
+  --heroui-warning: #f5a524;
+  --heroui-danger: #f31260;
+  --heroui-content1: #ffffff;
+  --heroui-content2: #f4f4f5;
+  --heroui-content3: #e4e4e7;
+  --heroui-content4: #d4d4d8;
+  --heroui-border: #e4e4e7;
+  --heroui-radius: 14px;
+
+  /* Legacy brand variables for compatibility */
+  --brand-blue: #006fee;
+  --brand-blue-strong: #005bc4;
+  --brand-cyan: #38bdf8;
   --brand-green: #10b981;
   --brand-green-strong: #059669;
-  --brand-ink: #0f172a;
-  --brand-muted: #64748b;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #f8fafc;
-  color: var(--brand-ink);
+  --brand-ink: #09090b;
+  --brand-muted: #71717a;
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--heroui-background);
+  color: var(--heroui-foreground);
 }
 
 * {
@@ -26,12 +44,13 @@ body {
   margin: 0;
   min-height: 100vh;
   background: #f8fafc;
-  color: var(--brand-ink);
+  color: #09090b;
+  -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(37, 99, 235, 0.15);
-  color: #1e40af;
+  background: rgba(0, 111, 238, 0.15);
+  color: #006fee;
 }
 
 button,
@@ -46,67 +65,191 @@ textarea {
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(226, 232, 240, 0.7);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(100, 116, 139, 0.45);
+  background: rgba(148, 163, 184, 0.35);
 }
 
-.bg-slate-950 {
-  background: var(--brand-blue-strong) !important;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.55);
 }
 
-.hover\:bg-slate-800:hover {
-  background: #1e40af !important;
+/* ========================================================
+   HeroUI CRM Card & Container Tokens
+   ======================================================== */
+.heroui-card {
+  background: #ffffff;
+  border: 1px solid rgba(228, 228, 231, 0.85);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease-in-out;
 }
 
-.bg-slate-950\/40 {
-  background-color: rgba(37, 99, 235, 0.12) !important;
+.heroui-card:hover {
+  border-color: rgba(212, 212, 216, 1);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.06);
 }
 
-.text-slate-950,
-.text-slate-900 {
-  color: var(--brand-ink) !important;
+.heroui-kpi {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.text-slate-700,
-.text-slate-600,
-.text-slate-500 {
-  color: var(--brand-muted) !important;
+.heroui-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.08);
 }
 
-.bg-slate-50 {
-  background-color: #f8fafc !important;
+/* Trend and Status Chips */
+.trend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
 }
 
-.bg-slate-100 {
-  background-color: #f1f5f9 !important;
+.trend-chip-up {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
 }
 
-.bg-blue-50 {
-  background-color: #eff6ff !important;
+.trend-chip-down {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
-.text-blue-700,
-.text-blue-600 {
-  color: var(--brand-blue-strong) !important;
+.trend-chip-neutral {
+  background-color: #f4f4f5;
+  color: #71717a;
+  border: 1px solid #e4e4e7;
 }
 
-.border-blue-100 {
-  border-color: rgba(37, 99, 235, 0.12) !important;
+/* HeroUI CRM Navbar blur */
+.heroui-navbar {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(228, 228, 231, 0.8);
 }
 
-.focus\:border-blue-500:focus {
-  border-color: var(--brand-blue) !important;
+/* HeroUI CRM Sidebar styling */
+.heroui-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e4e4e7;
 }
 
-.focus\:ring-blue-100:focus {
-  --tw-ring-color: rgba(37, 99, 235, 0.12) !important;
+.heroui-sidebar-dark {
+  background: #09090b;
+  border-right: 1px solid #27272a;
+}
+
+/* ========================================================
+   Global Form Elements: HeroUI Clean CRM Inputs
+   ======================================================== */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+select,
+textarea {
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  background-color: #fafafa;
+  color: #09090b;
+  transition: all 0.15s ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
+select:focus,
+textarea:focus {
+  background-color: #ffffff;
+  border-color: #006fee;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 111, 238, 0.15);
+}
+
+/* ========================================================
+   Global Tables: HeroUI Modern Data Grid Look
+   ======================================================== */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  background-color: #fafafa;
+  color: #71717a;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+tbody td {
+  padding: 0.85rem 1rem;
+  font-size: 0.875rem;
+  color: #27272a;
+  border-bottom: 1px solid #f4f4f5;
+  transition: background-color 0.15s ease;
+}
+
+tbody tr:hover td {
+  background-color: #fafafa;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ========================================================
+   Global Buttons: HeroUI Modern Action System
+   ======================================================== */
+button.bg-slate-950,
+button.bg-slate-900,
+a.bg-slate-950,
+a.bg-slate-900 {
+  background-color: #006FEE !important;
+  color: #ffffff !important;
+  border-radius: 12px !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 4px rgba(0, 111, 238, 0.2) !important;
+  transition: all 0.18s ease-in-out !important;
+}
+
+button.bg-slate-950:hover,
+button.bg-slate-900:hover,
+a.bg-slate-950:hover,
+a.bg-slate-900:hover {
+  background-color: #005bc4 !important;
+  box-shadow: 0 4px 10px rgba(0, 111, 238, 0.3) !important;
+  transform: translateY(-1px);
+}
+
+button.border-slate-200 {
+  border-color: #e4e4e7 !important;
+  border-radius: 12px !important;
+  transition: all 0.15s ease;
+}
+
+button.border-slate-200:hover {
+  background-color: #f4f4f5 !important;
+  border-color: #d4d4d8 !important;
 }
