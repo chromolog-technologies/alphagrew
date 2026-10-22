@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Area,
@@ -52,32 +52,38 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { CoursesModule } from '../admin/CoursesModule';
-import { DepartmentsModule } from '../admin/DepartmentsModule';
-import { SubjectsModule } from '../admin/SubjectsModule';
-import { AcademicYearModule } from '../admin/AcademicYearModule';
-import { TimetableModule } from '../admin/TimetableModule';
-import { ClassesModule } from '../admin/ClassesModule';
-import { RolesPermissionsModule } from '../admin/RolesPermissionsModule';
-import { ExamsModule } from '../admin/ExamsModule';
-import { MarksModule } from '../admin/MarksModule';
-import { FeesModule } from '../admin/FeesModule';
-import { SystemSettingsModule } from '../admin/SystemSettingsModule';
-import { OnboardingModule } from '../admin/OnboardingModule';
-import { AuditLogModule } from '../admin/AuditLogModule';
-import { SecuritySettings } from '../shared/SecuritySettings';
-import { DepartmentOverview } from '../staff/DepartmentOverview';
-import { HODStaffManagement } from '../staff/HODStaffManagement';
-import { HODReportsAnalytics } from '../staff/HODReportsAnalytics';
-import { PlacementOfficerModule } from '../staff/PlacementOfficerModule';
-import { ExamCoordinatorModule } from '../staff/ExamCoordinatorModule';
-import { AttendanceModule } from '../staff/AttendanceModule';
-import { StudentTimetableView } from '../student/StudentTimetableView';
-import { StudentAssignmentsMaterials } from '../student/StudentAssignmentsMaterials';
-import { StudentAttendanceView } from '../student/StudentAttendanceView';
-import { StudentMarksView } from '../student/StudentMarksView';
-import { StudentNotifications } from '../student/StudentNotifications';
-import { StudentCareerProfile } from '../student/StudentCareerProfile';
+import { useNavigate, useParams } from 'react-router-dom';
+import { lazyNamed } from '../../lib/lazyNamed';
+import { workspaceAccess } from '../../lib/workspaceAccess';
+import { AccessDenied, NotFound, PageLoading } from '../shared/RouteStatus';
+
+// Screens load on first visit, so each role only downloads the pages it opens.
+const CoursesModule = lazyNamed(() => import('../admin/CoursesModule'), 'CoursesModule');
+const DepartmentsModule = lazyNamed(() => import('../admin/DepartmentsModule'), 'DepartmentsModule');
+const SubjectsModule = lazyNamed(() => import('../admin/SubjectsModule'), 'SubjectsModule');
+const AcademicYearModule = lazyNamed(() => import('../admin/AcademicYearModule'), 'AcademicYearModule');
+const TimetableModule = lazyNamed(() => import('../admin/TimetableModule'), 'TimetableModule');
+const ClassesModule = lazyNamed(() => import('../admin/ClassesModule'), 'ClassesModule');
+const RolesPermissionsModule = lazyNamed(() => import('../admin/RolesPermissionsModule'), 'RolesPermissionsModule');
+const ExamsModule = lazyNamed(() => import('../admin/ExamsModule'), 'ExamsModule');
+const MarksModule = lazyNamed(() => import('../admin/MarksModule'), 'MarksModule');
+const FeesModule = lazyNamed(() => import('../admin/FeesModule'), 'FeesModule');
+const SystemSettingsModule = lazyNamed(() => import('../admin/SystemSettingsModule'), 'SystemSettingsModule');
+const OnboardingModule = lazyNamed(() => import('../admin/OnboardingModule'), 'OnboardingModule');
+const AuditLogModule = lazyNamed(() => import('../admin/AuditLogModule'), 'AuditLogModule');
+const SecuritySettings = lazyNamed(() => import('../shared/SecuritySettings'), 'SecuritySettings');
+const DepartmentOverview = lazyNamed(() => import('../staff/DepartmentOverview'), 'DepartmentOverview');
+const HODStaffManagement = lazyNamed(() => import('../staff/HODStaffManagement'), 'HODStaffManagement');
+const HODReportsAnalytics = lazyNamed(() => import('../staff/HODReportsAnalytics'), 'HODReportsAnalytics');
+const PlacementOfficerModule = lazyNamed(() => import('../staff/PlacementOfficerModule'), 'PlacementOfficerModule');
+const ExamCoordinatorModule = lazyNamed(() => import('../staff/ExamCoordinatorModule'), 'ExamCoordinatorModule');
+const AttendanceModule = lazyNamed(() => import('../staff/AttendanceModule'), 'AttendanceModule');
+const StudentTimetableView = lazyNamed(() => import('../student/StudentTimetableView'), 'StudentTimetableView');
+const StudentAssignmentsMaterials = lazyNamed(() => import('../student/StudentAssignmentsMaterials'), 'StudentAssignmentsMaterials');
+const StudentAttendanceView = lazyNamed(() => import('../student/StudentAttendanceView'), 'StudentAttendanceView');
+const StudentMarksView = lazyNamed(() => import('../student/StudentMarksView'), 'StudentMarksView');
+const StudentNotifications = lazyNamed(() => import('../student/StudentNotifications'), 'StudentNotifications');
+const StudentCareerProfile = lazyNamed(() => import('../student/StudentCareerProfile'), 'StudentCareerProfile');
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
 import {
@@ -503,6 +509,9 @@ const navByRole: Record<CampusRole, NavItem[]> = {
   // Recruiters cannot sign in yet; the recruiter portal is a later phase.
   recruiter: [],
 };
+
+/** Every page id any role can open; used to tell "no access" from "no such page". */
+const workspaceTabIds = new Set(Object.values(navByRole).flat().map((item) => item.id));
 
 const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity'] },
@@ -1231,7 +1240,12 @@ export default function CampusWorkspace({
   const extractAssignablePermissions = (permissions: CampusPermission[]) =>
     normalizeStaffPermissions(permissions).filter((permission) => campusStaffAssignablePermissions.includes(permission));
 
-  const [activeTab, setActiveTab] = useState(availableNav[0]?.id ?? 'dashboard');
+  // The page comes from the URL (/app/:tab), so links, reloads and back/forward work.
+  const navigate = useNavigate();
+  const { tab: routeTab } = useParams<{ tab?: string }>();
+  const homeTab = availableNav[0]?.id ?? 'dashboard';
+  const activeTab = routeTab ?? homeTab;
+  const setActiveTab = (tabId: string) => navigate(`/app/${tabId}`);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarDropdowns, setSidebarDropdowns] = useState<Record<string, boolean>>({
     overview: true,
@@ -1299,11 +1313,6 @@ export default function CampusWorkspace({
   const notificationRef = useRef<HTMLDivElement | null>(null);
   const calendarRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!availableNav.some((item) => item.id === activeTab)) {
-      setActiveTab(availableNav[0]?.id ?? 'dashboard');
-    }
-  }, [activeTab, availableNav]);
 
   useEffect(() => {
     if (!isAdminRole(user.role)) {
@@ -5420,6 +5429,12 @@ export default function CampusWorkspace({
   };
 
   const renderTabContent = () => {
+    // Route guard: a page outside the role's menu is refused, an unknown one is not found.
+    const access = workspaceAccess(activeTab, availableNav.map((item) => item.id), workspaceTabIds);
+    if (access !== 'allowed') {
+      return access === 'forbidden' ? <AccessDenied homePath={`/app/${homeTab}`} /> : <NotFound homePath={`/app/${homeTab}`} />;
+    }
+
     switch (activeTab) {
       case 'dashboard':
         return isAdminRole(user.role) ? renderAdminDashboard() : isInstitutionStaffRole(user.role) ? renderStaffDashboard() : renderStudentDashboard();
@@ -6020,7 +6035,7 @@ export default function CampusWorkspace({
                   exit={{ opacity: 0, y: -14 }}
                   transition={{ duration: 0.22 }}
                 >
-                  {renderTabContent()}
+                  <Suspense fallback={<PageLoading />}>{renderTabContent()}</Suspense>
                 </motion.div>
               </AnimatePresence>
             </main>

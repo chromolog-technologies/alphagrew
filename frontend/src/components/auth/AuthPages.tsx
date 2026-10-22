@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   acceptInvitation,
   ApiError,
@@ -15,11 +16,6 @@ import type { AuthResponse } from '../../api/campusApi';
  * Public account pages, opened by path (see App): /forgot-password, /reset-password,
  * /register and /invitations/accept. Links in emails point to these paths.
  */
-
-export function goTo(path: string) {
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
 
 const roleLabels: Record<string, string> = {
   student: 'Student',
@@ -39,13 +35,9 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle?: st
           </div>
         </div>
         {children}
-        <button
-          type="button"
-          onClick={() => goTo('/')}
-          className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700"
-        >
+        <Link to="/" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
           <ArrowLeft size={14} aria-hidden="true" /> Back to sign in
-        </button>
+        </Link>
       </div>
     </main>
   );
@@ -174,7 +166,7 @@ export function ForgotPasswordPage() {
 }
 
 export function ResetPasswordPage() {
-  const params = new URLSearchParams(window.location.search);
+  const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
@@ -268,7 +260,9 @@ export function RegisterPage() {
 }
 
 export function AcceptInvitationPage({ onSignedIn }: { onSignedIn: (response: AuthResponse) => void }) {
-  const token = new URLSearchParams(window.location.search).get('token') ?? '';
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const token = params.get('token') ?? '';
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null);
   const [loadError, setLoadError] = useState('');
   const [name, setName] = useState('');
@@ -292,7 +286,7 @@ export function AcceptInvitationPage({ onSignedIn }: { onSignedIn: (response: Au
     event.preventDefault();
     void run(async () => {
       const response = await acceptInvitation(token, { name, password, password_confirmation: confirmation });
-      goTo('/');
+      navigate('/', { replace: true });
       onSignedIn(response);
     });
   };

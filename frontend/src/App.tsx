@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   applyToCompanyWithCampusApi,
   createAnnouncementWithCampusApi,
@@ -33,11 +33,15 @@ import {
   type AuthResponse,
   type StudentRecordResponse,
 } from './api/campusApi';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { resendVerificationEmail } from './api/accountApi';
 import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
 import { CampusLogin } from './components/auth';
-import CampusWorkspace from './components/layouts/CampusWorkspace';
+import { PageLoading } from './components/shared/RouteStatus';
+
+// Loaded after sign-in, so the sign-in page doesn't download the whole workspace.
+const CampusWorkspace = lazy(() => import('./components/layouts/CampusWorkspace'));
 import {
   campusDefaultDesignations,
   campusDefaultMasters,
@@ -251,14 +255,6 @@ export default function App() {
 
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
-  }, []);
-
-  // Public account pages are chosen by path (links in emails open them).
-  const [path, setPath] = useState(() => window.location.pathname);
-  useEffect(() => {
-    const handlePopState = () => setPath(window.location.pathname);
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // The email verification link redirects here with ?verified=1 (or =invalid).
@@ -1635,20 +1631,28 @@ export default function App() {
   };
 
   if (!auth?.user) {
-    if (path === '/forgot-password') return <ForgotPasswordPage />;
-    if (path === '/reset-password') return <ResetPasswordPage />;
-    if (path === '/register') return <RegisterPage />;
-    if (path === '/invitations/accept') return <AcceptInvitationPage onSignedIn={handleInvitationAccepted} />;
-
+    // Signed out: the account pages opened from emails, otherwise the sign-in page. A deep
+    // link such as /app/marks stays in the address bar and opens after signing in.
     return (
-      <>
-        <CampusLogin error={error} onLogin={handleLogin} />
-        <AccountNotice message={notice} onDismiss={() => setNotice('')} />
-      </>
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/invitations/accept" element={<AcceptInvitationPage onSignedIn={handleInvitationAccepted} />} />
+        <Route
+          path="*"
+          element={
+            <>
+              <CampusLogin error={error} onLogin={handleLogin} />
+              <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+            </>
+          }
+        />
+      </Routes>
     );
   }
 
-  return (
+  const workspace = (
     <>
     <AccountNotice message={notice} onDismiss={() => setNotice('')} />
     {apiConfigured && auth.user.emailVerified === false ? <VerifyEmailReminder email={auth.user.email} /> : null}
@@ -1684,6 +1688,14 @@ export default function App() {
       onApplyToCompany={handleApplyToCompany}
     />
     </>
+  );
+
+  // Signed in: every page lives at /app/<page>; anything else opens the dashboard.
+  return (
+    <Routes>
+      <Route path="/app/:tab" element={<Suspense fallback={<PageLoading />}>{workspace}</Suspense>} />
+      <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+    </Routes>
   );
 }
 

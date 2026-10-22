@@ -20,6 +20,7 @@ class Student extends Model
         'email',
         'registration_number',
         'department_code',
+        'batch_id',
         'year',
         'gender',
         'status',
@@ -54,6 +55,11 @@ class Student extends Model
         return $this->belongsToMany(ClassModel::class, 'class_student', 'student_id', 'class_id')
             ->withPivot('assigned_from', 'assigned_to')
             ->withTimestamps();
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
     }
 
     public function applications(): HasMany

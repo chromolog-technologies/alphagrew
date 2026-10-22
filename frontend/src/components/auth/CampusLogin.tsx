@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
-import { goTo } from './AuthPages';
+import { Link } from 'react-router-dom';
 import {
   Card,
   CardHeader,
@@ -154,13 +154,9 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
                     <Label htmlFor="login-password" required className="text-xs uppercase tracking-wider text-slate-600">
                       Password
                     </Label>
-                    <a
-                      href="/forgot-password"
-                      onClick={(event) => { event.preventDefault(); goTo('/forgot-password'); }}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                    >
+                    <Link to="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
                   <div className="relative flex items-center">
                     <LockKeyhole size={16} className="absolute left-3.5 text-slate-400 pointer-events-none z-10" />
@@ -211,13 +207,9 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
 
                 <p className="text-center text-xs text-slate-500">
                   New student?{' '}
-                  <a
-                    href="/register"
-                    onClick={(event) => { event.preventDefault(); goTo('/register'); }}
-                    className="font-semibold text-blue-600 hover:text-blue-700"
-                  >
+                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
                     Register with your institution code
-                  </a>
+                  </Link>
                 </p>
               </form>
             </CardContent>

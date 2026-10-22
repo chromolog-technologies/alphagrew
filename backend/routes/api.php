@@ -26,7 +26,11 @@ use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
 use App\Http\Controllers\Api\V1\GradeRuleController;
 use App\Http\Controllers\Api\V1\Interviews\InterviewController;
+use App\Http\Controllers\Api\V1\BatchController;
+use App\Http\Controllers\Api\V1\CampusSiteController;
+use App\Http\Controllers\Api\V1\InstitutionSettingsController;
 use App\Http\Controllers\Api\V1\InvitationController;
+use App\Http\Controllers\Api\V1\PlacementPolicyController;
 use App\Http\Controllers\Api\V1\MarkEntryController;
 use App\Http\Controllers\Api\V1\MarkReviewController;
 use App\Http\Controllers\Api\V1\MarkSchemeController;
@@ -120,6 +124,32 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/audit-logs', [AuditLogController::class, 'index'])
             ->middleware('permission:'.CampusPermission::ACTIVITY_VIEW.',sanctum');
+
+        // Institution foundation (plan Slice 2): profile and branding, campuses, batches,
+        // placement policy. Branding is readable by every member of the institution.
+        Route::get('/institution', [InstitutionSettingsController::class, 'show']);
+        $settings = 'permission:'.CampusPermission::SETTINGS_MANAGE.',sanctum';
+        Route::put('/institution/settings', [InstitutionSettingsController::class, 'update'])->middleware($settings);
+        Route::post('/institution/logo', [InstitutionSettingsController::class, 'uploadLogo'])->middleware([$settings, 'throttle:uploads']);
+
+        $viewStructure = 'permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum';
+        $manageStructure = 'permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum';
+        Route::get('/campuses', [CampusSiteController::class, 'index'])->middleware($viewStructure);
+        Route::post('/campuses', [CampusSiteController::class, 'store'])->middleware($manageStructure);
+        Route::put('/campuses/{campus}', [CampusSiteController::class, 'update'])->whereNumber('campus')->middleware($manageStructure);
+        Route::delete('/campuses/{campus}', [CampusSiteController::class, 'destroy'])->whereNumber('campus')->middleware($manageStructure);
+
+        Route::get('/batches', [BatchController::class, 'index'])->middleware($viewStructure);
+        Route::post('/batches', [BatchController::class, 'store'])->middleware($manageStructure);
+        Route::put('/batches/{batch}', [BatchController::class, 'update'])->whereNumber('batch')->middleware($manageStructure);
+        Route::delete('/batches/{batch}', [BatchController::class, 'destroy'])->whereNumber('batch')->middleware($manageStructure);
+        Route::post('/batches/{batch}/students', [BatchController::class, 'assignStudents'])->whereNumber('batch')->middleware($manageStructure);
+        Route::delete('/batches/{batch}/students', [BatchController::class, 'removeStudents'])->whereNumber('batch')->middleware($manageStructure);
+
+        Route::get('/placement-policy', [PlacementPolicyController::class, 'show'])
+            ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+        Route::put('/placement-policy', [PlacementPolicyController::class, 'update'])
+            ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
 
         Route::get('/campus/bootstrap', [CampusController::class, 'bootstrap'])
             ->middleware('permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum');

@@ -23,6 +23,7 @@ class StudentResource extends JsonResource
             'email' => $this->email,
             'registrationNumber' => $this->registration_number,
             'departmentCode' => $this->department_code,
+            'batchId' => $this->batch_id,
             'year' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_YEAR, $this->year) ?? 'year_1',
             'gender' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_GENDER, $this->gender) ?? 'prefer_not_to_say',
             'status' => CampusMasterCatalog::normalizeValue(CampusMasterCatalog::STUDENT_STATUS, $this->status) ?? 'active',
