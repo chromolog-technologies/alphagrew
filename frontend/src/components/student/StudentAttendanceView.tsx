@@ -1,6 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle, AlertCircle, BarChart3, Loader } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, AlertCircle, BarChart3, Filter } from 'lucide-react';
 import { fetchStudentAttendance, fetchStudentAttendanceDetailed } from '../../api/campusApi';
+import { getStoredAuthToken } from '../../utils/auth';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Button,
+  Badge,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Skeleton,
+} from '@/components/ui';
 
 interface AttendanceRecord {
   id: number;
@@ -32,8 +52,8 @@ export const StudentAttendanceView: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        
-        const token = localStorage.getItem('auth_token');
+
+        const token = getStoredAuthToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
@@ -81,23 +101,39 @@ export const StudentAttendanceView: React.FC = () => {
     fetchAttendanceData();
   }, []);
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'present':
-        return 'bg-green-100 text-green-800';
+        return <Badge variant="success">Present</Badge>;
       case 'absent':
-        return 'bg-red-100 text-red-800';
+        return <Badge variant="destructive">Absent</Badge>;
       case 'late':
-        return 'bg-yellow-100 text-yellow-800';
+        return <Badge variant="warning">Late</Badge>;
       default:
-        return 'bg-gray-100 text-gray-800';
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const getPercentageColor = (percentage: number) => {
-    if (percentage >= 75) return 'text-green-600';
-    if (percentage >= 65) return 'text-yellow-600';
-    return 'text-red-600';
+  const getPercentageBadge = (percentage: number) => {
+    if (percentage >= 75) {
+      return (
+        <Badge variant="success" className="font-bold">
+          {percentage.toFixed(1)}% Safe
+        </Badge>
+      );
+    }
+    if (percentage >= 65) {
+      return (
+        <Badge variant="warning" className="font-bold">
+          {percentage.toFixed(1)}% Warning
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="destructive" className="font-bold">
+        {percentage.toFixed(1)}% Critical
+      </Badge>
+    );
   };
 
   const filteredRecords = selectedSubject
@@ -108,12 +144,15 @@ export const StudentAttendanceView: React.FC = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Attendance</h2>
-          <p className="mt-1 text-sm text-slate-600">Track your attendance records</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Record</h2>
+          <p className="mt-1 text-xs text-slate-500 font-medium">Loading course attendance metrics...</p>
         </div>
-        <div className="flex items-center justify-center py-12">
-          <Loader className="animate-spin text-blue-600" size={32} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-36 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
+          <Skeleton className="h-36 rounded-2xl" />
         </div>
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
@@ -122,137 +161,174 @@ export const StudentAttendanceView: React.FC = () => {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Attendance</h2>
-          <p className="mt-1 text-sm text-slate-600">Track your attendance records</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Record</h2>
+          <p className="mt-1 text-xs text-slate-500 font-medium">Track your attendance compliance</p>
         </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <h4 className="font-semibold text-red-900">Error Loading Attendance</h4>
-            <p className="text-sm text-red-800 mt-1">{error}</p>
-          </div>
-        </div>
+        <Alert variant="destructive" className="rounded-2xl">
+          <AlertCircle size={18} />
+          <AlertTitle>Error Loading Attendance</AlertTitle>
+          <AlertDescription className="text-xs">{error}</AlertDescription>
+        </Alert>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">Attendance</h2>
-        <p className="mt-1 text-sm text-slate-600">Track your attendance records</p>
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic Attendance</h2>
+            <Badge variant="outline" className="font-bold text-xs">
+              75% Required Threshold
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs text-slate-500 font-medium">
+            Monitor subject attendance, track absences, and maintain exam eligibility criteria
+          </p>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {summary.map((item, idx) => (
-          <div
-            key={idx}
-            onClick={() => setSelectedSubject(item.subject)}
-            className={`p-4 rounded-lg border cursor-pointer transition ${
-              selectedSubject === item.subject
-                ? 'bg-blue-50 border-blue-300'
-                : 'bg-white border-slate-200 hover:border-slate-300'
-            }`}
-          >
-            <h3 className="font-semibold text-slate-900">{item.subject}</h3>
-            <div className="mt-3 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Total Classes:</span>
-                <span className="font-semibold">{item.total}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-green-600">Present:</span>
-                <span className="font-semibold text-green-600">{item.present}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-red-600">Absent:</span>
-                <span className="font-semibold text-red-600">{item.absent}</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-slate-900">Attendance %</span>
-                  <span className={`font-bold text-lg ${getPercentageColor(item.percentage)}`}>
-                    {item.percentage.toFixed(1)}%
-                  </span>
+      {/* Summary Course Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {summary.map((item, idx) => {
+          const isSelected = selectedSubject === item.subject;
+          return (
+            <Card
+              key={idx}
+              onClick={() => setSelectedSubject(isSelected ? null : item.subject)}
+              className={`rounded-2xl cursor-pointer transition-all hover:shadow-md border ${
+                isSelected
+                  ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-100 shadow-sm'
+                  : 'border-slate-200/90 bg-white hover:border-slate-300'
+              }`}
+            >
+              <CardHeader className="p-5 pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-bold text-slate-900 truncate">
+                    {item.subject}
+                  </CardTitle>
+                  {getPercentageBadge(item.percentage)}
                 </div>
-                <div className="mt-2 w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      item.percentage >= 75 ? 'bg-green-500' : item.percentage >= 65 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}
-                    style={{ width: `${item.percentage}%` }}
-                  />
+              </CardHeader>
+
+              <CardContent className="p-5 pt-1 space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                    <p className="text-[10px] uppercase font-bold text-slate-500">Total</p>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">{item.total}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-[10px] uppercase font-bold text-emerald-600">Present</p>
+                    <p className="text-sm font-black text-emerald-700 mt-0.5">{item.present}</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-rose-50 border border-rose-100">
+                    <p className="text-[10px] uppercase font-bold text-rose-600">Absent</p>
+                    <p className="text-sm font-black text-rose-700 mt-0.5">{item.absent}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        ))}
+
+                {/* Progress bar */}
+                <div className="space-y-1 pt-1">
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        item.percentage >= 75
+                          ? 'bg-emerald-500'
+                          : item.percentage >= 65
+                          ? 'bg-amber-500'
+                          : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${Math.min(100, item.percentage)}%` }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Alert for Low Attendance */}
       {summary.some((s) => s.percentage < 75) && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <h4 className="font-semibold text-yellow-900">Low Attendance Alert</h4>
-            <p className="text-sm text-yellow-800 mt-1">
-              Your attendance in some subjects is below 75%. Please contact your faculty to improve your attendance.
-            </p>
-          </div>
-        </div>
+        <Alert variant="warning" className="rounded-2xl">
+          <AlertCircle size={18} />
+          <AlertTitle>Low Attendance Warning</AlertTitle>
+          <AlertDescription className="text-xs">
+            One or more enrolled subjects are below the university 75% minimum threshold. Contact your course faculty to reconcile leave certificates and attend remaining lecture sessions.
+          </AlertDescription>
+        </Alert>
       )}
 
-      {/* Detailed Records */}
-      <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <div className="p-4 bg-slate-50 border-b border-slate-200">
-          <h3 className="font-semibold text-slate-900">
-            {selectedSubject ? `Records - ${selectedSubject}` : 'All Records'}
-          </h3>
+      {/* Detailed Records Table */}
+      <Card className="rounded-2xl border-slate-200/90 shadow-xs overflow-hidden">
+        <CardHeader className="p-5 pb-3 bg-slate-50/70 border-b border-slate-100 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900">
+              {selectedSubject ? `Session Log: ${selectedSubject}` : 'Full Attendance Log'}
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              {filteredRecords.length} session entry logs recorded
+            </CardDescription>
+          </div>
+
           {selectedSubject && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setSelectedSubject(null)}
-              className="text-sm text-blue-600 hover:text-blue-700 mt-2"
+              className="h-8 text-xs font-semibold rounded-xl"
             >
               Clear Filter
-            </button>
+            </Button>
           )}
-        </div>
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-slate-900">Subject</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-900">Date</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-900">Status</th>
-              <th className="px-4 py-3 text-left font-semibold text-slate-900">Marked By</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200">
-            {filteredRecords.length > 0 ? (
-              filteredRecords.map((record) => (
-                <tr key={record.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-900">{record.subject}</td>
-                  <td className="px-4 py-3 text-slate-600 flex items-center gap-2">
-                    <Calendar size={14} /> {record.date}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(record.status)}`}>
-                      {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{record.markedBy}</td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  No records found
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/50">
+                <TableHead>Subject / Course</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Attendance Status</TableHead>
+                <TableHead className="text-right">Marked By</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRecords.length > 0 ? (
+                filteredRecords.map((record) => (
+                  <TableRow key={record.id} className="hover:bg-slate-50/70 transition">
+                    <TableCell className="font-bold text-slate-900 text-xs">
+                      {record.subject}
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={13} className="text-slate-400" />
+                        {record.date}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(record.status)}
+                    </TableCell>
+                    <TableCell className="text-right text-xs font-medium text-slate-600">
+                      {record.markedBy}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center text-xs text-slate-500">
+                    No attendance records match the selected filter.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+export default StudentAttendanceView;

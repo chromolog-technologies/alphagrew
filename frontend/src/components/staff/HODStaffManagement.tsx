@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
 import { fetchAllStaffMembers, createNewStaffMember, deleteStaffMember, assignClassesToStaff } from '../../api/campusApi';
 import { PrototypeNotice } from '../shared';
+import { getStoredAuthToken } from '../../utils/auth';
 
 interface StaffMember {
   id: number;
@@ -30,7 +31,7 @@ export const HODStaffManagement: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredAuthToken();
         if (!token) {
           setError('Authentication token not found');
           return;
@@ -54,7 +55,7 @@ export const HODStaffManagement: React.FC = () => {
 
   const handleDeleteStaff = async (id: number) => {
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = getStoredAuthToken();
       if (!token) return;
       
       await deleteStaffMember(token, id);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Loader, AlertCircle, TrendingUp, Users } from 'lucide-react';
+import { getStoredAuthToken } from '../../utils/auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
@@ -50,7 +51,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [reportType, setReportType] = useState<'student' | 'subject'>('student');
 
-  const token = localStorage.getItem('auth_token');
+  const token = getStoredAuthToken();
 
   useEffect(() => {
     fetchReport();

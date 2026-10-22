@@ -1,7 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Upload, Calendar, FileText, BookOpen, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
-import { fetchStudentMaterials, fetchStudentAssignments } from '../../api/campusApi';
-import { PrototypeNotice } from '../shared';
+import {
+  Download,
+  Upload,
+  Calendar,
+  FileText,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileUp,
+  GraduationCap,
+  ExternalLink,
+} from 'lucide-react';
+import {
+  fetchStudentMaterials,
+  fetchStudentAssignments,
+  submitStudentAssignment,
+} from '../../api/campusApi';
+import { getStoredAuthToken } from '../../utils/auth';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Button,
+  Badge,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Skeleton,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Label,
+  Input,
+} from '@/components/ui';
 
 interface Material {
   id: number;
@@ -33,283 +71,305 @@ export const StudentAssignmentsMaterials: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'materials' | 'assignments'>('materials');
   const [filterType, setFilterType] = useState<string>('all');
   const [filterCourse, setFilterCourse] = useState<string>('all');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // Submit Assignment Dialog State
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submissionComments, setSubmissionComments] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-        const token = localStorage.getItem('auth_token');
-        if (!token) {
-          setError('Authentication required. Please log in.');
-          return;
-        }
+  const token = getStoredAuthToken();
 
-        // Fetch materials and assignments
-        const [materialsResponse, assignmentsResponse] = await Promise.all([
-          fetchStudentMaterials(token),
-          fetchStudentAssignments(token),
-        ]);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        // Format materials data
-        if (materialsResponse.success && Array.isArray(materialsResponse.data)) {
-          const materialsData = materialsResponse.data.map((m: any, idx: number) => ({
-            id: idx + 1,
-            title: m.title || 'Unknown Material',
-            course: m.course || 'Unknown Course',
-            courseCode: m.course_code || 'N/A',
-            type: m.type || 'lecture',
-            uploadDate: m.upload_date || new Date().toISOString().split('T')[0],
-            downloadCount: m.download_count || 0,
-            fileSize: m.file_size || '0 MB',
-          }));
-          setMaterials(materialsData);
-        }
-
-        // Format assignments data
-        if (assignmentsResponse.success && Array.isArray(assignmentsResponse.data)) {
-          const assignmentsData = assignmentsResponse.data.map((a: any, idx: number) => ({
-            id: idx + 1,
-            title: a.title || 'Unknown Assignment',
-            course: a.course || 'Unknown Course',
-            courseCode: a.course_code || 'N/A',
-            description: a.description || 'No description provided',
-            dueDate: a.due_date || new Date().toISOString().split('T')[0],
-            submittedDate: a.submitted_date,
-            marks: a.marks,
-            totalMarks: a.total_marks || 100,
-            status: a.status || 'pending',
-            faculty: a.faculty || 'Faculty',
-          }));
-          setAssignments(assignmentsData);
-        }
-      } catch (err) {
-        console.error('Failed to fetch materials/assignments:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load materials and assignments. Please try again.');
-      } finally {
-        setLoading(false);
+      if (!token) {
+        setError('Authentication required. Please log in.');
+        return;
       }
-    };
 
-    fetchData();
+      const [materialsResponse, assignmentsResponse] = await Promise.all([
+        fetchStudentMaterials(token),
+        fetchStudentAssignments(token),
+      ]);
+
+      if (materialsResponse.success && Array.isArray(materialsResponse.data)) {
+        const materialsData = materialsResponse.data.map((m: any, idx: number) => ({
+          id: m.id || idx + 1,
+          title: m.title || 'Course Material',
+          course: m.course || 'Enrolled Course',
+          courseCode: m.course_code || 'N/A',
+          type: m.type || 'lecture',
+          uploadDate: m.upload_date || new Date().toISOString().split('T')[0],
+          downloadCount: m.download_count || 0,
+          fileSize: m.file_size || '1.5 MB',
+        }));
+        setMaterials(materialsData);
+      }
+
+      if (assignmentsResponse.success && Array.isArray(assignmentsResponse.data)) {
+        const assignmentsData = assignmentsResponse.data.map((a: any, idx: number) => ({
+          id: a.id || idx + 1,
+          title: a.title || 'Course Assignment',
+          course: a.course || 'Enrolled Course',
+          courseCode: a.course_code || 'N/A',
+          description: a.description || 'No description provided',
+          dueDate: a.due_date || new Date().toISOString().split('T')[0],
+          submittedDate: a.submitted_date,
+          marks: a.marks,
+          totalMarks: a.total_marks || 100,
+          status: a.status || 'pending',
+          faculty: a.faculty || 'Course Faculty',
+        }));
+        setAssignments(assignmentsData);
+      }
+    } catch (err) {
+      console.error('Failed to fetch materials/assignments:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load materials and assignments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
-  const getTypeIcon = (type: string) => {
+  const getTypeBadge = (type: string) => {
     switch (type) {
       case 'lecture':
-        return <BookOpen size={18} className="text-blue-600" />;
+        return <Badge variant="info">Lecture Slide</Badge>;
       case 'notes':
-        return <FileText size={18} className="text-green-600" />;
+        return <Badge variant="success">Study Notes</Badge>;
       case 'reference':
-        return <FileText size={18} className="text-purple-600" />;
+        return <Badge variant="secondary">Reference Paper</Badge>;
       case 'video':
-        return <BookOpen size={18} className="text-orange-600" />;
+        return <Badge variant="warning">Video Lab</Badge>;
       default:
-        return <FileText size={18} />;
+        return <Badge variant="outline">{type}</Badge>;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return <Badge variant="warning">Pending Submission</Badge>;
       case 'submitted':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
+        return <Badge variant="info">Submitted for Review</Badge>;
       case 'graded':
-        return 'bg-green-100 text-green-800 border-green-300';
+        return <Badge variant="success">Graded & Evaluated</Badge>;
       default:
-        return 'bg-slate-100 text-slate-800 border-slate-300';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Clock size={16} />;
-      case 'submitted':
-        return <CheckCircle size={16} />;
-      case 'graded':
-        return <CheckCircle size={16} />;
-      default:
-        return <AlertCircle size={16} />;
+        return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
   const getDaysUntilDue = (dueDate: string) => {
     const due = new Date(dueDate);
     const today = new Date();
-    const diff = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return diff;
+    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   };
 
-  const courses = Array.from(new Set(materials.map((m) => m.course)));
-  const filteredMaterials =
-    filterType === 'all'
-      ? materials
-      : materials.filter((m) => m.type === filterType);
+  const handleOpenSubmitDialog = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setSelectedFile(null);
+    setSubmissionComments('');
+    setSubmitDialogOpen(true);
+  };
 
+  const handleSubmitAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !selectedAssignment) return;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+
+      const formData = new FormData();
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+      formData.append('comments', submissionComments);
+
+      await submitStudentAssignment(token, selectedAssignment.id, formData);
+
+      setSubmitDialogOpen(false);
+      setSuccessMessage(`Assignment "${selectedAssignment.title}" submitted successfully!`);
+      setTimeout(() => setSuccessMessage(null), 4000);
+
+      // Optimistically update assignment status
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === selectedAssignment.id ? { ...a, status: 'submitted', submittedDate: new Date().toISOString() } : a
+        )
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit assignment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const courses = Array.from(new Set([...materials.map((m) => m.course), ...assignments.map((a) => a.course)]));
+  const filteredMaterials =
+    filterType === 'all' ? materials : materials.filter((m) => m.type === filterType);
   const filteredAssignments =
-    filterCourse === 'all'
-      ? assignments
-      : assignments.filter((a) => a.course === filterCourse);
+    filterCourse === 'all' ? assignments : assignments.filter((a) => a.course === filterCourse);
 
   const pendingAssignments = assignments.filter((a) => a.status === 'pending');
   const gradedAssignments = assignments.filter((a) => a.status === 'graded');
   const avgGrade = gradedAssignments.length
     ? (gradedAssignments.reduce((sum, a) => sum + (a.marks || 0), 0) / gradedAssignments.length).toFixed(1)
-    : 0;
+    : '0';
 
   if (loading) {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Assignments & Materials</h2>
-          <p className="mt-1 text-sm text-slate-600">Loading your materials and assignments...</p>
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic LMS</h2>
+          <p className="mt-1 text-xs text-slate-500 font-medium">Loading coursework resources and assignments...</p>
         </div>
-        <div className="flex items-center justify-center py-12">
-          <Loader className="animate-spin text-blue-600" size={32} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Assignments & Materials</h2>
-          <p className="mt-1 text-sm text-slate-600">Download course materials and submit assignments</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <h4 className="font-semibold text-red-900">Error Loading Materials</h4>
-            <p className="text-sm text-red-800 mt-1">{error}</p>
-          </div>
-        </div>
+        <Skeleton className="h-72 rounded-2xl" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <PrototypeNotice />
+      {/* Alert Header */}
+      {error && (
+        <Alert variant="destructive" className="rounded-2xl">
+          <AlertCircle size={18} />
+          <AlertTitle>Notice</AlertTitle>
+          <AlertDescription className="text-xs">{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {successMessage && (
+        <Alert variant="success" className="rounded-2xl">
+          <CheckCircle2 size={18} />
+          <AlertTitle>Success</AlertTitle>
+          <AlertDescription className="text-xs">{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Assignments & Materials</h2>
-        <p className="mt-1 text-sm text-slate-600">Download course materials and submit assignments</p>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Coursework & Digital LMS</h2>
+          <Badge variant="secondary" className="font-semibold text-xs">
+            Academic Portal
+          </Badge>
+        </div>
+        <p className="mt-1 text-xs text-slate-500 font-medium">
+          Access course lecture materials, submit required deliverables, and review faculty evaluations
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-700 font-medium">Pending Assignments</p>
-          <p className="text-3xl font-bold text-blue-900 mt-2">{pendingAssignments.length}</p>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-sm text-green-700 font-medium">Graded Assignments</p>
-          <p className="text-3xl font-bold text-green-900 mt-2">{gradedAssignments.length}</p>
-        </div>
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <p className="text-sm text-purple-700 font-medium">Average Grade</p>
-          <p className="text-3xl font-bold text-purple-900 mt-2">{avgGrade}</p>
-        </div>
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <p className="text-sm text-orange-700 font-medium">Course Materials</p>
-          <p className="text-3xl font-bold text-orange-900 mt-2">{materials.length}</p>
-        </div>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-amber-50/40 to-white">
+          <CardHeader className="p-5 pb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-700">Pending Submissions</span>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            <p className="text-3xl font-extrabold text-amber-950 mt-1">{pendingAssignments.length}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Due within current evaluation window</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-emerald-50/40 to-white">
+          <CardHeader className="p-5 pb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Graded Deliverables</span>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            <p className="text-3xl font-extrabold text-emerald-950 mt-1">{gradedAssignments.length}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Evaluated by department faculty</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-purple-50/40 to-white">
+          <CardHeader className="p-5 pb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-700">Average Score</span>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            <p className="text-3xl font-extrabold text-purple-950 mt-1">{avgGrade}%</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Cumulative assignment standing</p>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-blue-50/40 to-white">
+          <CardHeader className="p-5 pb-1">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Repository Materials</span>
+          </CardHeader>
+          <CardContent className="p-5 pt-0">
+            <p className="text-3xl font-extrabold text-blue-950 mt-1">{materials.length}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-1">Available lecture files & references</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab('materials')}
-          className={`px-4 py-3 font-medium border-b-2 transition ${
-            activeTab === 'materials'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Course Materials
-        </button>
-        <button
-          onClick={() => setActiveTab('assignments')}
-          className={`px-4 py-3 font-medium border-b-2 transition ${
-            activeTab === 'assignments'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          Assignments
-        </button>
-      </div>
+      {/* Tabs Control */}
+      <Card className="rounded-2xl border-slate-200/90 shadow-xs">
+        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant={activeTab === 'materials' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('materials')}
+              className={`rounded-xl text-xs font-bold px-4 ${
+                activeTab === 'materials' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600'
+              }`}
+            >
+              <BookOpen size={15} className="mr-2" /> Course Materials ({materials.length})
+            </Button>
+            <Button
+              size="sm"
+              variant={activeTab === 'assignments' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('assignments')}
+              className={`rounded-xl text-xs font-bold px-4 ${
+                activeTab === 'assignments' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600'
+              }`}
+            >
+              <FileText size={15} className="mr-2" /> Assignments & Submissions ({assignments.length})
+            </Button>
+          </div>
 
-      {/* Materials Tab */}
-      {activeTab === 'materials' && (
-        <div className="space-y-4">
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+          {/* Contextual Filters */}
+          {activeTab === 'materials' ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Type:</span>
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-8 px-2.5 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Types</option>
                 <option value="lecture">Lectures</option>
                 <option value="notes">Notes</option>
-                <option value="reference">Reference</option>
+                <option value="reference">References</option>
                 <option value="video">Videos</option>
               </select>
             </div>
-          </div>
-
-          <div className="space-y-3">
-            {filteredMaterials.map((material) => (
-              <div
-                key={material.id}
-                className="border border-slate-200 rounded-lg p-5 hover:shadow-md transition bg-white"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1 min-w-0">
-                    <div className="mt-1">{getTypeIcon(material.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-slate-900 text-lg truncate">{material.title}</h4>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-sm font-semibold text-blue-600">{material.courseCode}</span>
-                        <span className="text-sm text-slate-600">{material.course}</span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-600">
-                        <span>📅 {material.uploadDate}</span>
-                        <span>📥 {material.downloadCount} downloads</span>
-                        <span>📦 {material.fileSize}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="flex-shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm font-medium">
-                    <Download size={16} />
-                    Download
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Assignments Tab */}
-      {activeTab === 'assignments' && (
-        <div className="space-y-4">
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Course</label>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Course:</span>
               <select
                 value={filterCourse}
                 onChange={(e) => setFilterCourse(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="h-8 px-2.5 text-xs font-semibold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
               >
                 <option value="all">All Courses</option>
                 {courses.map((course) => (
@@ -319,120 +379,245 @@ export const StudentAssignmentsMaterials: React.FC = () => {
                 ))}
               </select>
             </div>
-          </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <div className="space-y-3">
-            {filteredAssignments.map((assignment) => {
-              const daysLeft = getDaysUntilDue(assignment.dueDate);
-              const isOverdue = daysLeft < 0 && assignment.status === 'pending';
-              const isUrgent = daysLeft <= 3 && daysLeft > 0 && assignment.status === 'pending';
-
-              return (
-                <div
-                  key={assignment.id}
-                  className={`border rounded-lg p-5 transition ${
-                    isOverdue
-                      ? 'border-red-300 bg-red-50'
-                      : isUrgent
-                        ? 'border-orange-300 bg-orange-50'
-                        : 'border-slate-200 bg-white hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex-1">
-                      <h4 className="font-bold text-slate-900 text-lg">{assignment.title}</h4>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-sm font-semibold text-blue-600">{assignment.courseCode}</span>
-                        <span className="text-sm text-slate-600">{assignment.course}</span>
-                        <span className="text-xs text-slate-500">by {assignment.faculty}</span>
-                      </div>
+      {/* Materials Tab Content */}
+      {activeTab === 'materials' && (
+        <div className="space-y-3">
+          {filteredMaterials.length === 0 ? (
+            <Card className="rounded-2xl border-slate-200 p-12 text-center text-slate-500">
+              <BookOpen size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="font-semibold text-slate-800">No course materials found</p>
+              <p className="text-xs text-slate-500 mt-1">Faculty uploads will populate here automatically.</p>
+            </Card>
+          ) : (
+            filteredMaterials.map((material) => (
+              <Card
+                key={material.id}
+                className="rounded-2xl border-slate-200/90 shadow-xs hover:border-blue-300 transition-all hover:shadow-md"
+              >
+                <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-4 flex-1 min-w-0">
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                      <BookOpen size={18} />
                     </div>
-                    <span
-                      className={`flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border ${getStatusColor(
-                        assignment.status,
-                      )}`}
-                    >
-                      {getStatusIcon(assignment.status)}
-                      {assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-slate-700 mb-3">{assignment.description}</p>
-
-                  <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
-                    <div>
-                      <p className="text-slate-600">Due Date</p>
-                      <p className="font-semibold text-slate-900">{assignment.dueDate}</p>
-                      <p
-                        className={`text-xs mt-1 font-bold ${
-                          isOverdue
-                            ? 'text-red-600'
-                            : isUrgent
-                              ? 'text-orange-600'
-                              : 'text-slate-600'
-                        }`}
-                      >
-                        {isOverdue
-                          ? `${Math.abs(daysLeft)} days overdue`
-                          : daysLeft < 0
-                            ? 'Overdue'
-                            : `${daysLeft} days left`}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h4 className="font-bold text-slate-900 text-sm truncate">{material.title}</h4>
+                        {getTypeBadge(material.type)}
+                      </div>
+                      <p className="text-xs text-slate-600 font-medium">
+                        {material.courseCode} • {material.course}
                       </p>
-                    </div>
-                    <div>
-                      <p className="text-slate-600">Total Marks</p>
-                      <p className="font-bold text-slate-900">{assignment.totalMarks}</p>
-                    </div>
-                    {assignment.marks !== undefined && (
-                      <div>
-                        <p className="text-slate-600">Your Marks</p>
-                        <p className="font-bold text-green-600">{assignment.marks}</p>
-                        <p className="text-xs text-slate-600 mt-1">
-                          {((assignment.marks / assignment.totalMarks) * 100).toFixed(1)}%
-                        </p>
+                      <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-400 font-medium">
+                        <span>Uploaded {material.uploadDate}</span>
+                        <span>•</span>
+                        <span>{material.downloadCount} Downloads</span>
+                        <span>•</span>
+                        <span>{material.fileSize}</span>
                       </div>
-                    )}
+                    </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    {assignment.status === 'pending' && (
-                      <>
-                        <button className="flex-1 px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm font-medium flex items-center justify-center gap-2">
-                          <Upload size={16} />
-                          Submit Assignment
-                        </button>
-                        <button className="px-3 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 text-sm">
-                          View Details
-                        </button>
-                      </>
-                    )}
-                    {assignment.status === 'submitted' && (
-                      <>
-                        <button className="flex-1 px-3 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 text-sm">
-                          Submitted
-                        </button>
-                        <button className="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm">
-                          View Submission
-                        </button>
-                      </>
-                    )}
-                    {assignment.status === 'graded' && (
-                      <>
-                        <button className="flex-1 px-3 py-2 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm">
-                          Graded
-                        </button>
-                        <button className="px-3 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 text-sm">
-                          View Feedback
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => alert(`Starting download for: ${material.title}`)}
+                    className="gap-2 rounded-xl text-xs font-semibold self-start sm:self-auto shrink-0"
+                  >
+                    <Download size={14} />
+                    Download File
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       )}
+
+      {/* Assignments Tab Content */}
+      {activeTab === 'assignments' && (
+        <div className="space-y-4">
+          {filteredAssignments.length === 0 ? (
+            <Card className="rounded-2xl border-slate-200 p-12 text-center text-slate-500">
+              <FileText size={40} className="mx-auto text-slate-300 mb-3" />
+              <p className="font-semibold text-slate-800">No assignments found</p>
+              <p className="text-xs text-slate-500 mt-1">You have no active or completed assignments for this course filter.</p>
+            </Card>
+          ) : (
+            filteredAssignments.map((assignment) => {
+              const daysLeft = getDaysUntilDue(assignment.dueDate);
+              const isOverdue = daysLeft < 0 && assignment.status === 'pending';
+              const isUrgent = daysLeft <= 3 && daysLeft >= 0 && assignment.status === 'pending';
+
+              return (
+                <Card
+                  key={assignment.id}
+                  className={`rounded-2xl border transition-all hover:shadow-md ${
+                    isOverdue
+                      ? 'border-rose-300 bg-rose-50/20'
+                      : isUrgent
+                      ? 'border-amber-300 bg-amber-50/20'
+                      : 'border-slate-200/90 bg-white'
+                  }`}
+                >
+                  <CardHeader className="p-5 pb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <CardTitle className="text-base font-bold text-slate-900">
+                            {assignment.title}
+                          </CardTitle>
+                          {getStatusBadge(assignment.status)}
+                        </div>
+                        <p className="text-xs text-slate-500 font-medium">
+                          {assignment.courseCode} • {assignment.course} • Assigned by {assignment.faculty}
+                        </p>
+                      </div>
+
+                      <div className="text-right self-start sm:self-auto">
+                        <span className="text-xs font-bold text-slate-500">Max Score</span>
+                        <p className="text-sm font-extrabold text-slate-900">{assignment.totalMarks} Pts</p>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="p-5 pt-2 space-y-4">
+                    <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/60 p-3 rounded-xl border border-slate-100">
+                      {assignment.description}
+                    </p>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Due Date</span>
+                        <p className="font-semibold text-slate-900 mt-0.5 flex items-center gap-1.5">
+                          <Calendar size={13} className="text-slate-400" />
+                          {assignment.dueDate}
+                        </p>
+                        <p
+                          className={`text-[11px] font-bold mt-0.5 ${
+                            isOverdue ? 'text-rose-600' : isUrgent ? 'text-amber-600' : 'text-slate-500'
+                          }`}
+                        >
+                          {isOverdue ? 'Overdue Submission' : daysLeft === 0 ? 'Due Today' : `${daysLeft} days remaining`}
+                        </p>
+                      </div>
+
+                      {assignment.marks !== undefined && (
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Awarded Marks</span>
+                          <p className="font-black text-emerald-600 text-sm mt-0.5">
+                            {assignment.marks} / {assignment.totalMarks}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            {((assignment.marks / assignment.totalMarks) * 100).toFixed(0)}% Achievement
+                          </p>
+                        </div>
+                      )}
+
+                      {assignment.submittedDate && (
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Submitted On</span>
+                          <p className="font-semibold text-slate-900 mt-0.5">
+                            {new Date(assignment.submittedDate).toLocaleDateString()}
+                          </p>
+                          <Badge variant="success" className="text-[10px] py-0 px-1.5 mt-0.5">Verified Receipt</Badge>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="p-5 pt-0 border-t border-slate-100 flex items-center justify-between gap-3">
+                    {assignment.status === 'pending' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenSubmitDialog(assignment)}
+                        className="gap-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Upload size={14} /> Submit Solution File
+                      </Button>
+                    ) : (
+                      <Badge variant="outline" className="text-xs font-semibold py-1">
+                        <CheckCircle2 size={13} className="text-emerald-500 mr-1.5" />
+                        Submission on file
+                      </Badge>
+                    )}
+                  </CardFooter>
+                </Card>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* --- Submit Assignment Dialog --- */}
+      <Dialog open={submitDialogOpen} onOpenChange={setSubmitDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                <FileUp size={18} />
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Submit Assignment</DialogTitle>
+                <DialogDescription className="text-xs truncate max-w-xs">
+                  {selectedAssignment?.title}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmitAssignment} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="solution-file" required className="text-xs uppercase tracking-wider text-slate-600">
+                Solution File (PDF, ZIP, DOCX)
+              </Label>
+              <Input
+                id="solution-file"
+                type="file"
+                required
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                className="h-10 text-xs cursor-pointer"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="submission-comments" className="text-xs uppercase tracking-wider text-slate-600">
+                Notes / Submission Comments
+              </Label>
+              <textarea
+                id="submission-comments"
+                rows={3}
+                value={submissionComments}
+                onChange={(e) => setSubmissionComments(e.target.value)}
+                placeholder="Include repository links, execution instructions, or notes for the faculty..."
+                className="w-full p-3 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSubmitDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting || !selectedFile}
+                className="gap-2"
+              >
+                {submitting ? 'Uploading...' : 'Confirm Submission'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
+
+export default StudentAssignmentsMaterials;

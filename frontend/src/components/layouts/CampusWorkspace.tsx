@@ -17,6 +17,7 @@ import {
   YAxis,
 } from 'recharts';
 import {
+  ArrowRight,
   Bell,
   BookOpenCheck,
   BookOpen,
@@ -30,6 +31,7 @@ import {
   ChevronRight,
   ClipboardList,
   Clock,
+  FileText,
   Filter,
   GraduationCap,
   LayoutDashboard,
@@ -470,12 +472,15 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
   student: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
+    { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'attendance.view' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
+    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'attendance.view' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
     { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'announcements.view' },
+    { id: 'profile', label: 'Career & AI Hub', icon: UserCircle2, permission: 'profile.view' },
     { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
 };
@@ -502,11 +507,11 @@ const navByRole: Record<CampusRole, NavItem[]> = {
 const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity'] },
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
-  { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles'] },
-  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable'] },
+  { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
+  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
   { id: 'finance', label: 'Finance', itemIds: [] },
-  { id: 'placement', label: 'Placement', itemIds: ['placement'] },
-  { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security'] },
+  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer'] },
+  { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
 ];
 
 const monthTrend = [
@@ -3258,6 +3263,77 @@ export default function CampusWorkspace({
           <MetricCard label="Applications" value={appliedCompanies.length} helper="Submitted" icon={BriefcaseBusiness} tone="emerald" />
           <MetricCard label="Announcements" value={visibleAnnouncements.length} helper="Unread feed" icon={Megaphone} tone="amber" />
         </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/50 p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900">AI Mock Interview Hub</h4>
+                <p className="text-xs text-slate-500">Practice live technical & HR rounds</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-600">
+              Interactive voice/text interviews with instant scoring, skill gap detection, and personalized AI recommendations.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              Launch AI Interview
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+                <FileText size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900">Resume & ATS Optimizer</h4>
+                <p className="text-xs text-slate-500">ATS score & keyword analysis</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-600">
+              Upload your resume for real-time ATS scoring, keyword match breakdown, and formatting suggestions.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            >
+              Analyze Resume
+              <ArrowRight size={14} />
+            </button>
+          </div>
+
+          <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/80 via-white to-emerald-50/50 p-5 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <h4 className="font-bold text-slate-900">Class Timetable & Tasks</h4>
+                <p className="text-xs text-slate-500">Weekly schedule and notes</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-slate-600">
+              Access your daily class schedule, lecture rooms, faculty details, and downloaded study materials.
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('timetable')}
+              className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3.5 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700"
+            >
+              View Timetable
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -4387,6 +4463,10 @@ export default function CampusWorkspace({
       */
     }
 
+    if (user.role === 'placement_officer') {
+      return <PlacementOfficerModule />;
+    }
+
     return renderPlacementManagementTable();
     /*
     return (
@@ -5354,13 +5434,13 @@ export default function CampusWorkspace({
       case 'designations':
         return renderDesignationsTab();
       case 'departments':
-        return <DepartmentsModule onNavigateToStaff={() => handleNavSelection('staff')} />;
+        return user.role === 'staff' ? <DepartmentOverview /> : <DepartmentsModule onNavigateToStaff={() => handleNavSelection('staff')} />;
       case 'placement':
         return renderPlacementTab();
       case 'announcements':
         return renderAnnouncementsTab();
       case 'reports':
-        return renderReportsTab();
+        return user.role === 'staff' ? <HODReportsAnalytics /> : renderReportsTab();
       case 'profile':
         return user.role === 'student' ? <StudentCareerProfile /> : renderProfileTab();
       case 'courses':
@@ -5370,13 +5450,13 @@ export default function CampusWorkspace({
       case 'academic_years':
         return <AcademicYearModule />;
       case 'timetable':
-        return <TimetableModule />;
+        return user.role === 'student' ? <StudentTimetableView /> : <TimetableModule />;
       case 'classes':
         return <ClassesModule />;
       case 'roles':
         return <RolesPermissionsModule />;
       case 'exams':
-        return <ExamsModule />;
+        return user.role === 'staff' ? <ExamCoordinatorModule /> : <ExamsModule />;
       case 'marks':
         return user.role === 'student'
           ? <StudentMarksView />

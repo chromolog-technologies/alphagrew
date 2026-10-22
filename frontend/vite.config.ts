@@ -19,7 +19,7 @@ export default defineConfig(({ command, mode }) => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': frontendRoot,
+        '@': path.resolve(__dirname, 'src'),
       },
     },
     server: {

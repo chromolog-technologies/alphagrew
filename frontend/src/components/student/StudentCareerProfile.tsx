@@ -23,7 +23,13 @@ import {
   Linkedin,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  FileText,
+  Download,
+  UploadCloud,
+  RefreshCw,
+  BrainCircuit,
+  Target
 } from 'lucide-react';
 import {
   fetchMyProfile,
@@ -44,26 +50,20 @@ import {
   deleteMyCertification,
   fetchMyExperience,
   saveMyExperience,
-  deleteMyExperience
+  deleteMyExperience,
+  resumeApi,
+  type ResumeRecord,
+  type ResumeAnalysisRecord
 } from '../../api/campusApi';
-
-const AUTH_KEY = 'chromolog-campus-auth';
+import { getStoredAuthToken } from '../../utils/auth';
+import { StudentAiInterviewView } from './StudentAiInterviewView';
 
 function getTokenFromStorage(): string | null {
-  const legacyToken = localStorage.getItem('auth_token');
-  if (legacyToken) return legacyToken;
-  const raw = localStorage.getItem(AUTH_KEY);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as { token?: string };
-    return parsed.token ?? null;
-  } catch {
-    return null;
-  }
+  return getStoredAuthToken();
 }
 
 export const StudentCareerProfile: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'academics' | 'skills' | 'projects' | 'experience'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'academics' | 'skills' | 'projects' | 'experience' | 'resumes' | 'interviews'>('profile');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -151,6 +151,15 @@ export const StudentCareerProfile: React.FC = () => {
     description: '',
   });
 
+  // Resumes & ATS state
+  const [resumes, setResumes] = useState<ResumeRecord[]>([]);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<ResumeAnalysisRecord | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+
   useEffect(() => {
     loadAllData();
   }, []);
@@ -164,7 +173,7 @@ export const StudentCareerProfile: React.FC = () => {
 
     try {
       setLoading(true);
-      const [profRes, acadRes, skillsRes, catRes, projRes, certRes, expRes] = await Promise.allSettled([
+      const [profRes, acadRes, skillsRes, catRes, projRes, certRes, expRes, resumesRes] = await Promise.allSettled([
         fetchMyProfile(token),
         fetchMyAcademics(token),
         fetchMySkills(token),
@@ -172,7 +181,12 @@ export const StudentCareerProfile: React.FC = () => {
         fetchMyProjects(token),
         fetchMyCertifications(token),
         fetchMyExperience(token),
+        resumeApi.list(token),
       ]);
+
+      if (resumesRes.status === 'fulfilled' && resumesRes.value.data) {
+        setResumes(resumesRes.value.data);
+      }
 
       if (profRes.status === 'fulfilled' && profRes.value.data) {
         const p = profRes.value.data;
@@ -467,6 +481,8 @@ export const StudentCareerProfile: React.FC = () => {
             { id: 'skills', label: 'Skills Catalogue', icon: Code },
             { id: 'projects', label: 'Projects', icon: Briefcase },
             { id: 'experience', label: 'Certifications & Work', icon: Award },
+            { id: 'resumes', label: 'Resumes & ATS', icon: FileText },
+            { id: 'interviews', label: 'AI Mock Interviews', icon: Sparkles },
           ].map((tab) => {
             const Icon = tab.icon;
             const isSelected = activeTab === tab.id;
@@ -1249,6 +1265,281 @@ export const StudentCareerProfile: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* TAB 6: RESUMES & ATS ANALYSIS */}
+      {activeTab === 'resumes' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileText size={20} className="text-indigo-600" />
+                  Resume Management & ATS Parser
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Upload PDF or DOCX resumes. Our AI parser extracts competencies, evaluates formatting and ATS readability, and syncs verified skills.
+                </p>
+              </div>
+            </div>
+
+            {/* Upload Box */}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const token = getTokenFromStorage();
+                if (!token || !uploadFile) return;
+
+                try {
+                  setUploadingResume(true);
+                  const res = await resumeApi.upload(token, uploadFile, uploadTitle || uploadFile.name);
+                  if (res.data) {
+                    setResumes((prev) => [res.data, ...prev]);
+                    setUploadFile(null);
+                    setUploadTitle('');
+                    setMessage({ type: 'success', text: 'Resume uploaded successfully! Async ATS analysis initiated.' });
+                  }
+                } catch (err: any) {
+                  setMessage({ type: 'error', text: err.message || 'Failed to upload resume.' });
+                } finally {
+                  setUploadingResume(false);
+                }
+              }}
+              className="mt-6 p-6 border-2 border-dashed border-indigo-200 rounded-2xl bg-indigo-50/30 flex flex-col items-center justify-center text-center space-y-4"
+            >
+              <div className="h-12 w-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <UploadCloud size={24} />
+              </div>
+              <div className="max-w-md">
+                <p className="text-sm font-bold text-slate-900">Upload New Resume File</p>
+                <p className="text-xs text-slate-500 mt-0.5">Supports PDF and DOCX formats up to 10MB</p>
+              </div>
+
+              <div className="w-full max-w-md grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  placeholder="Resume Title (e.g. Frontend Specialist)"
+                  value={uploadTitle}
+                  onChange={(e) => setUploadTitle(e.target.value)}
+                  className="p-2.5 border border-slate-300 rounded-xl text-xs bg-white w-full"
+                />
+                <input
+                  type="file"
+                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  required
+                  onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                  className="p-1.5 border border-slate-300 rounded-xl text-xs bg-white w-full file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={uploadingResume || !uploadFile}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 transition shadow-sm"
+              >
+                {uploadingResume ? (
+                  <>
+                    <Loader size={15} className="animate-spin" />
+                    Uploading & Parsing...
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud size={15} />
+                    Upload & Run AI Parsing
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Resume List */}
+            <div className="mt-8 space-y-4">
+              <h4 className="text-sm font-bold text-slate-800">Your Uploaded Resumes ({resumes.length})</h4>
+
+              {resumes.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 text-xs border border-slate-100 rounded-2xl bg-slate-50">
+                  No resumes uploaded yet. Upload your resume above to unlock automated skill mapping and mock interview customization!
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {resumes.map((resume) => (
+                    <div
+                      key={resume.id}
+                      className="border border-slate-200 rounded-2xl p-5 hover:border-indigo-300 transition shadow-xs flex flex-col justify-between"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                              <FileText size={20} />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-slate-900 text-sm">{resume.title || resume.fileName}</h5>
+                              <p className="text-[11px] text-slate-400">
+                                {resume.createdAt ? new Date(resume.createdAt).toLocaleDateString() : 'Recent'} • {resume.fileName}
+                              </p>
+                            </div>
+                          </div>
+
+                          {resume.isDefault && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          <span className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium">
+                            {resume.analysis?.extractedSkills?.length ?? 0} Skills Parsed
+                          </span>
+                          {resume.analysis?.atsCompatibilityScore != null && (
+                            <span className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200">
+                              ATS Score: {resume.analysis.atsCompatibilityScore}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const token = getTokenFromStorage();
+                              if (!token) return;
+                              try {
+                                const res = await resumeApi.getDownloadUrl(token, resume.id);
+                                if (res.data?.url) window.open(res.data.url, '_blank');
+                              } catch (err: any) {
+                                setMessage({ type: 'error', text: err.message || 'Could not download resume.' });
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900 transition"
+                          >
+                            <Download size={13} />
+                            Download
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const token = getTokenFromStorage();
+                              if (!token) return;
+                              try {
+                                setAnalysisLoading(true);
+                                setAnalysisModalOpen(true);
+                                setSelectedAnalysis(null);
+                                const res = await resumeApi.getAnalysis(token, resume.id);
+                                if (res.data) setSelectedAnalysis(res.data);
+                              } catch (err: any) {
+                                console.warn(err);
+                              } finally {
+                                setAnalysisLoading(false);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                          >
+                            <Sparkles size={13} />
+                            ATS Scorecard
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!window.confirm('Delete this resume?')) return;
+                            const token = getTokenFromStorage();
+                            if (!token) return;
+                            try {
+                              await resumeApi.delete(token, resume.id);
+                              setResumes((prev) => prev.filter((r) => r.id !== resume.id));
+                              setMessage({ type: 'success', text: 'Resume deleted.' });
+                            } catch (err: any) {
+                              setMessage({ type: 'error', text: err.message || 'Could not delete resume.' });
+                            }
+                          }}
+                          className="text-slate-400 hover:text-rose-600 transition p-1"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Analysis Dialog Modal */}
+          {analysisModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+              <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 max-h-[85vh] overflow-y-auto">
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                      <Sparkles size={18} />
+                    </div>
+                    <h3 className="font-bold text-slate-900 text-lg">AI ATS Resume Analysis</h3>
+                  </div>
+                  <button onClick={() => setAnalysisModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                    ✕
+                  </button>
+                </div>
+
+                {analysisLoading ? (
+                  <div className="p-10 text-center text-slate-500">
+                    <Loader size={28} className="animate-spin text-indigo-600 mx-auto mb-2" />
+                    <p className="text-xs">Fetching ATS evaluation scorecard...</p>
+                  </div>
+                ) : selectedAnalysis ? (
+                  <div className="mt-5 space-y-4 text-xs">
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">ATS Readability Score</p>
+                        <p className="text-2xl font-black text-slate-900 mt-0.5">
+                          {selectedAnalysis.atsCompatibilityScore ?? selectedAnalysis.overallScore ?? 80} / 100
+                        </p>
+                      </div>
+                      <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        {selectedAnalysis.overallScore >= 75 ? 'Strong ATS Match' : selectedAnalysis.overallScore >= 50 ? 'Moderate Fit' : 'Needs Optimization'}
+                      </span>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-indigo-50/60 border border-indigo-200 text-indigo-950 leading-relaxed">
+                      <p className="font-bold mb-1">Extracted Technical & Domain Skills ({selectedAnalysis.extractedSkills?.length || 0})</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {selectedAnalysis.extractedSkills?.map((skill, sIdx) => (
+                          <span key={sIdx} className="px-2 py-0.5 rounded-md bg-white border border-indigo-200 font-semibold text-[11px] text-indigo-800">
+                            {skill.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {selectedAnalysis.improvements && selectedAnalysis.improvements.length > 0 && (
+                      <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/50">
+                        <p className="font-bold text-amber-900 mb-2">Recommended Improvements</p>
+                        <ul className="list-disc list-inside space-y-1 text-amber-950">
+                          {selectedAnalysis.improvements.map((s: string, idx: number) => (
+                            <li key={idx}>{s}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-500 text-xs">
+                    Analysis is pending. The backend queue processes ATS scoring asynchronously.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 7: AI MOCK INTERVIEW SIMULATOR */}
+      {activeTab === 'interviews' && (
+        <StudentAiInterviewView />
       )}
     </div>
   );

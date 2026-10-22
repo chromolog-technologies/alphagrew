@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Check, X, AlertCircle } from 'lucide-react';
 import { fetchStaffAttendanceStudents, submitStaffAttendance, fetchStaffClasses } from '../../api/campusApi';
 import { PrototypeNotice } from '../shared';
+import { getStoredAuthToken } from '../../utils/auth';
 
 interface AttendanceMarkingProps {
   staffRole: 'faculty' | 'hod' | 'admin';
@@ -35,7 +36,7 @@ export const AttendanceMarking: React.FC<AttendanceMarkingProps> = ({ staffRole 
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredAuthToken();
         if (!token) {
           setError('Authentication token not found');
           return;
@@ -100,7 +101,7 @@ export const AttendanceMarking: React.FC<AttendanceMarkingProps> = ({ staffRole 
       return;
     }
     try {
-      const token = localStorage.getItem('auth_token');
+      const token = getStoredAuthToken();
       if (!token) return;
 
       const payload = {

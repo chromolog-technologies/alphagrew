@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, Users, AlertCircle } from 'lucide-react';
 import { fetchStaffWorkload, fetchDepartmentOverview, fetchPlacementStatistics } from '../../api/campusApi';
+import { getStoredAuthToken } from '../../utils/auth';
 
 interface StaffDashboardProps {
   staffRole: 'faculty' | 'hod' | 'placement' | 'exam_coordinator' | 'admin';
@@ -24,7 +25,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ staffRole, staff
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('auth_token');
+        const token = getStoredAuthToken();
         if (!token) {
           setError('Authentication token not found');
           return;
