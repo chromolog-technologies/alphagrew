@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Support\Campus\CampusPermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\PersonalAccessToken;
 use Tests\TestCase;
@@ -41,6 +42,57 @@ class CampusApiTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_tokens_expire(): void
+    {
+        $this->seed();
+
+        $token = $this->postJson('/api/v1/auth/login', ['email' => 'admin@demo.com', 'password' => 'demo123'])
+            ->assertOk()
+            ->json('token');
+
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk();
+
+        $this->travel((int) config('sanctum.expiration') + 1)->minutes();
+        $this->app['auth']->forgetGuards();
+
+        $this->withToken($token)->getJson('/api/v1/auth/me')->assertUnauthorized();
+    }
+
+    public function test_login_is_rate_limited(): void
+    {
+        $this->seed();
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/auth/login', ['email' => 'admin@demo.com', 'password' => 'wrong-password'])
+                ->assertUnprocessable();
+        }
+
+        $this->postJson('/api/v1/auth/login', ['email' => 'admin@demo.com', 'password' => 'demo123'])
+            ->assertTooManyRequests();
+
+        // Another account from the same address is still allowed.
+        $this->postJson('/api/v1/auth/login', ['email' => 'staff@demo.com', 'password' => 'demo123'])
+            ->assertOk();
+    }
+
+    public function test_ai_requests_are_rate_limited_per_user(): void
+    {
+        $this->seed();
+        config(['ai.rate_limits.ai' => 2]);
+
+        $token = $this->postJson('/api/v1/auth/login', ['email' => 'student@demo.com', 'password' => 'demo123'])
+            ->assertOk()
+            ->json('token');
+
+        $statuses = [];
+        for ($i = 0; $i < 3; $i++) {
+            $statuses[] = $this->withToken($token)->postJson('/api/v1/students/me/interviews', [])->status();
+        }
+
+        $this->assertNotContains(429, array_slice($statuses, 0, 2));
+        $this->assertSame(429, $statuses[2]);
+    }
+
     public function test_student_cannot_access_reports_module(): void
     {
         $this->seed();
@@ -68,7 +120,7 @@ class CampusApiTest extends TestCase
 
         // Staff get the staff base permissions, not admin ones.
         $this->assertEqualsCanonicalizing(
-            \App\Support\Campus\CampusPermission::forRole('staff'),
+            CampusPermission::forRole('staff'),
             $response->json('user.permissions')
         );
 

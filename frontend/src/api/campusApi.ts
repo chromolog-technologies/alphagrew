@@ -147,6 +147,10 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
+
     const message =
       (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string'
         ? payload.message
@@ -155,6 +159,13 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   }
 
   return payload as T;
+}
+
+/** Fired when the API rejects the stored token (expired or revoked); App signs the user out. */
+export const SESSION_EXPIRED_EVENT = 'campus:session-expired';
+
+export function notifySessionExpired() {
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 export function isCampusApiConfigured() {
@@ -870,8 +881,7 @@ export function assignClassesToStaff(token: string, staffId: number, classes: nu
 }
 
 export function fetchStaffWorkload(token: string, staffId?: number) {
-  const params = staffId ? `?staff_id=${staffId}` : '';
-  return request<any>(`/staff/management${params}/workload`, undefined, token);
+  return request<any>(`/staff/management/${staffId ?? 'me'}/workload`, undefined, token);
 }
 
 export function fetchDepartmentsListForStaff(token: string) {

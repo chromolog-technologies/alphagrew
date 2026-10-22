@@ -62,6 +62,13 @@ return [
         'audio_disk' => env('INTERVIEW_AUDIO_DISK', 'local'),
     ],
 
+    // Requests per user per minute (PRD §8.2). "ai" covers starting sessions and resume
+    // analyses; "answers" covers interview answers, which also call the AI layer.
+    'rate_limits' => [
+        'ai' => (int) env('AI_RATE_LIMIT_PER_MINUTE', 5),
+        'answers' => (int) env('AI_ANSWER_RATE_LIMIT_PER_MINUTE', 30),
+    ],
+
     // Speech-to-text for voice answers: an OpenAI-compatible /audio/transcriptions endpoint
     // (e.g. Whisper). Voice answers are refused while no URL is configured.
     'transcription' => [

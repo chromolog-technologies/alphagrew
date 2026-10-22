@@ -8,9 +8,12 @@ interface CampusLoginProps {
   onLogin: (credentials: { email: string; password: string }) => Promise<void> | void;
 }
 
+// Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
+const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
+
 export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
-  const [email, setEmail] = useState('admin@demo.com');
-  const [password, setPassword] = useState('demo123');
+  const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
+  const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -76,7 +79,8 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
             </div>
           </div>
 
-          {/* Quick Demo Role Picker */}
+          {/* Quick Demo Role Picker (development and demo builds only) */}
+          {showDemoAccess && (
           <div className="mb-5 rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-2 flex items-center justify-between">
               <span>Quick Demo Access</span>
@@ -104,6 +108,7 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
               })}
             </div>
           </div>
+          )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

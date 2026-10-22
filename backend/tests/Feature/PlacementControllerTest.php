@@ -3,10 +3,15 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\CompanyApplication;
 use App\Models\Institution;
+use App\Models\Mark;
+use App\Models\PlacementResult;
+use App\Models\PlacementRound;
+use App\Models\RevaluationRequest;
 use App\Models\Student;
-use App\Support\Campus\CampusMasterCatalog;
 use App\Support\Tenancy\InstitutionScope;
+use App\Support\Tenancy\Tenant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,6 +20,7 @@ class PlacementControllerTest extends TestCase
     use RefreshDatabase;
 
     private int $institutionA;
+
     private int $institutionB;
 
     protected function setUp(): void
@@ -36,7 +42,7 @@ class PlacementControllerTest extends TestCase
         $token = $this->tokenFor('placement@demo.com');
 
         $response = $this->withToken($token)
-            ->getJson('/api/v1/placement/drives')
+            ->getJson('/api/v1/staff/placement/drives')
             ->assertOk()
             ->assertJsonStructure([
                 'status',
@@ -54,11 +60,10 @@ class PlacementControllerTest extends TestCase
 
         $this->assertNotSame('sample', $response->headers->get('X-Data-Source'));
 
-        // Test alias path /api/v1/staff/placement/drives
+        // The old /placement/* duplicates were removed; /staff/placement/* is the only path.
         $this->withToken($token)
-            ->getJson('/api/v1/staff/placement/drives')
-            ->assertOk()
-            ->assertJsonPath('status', 'success');
+            ->getJson('/api/v1/placement/drives')
+            ->assertNotFound();
     }
 
     public function test_placement_officer_can_create_drive_persisting_to_database(): void
@@ -77,7 +82,7 @@ class PlacementControllerTest extends TestCase
         ];
 
         $response = $this->withToken($token)
-            ->postJson('/api/v1/placement/drives', $payload)
+            ->postJson('/api/v1/staff/placement/drives', $payload)
             ->assertCreated()
             ->assertJsonPath('status', 'success')
             ->assertJsonPath('data.name', 'Acme Technologies')
@@ -99,7 +104,7 @@ class PlacementControllerTest extends TestCase
 
         // Create a drive first
         $createResponse = $this->withToken($token)
-            ->postJson('/api/v1/placement/drives', [
+            ->postJson('/api/v1/staff/placement/drives', [
                 'name' => 'Global Logistics Inc',
                 'role' => 'Cloud Specialist',
                 'package_offered' => '10 LPA',
@@ -111,7 +116,7 @@ class PlacementControllerTest extends TestCase
 
         // Update the drive
         $this->withToken($token)
-            ->putJson("/api/v1/placement/drives/{$driveId}", [
+            ->putJson("/api/v1/staff/placement/drives/{$driveId}", [
                 'status' => 'completed',
                 'location' => 'Hyderabad',
             ])
@@ -132,7 +137,7 @@ class PlacementControllerTest extends TestCase
         $token = $this->tokenFor('placement@demo.com');
 
         $response = $this->withToken($token)
-            ->getJson('/api/v1/placement/statistics')
+            ->getJson('/api/v1/staff/placement/statistics')
             ->assertOk()
             ->assertJsonStructure([
                 'status',
@@ -159,7 +164,7 @@ class PlacementControllerTest extends TestCase
         $token = $this->tokenFor('placement@demo.com');
 
         $this->withToken($token)
-            ->getJson('/api/v1/placement/results-by-batch')
+            ->getJson('/api/v1/staff/placement/results-by-batch')
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonStructure([
@@ -180,7 +185,7 @@ class PlacementControllerTest extends TestCase
         $token = $this->tokenFor('placement@demo.com');
 
         $this->withToken($token)
-            ->getJson('/api/v1/placement/report')
+            ->getJson('/api/v1/staff/placement/report')
             ->assertOk()
             ->assertJsonPath('status', 'success')
             ->assertJsonStructure([
@@ -217,7 +222,7 @@ class PlacementControllerTest extends TestCase
 
         // Institution A's drive list should NOT contain Institution B's company
         $response = $this->withToken($tokenA)
-            ->getJson('/api/v1/placement/drives')
+            ->getJson('/api/v1/staff/placement/drives')
             ->assertOk();
 
         $drives = collect($response->json('data'));
@@ -228,7 +233,7 @@ class PlacementControllerTest extends TestCase
 
         // Attempting to update Institution B's company should return 404
         $this->withToken($tokenA)
-            ->putJson("/api/v1/placement/drives/{$companyB->id}", [
+            ->putJson("/api/v1/staff/placement/drives/{$companyB->id}", [
                 'status' => 'cancelled',
             ])
             ->assertNotFound();
@@ -238,6 +243,84 @@ class PlacementControllerTest extends TestCase
             'id' => $companyB->id,
             'status' => 'Upcoming',
         ]);
+    }
+
+    public function test_applications_list_shows_only_the_callers_institution(): void
+    {
+        $companyB = Company::withoutGlobalScope(InstitutionScope::class)->create([
+            'institution_id' => $this->institutionB,
+            'name' => 'Foreign Corporate Ltd',
+            'role' => 'Data Analyst',
+            'package_offered' => '12 LPA',
+            'drive_date' => now()->addDays(20)->toDateString(),
+            'location' => 'Hyderabad',
+            'type' => 'Placement',
+            'eligible_departments' => ['CSE'],
+            'status' => 'open',
+        ]);
+        $studentB = Student::withoutGlobalScope(InstitutionScope::class)->create([
+            'institution_id' => $this->institutionB,
+            'name' => 'Foreign Student',
+            'email' => 'foreign.student@second.edu',
+            'registration_number' => 'SEC26CSE001',
+            'department_code' => 'CSE',
+            'year' => 'year_4',
+            'gender' => 'prefer_not_to_say',
+            'status' => 'active',
+            'cgpa' => 8.1,
+            'attendance' => 90,
+            'fee_status' => 'paid',
+            'skills' => [],
+        ]);
+        $applicationB = CompanyApplication::withoutGlobalScope(InstitutionScope::class)->create([
+            'institution_id' => $this->institutionB,
+            'student_id' => $studentB->id,
+            'company_id' => $companyB->id,
+        ]);
+
+        $tokenA = $this->tokenFor('placement@demo.com');
+
+        $all = collect($this->withToken($tokenA)->getJson('/api/v1/staff/placement/applications')->assertOk()->json('data'));
+        $this->assertNotEmpty($all, 'Institution A has demo applications');
+        $this->assertFalse($all->contains('id', $applicationB->id));
+        $this->assertFalse($all->contains('email', 'foreign.student@second.edu'));
+
+        // Filtering by another institution's drive id returns nothing.
+        $this->withToken($tokenA)
+            ->getJson("/api/v1/staff/placement/applications?drive_id={$companyB->id}")
+            ->assertOk()
+            ->assertJsonPath('total_applications', 0);
+    }
+
+    public function test_students_cannot_list_applications(): void
+    {
+        $this->withToken($this->tokenFor('student@demo.com'))
+            ->getJson('/api/v1/staff/placement/applications')
+            ->assertForbidden();
+    }
+
+    public function test_placement_and_marks_child_rows_are_scoped_and_stamped_with_the_institution(): void
+    {
+        $this->assertSame(0, CompanyApplication::withoutGlobalScope(InstitutionScope::class)->whereNull('institution_id')->count());
+
+        $companyA = Company::query()->firstOrFail();
+        $studentA = Student::query()->firstOrFail();
+
+        app(Tenant::class)->runAs($this->institutionB, function () use ($companyA, $studentA): void {
+            // Institution B sees none of A's rows, and new rows are stamped with B.
+            $this->assertSame(0, CompanyApplication::query()->count());
+            $round = PlacementRound::query()->create(['company_id' => $companyA->id, 'name' => 'Aptitude', 'type' => 'aptitude']);
+            $this->assertSame($this->institutionB, $round->institution_id);
+            $result = PlacementResult::query()->create(['student_id' => $studentA->id, 'company_id' => $companyA->id, 'round_id' => $round->id, 'status' => 'cleared']);
+            $this->assertSame($this->institutionB, $result->institution_id);
+        });
+
+        app(Tenant::class)->runAs($this->institutionA, function (): void {
+            $this->assertSame(0, PlacementRound::query()->count());
+            $this->assertSame(0, PlacementResult::query()->count());
+            $this->assertSame(0, Mark::query()->count());
+            $this->assertSame(0, RevaluationRequest::query()->count());
+        });
     }
 
     private function tokenFor(string $email): string

@@ -363,6 +363,7 @@ class CampusDataService
             foreach ($payload['students'] ?? [] as $student) {
                 foreach ($student['appliedCompanyIds'] ?? [] as $companyId) {
                     DB::table('company_applications')->insertOrIgnore([
+                        'institution_id' => $institutionId,
                         'student_id' => $student['id'],
                         'company_id' => $companyId,
                     ]);

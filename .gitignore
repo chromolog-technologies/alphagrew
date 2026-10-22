@@ -24,3 +24,7 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# Local SQLite databases (Laravel tests use :memory:)
+*.sqlite
+*.sqlite-journal

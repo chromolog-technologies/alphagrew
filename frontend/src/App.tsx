@@ -29,6 +29,7 @@ import {
   updateStaffWithCampusApi,
   updateStudentWithCampusApi,
   updateStudentResumeWithCampusApi,
+  SESSION_EXPIRED_EVENT,
   type StudentRecordResponse,
 } from './api/campusApi';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
@@ -238,6 +239,16 @@ export default function App() {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   }, [auth]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setAuth(null);
+      setError('Your session has expired. Please sign in again.');
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, []);
 
   useEffect(() => {
     if (!apiConfigured || !auth?.token) {

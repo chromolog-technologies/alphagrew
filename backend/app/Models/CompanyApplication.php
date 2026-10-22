@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompanyApplication extends Model
 {
+    use BelongsToInstitution;
+
     public $timestamps = false;
 
     protected $fillable = [

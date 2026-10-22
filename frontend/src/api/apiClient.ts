@@ -3,6 +3,8 @@
  * This client handles API requests with authentication tokenautomatically retrieved from localStorage
  */
 
+import { notifySessionExpired } from './campusApi';
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
 interface RequestOptions extends Omit<RequestInit, 'headers'> {
@@ -62,6 +64,10 @@ export async function apiCall(
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401) {
+      notifySessionExpired();
+    }
+
     const message =
       (payload && typeof payload === 'object' && 'message' in payload && typeof payload.message === 'string'
         ? payload.message

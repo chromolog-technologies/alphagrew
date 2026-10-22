@@ -2,9 +2,9 @@
 
 use App\Actions\Interviews\FinishInterviewAction;
 use App\Enums\InterviewStatus;
+use App\Enums\UserRole;
 use App\Models\AiInterview;
 use App\Models\User;
-use App\Enums\UserRole;
 use App\Support\Tenancy\InstitutionScope;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -72,3 +72,6 @@ Artisan::command('interviews:close-idle', function (FinishInterviewAction $finis
 })->purpose('End AI mock interviews with no activity for the idle limit');
 
 Schedule::command('interviews:close-idle')->everyFiveMinutes();
+
+// API tokens expire after SANCTUM_EXPIRATION minutes; remove them a day later.
+Schedule::command('sanctum:prune-expired --hours=24')->daily();
