@@ -15,7 +15,7 @@ import type {
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
-type AuthResponse = {
+export type AuthResponse = {
   token: string;
   user: CampusSession;
   data: CampusData;

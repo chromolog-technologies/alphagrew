@@ -30,8 +30,11 @@ import {
   updateStudentWithCampusApi,
   updateStudentResumeWithCampusApi,
   SESSION_EXPIRED_EVENT,
+  type AuthResponse,
   type StudentRecordResponse,
 } from './api/campusApi';
+import { resendVerificationEmail } from './api/accountApi';
+import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
 import { CampusLogin } from './components/auth';
 import CampusWorkspace from './components/layouts/CampusWorkspace';
@@ -248,6 +251,27 @@ export default function App() {
 
     window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, []);
+
+  // Public account pages are chosen by path (links in emails open them).
+  const [path, setPath] = useState(() => window.location.pathname);
+  useEffect(() => {
+    const handlePopState = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // The email verification link redirects here with ?verified=1 (or =invalid).
+  const [notice, setNotice] = useState(() => {
+    const verified = new URLSearchParams(window.location.search).get('verified');
+    if (verified === '1') return 'Your email address is verified.';
+    if (verified === 'invalid') return 'That verification link is not valid. Sign in and request a new one.';
+    return '';
+  });
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('verified')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   useEffect(() => {
@@ -1604,11 +1628,30 @@ export default function App() {
     setAuth(null);
   };
 
+  const handleInvitationAccepted = (response: AuthResponse) => {
+    setData(applyBrandAccents(response.data));
+    setAuth({ token: response.token, user: response.user });
+    setError('');
+  };
+
   if (!auth?.user) {
-    return <CampusLogin error={error} onLogin={handleLogin} />;
+    if (path === '/forgot-password') return <ForgotPasswordPage />;
+    if (path === '/reset-password') return <ResetPasswordPage />;
+    if (path === '/register') return <RegisterPage />;
+    if (path === '/invitations/accept') return <AcceptInvitationPage onSignedIn={handleInvitationAccepted} />;
+
+    return (
+      <>
+        <CampusLogin error={error} onLogin={handleLogin} />
+        <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+      </>
+    );
   }
 
   return (
+    <>
+    <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+    {apiConfigured && auth.user.emailVerified === false ? <VerifyEmailReminder email={auth.user.email} /> : null}
     <CampusWorkspace
       error={error}
       user={auth.user}
@@ -1640,5 +1683,57 @@ export default function App() {
       onDeleteStaff={handleDeleteStaff}
       onApplyToCompany={handleApplyToCompany}
     />
+    </>
+  );
+}
+
+/** A dismissible status message, e.g. after following an email verification link. */
+function AccountNotice({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  if (!message) return null;
+
+  return (
+    <div role="status" className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-lg">
+      <span className="flex-1">{message}</span>
+      <button type="button" onClick={onDismiss} className="font-semibold text-blue-600 hover:text-blue-700">
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
+/** Shown until the signed-in user verifies their email address; applying to drives needs it. */
+function VerifyEmailReminder({ email }: { email: string }) {
+  const [message, setMessage] = useState('');
+  const [hidden, setHidden] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  if (hidden) return null;
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      setMessage((await resendVerificationEmail()).message);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'Could not send the email. Try again later.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div role="status" className="fixed bottom-4 left-4 z-50 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg">
+      <p className="font-semibold">Verify your email address</p>
+      <p className="mt-1">
+        {message || `We sent a link to ${email}. You need a verified address to apply to placement drives.`}
+      </p>
+      <div className="mt-3 flex gap-3">
+        <button type="button" disabled={sending} onClick={() => void resend()} className="font-semibold text-amber-900 underline disabled:opacity-60">
+          {sending ? 'Sending…' : 'Resend link'}
+        </button>
+        <button type="button" onClick={() => setHidden(true)} className="font-semibold text-amber-800">
+          Later
+        </button>
+      </div>
+    </div>
   );
 }

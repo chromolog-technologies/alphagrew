@@ -1,40 +1,43 @@
 <?php
 
+use App\Http\Controllers\Api\Staff\AttendanceController as StaffAttendanceController;
+use App\Http\Controllers\Api\Staff\DepartmentController as StaffDepartmentController;
+use App\Http\Controllers\Api\Staff\ExamCoordinatorController;
+use App\Http\Controllers\Api\Staff\MarksController as StaffMarksController;
+use App\Http\Controllers\Api\Staff\PlacementController;
+use App\Http\Controllers\Api\Staff\ReportsController;
+use App\Http\Controllers\Api\Staff\StaffManagementController;
+use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
+use App\Http\Controllers\Api\Student\MarksController;
+use App\Http\Controllers\Api\Student\MaterialsController;
+use App\Http\Controllers\Api\Student\NotificationsController;
+use App\Http\Controllers\Api\Student\StudentResultController;
+use App\Http\Controllers\Api\Student\TimetableController;
+use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
+use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
+use App\Http\Controllers\Api\V1\Auth\SessionController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CampusController;
-use App\Http\Controllers\Api\V1\StudentController;
-use App\Http\Controllers\Api\V1\StudentResumeController;
-use App\Http\Controllers\Api\V1\StaffController;
 use App\Http\Controllers\Api\V1\CompanyController;
-use App\Http\Controllers\Api\V1\AnnouncementController;
-use App\Http\Controllers\Api\V1\MasterOptionController;
 use App\Http\Controllers\Api\V1\CourseController;
-use App\Http\Controllers\Api\V1\SubjectController;
-use App\Http\Controllers\Api\V1\SemesterController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
 use App\Http\Controllers\Api\V1\GradeRuleController;
+use App\Http\Controllers\Api\V1\Interviews\InterviewController;
+use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\MarkEntryController;
 use App\Http\Controllers\Api\V1\MarkReviewController;
 use App\Http\Controllers\Api\V1\MarkSchemeController;
+use App\Http\Controllers\Api\V1\MasterOptionController;
+use App\Http\Controllers\Api\V1\RegistrationController;
 use App\Http\Controllers\Api\V1\ResultPublishingController;
-use App\Http\Controllers\Api\Student\StudentResultController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
-use App\Http\Controllers\Api\Student\MarksController;
-use App\Http\Controllers\Api\Student\TimetableController;
-use App\Http\Controllers\Api\Student\MaterialsController;
-use App\Http\Controllers\Api\Student\NotificationsController;
-use App\Http\Controllers\Api\Staff\AttendanceController as StaffAttendanceController;
-use App\Http\Controllers\Api\Staff\MarksController as StaffMarksController;
-use App\Http\Controllers\Api\Staff\StaffManagementController;
-use App\Http\Controllers\Api\Staff\PlacementController;
-use App\Http\Controllers\Api\Staff\ExamCoordinatorController;
-use App\Http\Controllers\Api\Staff\DepartmentController as StaffDepartmentController;
-use App\Http\Controllers\Api\Staff\ReportsController;
+use App\Http\Controllers\Api\V1\SemesterController;
 use App\Http\Controllers\Api\V1\SkillController;
-use App\Http\Controllers\Api\V1\Interviews\InterviewController;
+use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\StudentController;
+use App\Http\Controllers\Api\V1\StudentResumeController;
 use App\Http\Controllers\Api\V1\Students\ReadinessController;
 use App\Http\Controllers\Api\V1\Students\ResumeController;
 use App\Http\Controllers\Api\V1\Students\StudentAcademicsController;
@@ -43,11 +46,15 @@ use App\Http\Controllers\Api\V1\Students\StudentExperienceController;
 use App\Http\Controllers\Api\V1\Students\StudentProfileController;
 use App\Http\Controllers\Api\V1\Students\StudentProjectController;
 use App\Http\Controllers\Api\V1\Students\StudentSkillController;
+use App\Http\Controllers\Api\V1\SubjectController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\PermissionController;
 use App\Models\Student;
 use App\Models\StudentAcademic;
 use App\Models\StudentCertification;
 use App\Models\StudentExperience;
 use App\Models\StudentProject;
+use App\Models\User;
 use App\Support\Campus\CampusPermission;
 use Illuminate\Support\Facades\Route;
 
@@ -58,10 +65,23 @@ Route::model('certification', StudentCertification::class);
 Route::model('experience', StudentExperience::class);
 Route::model('education', StudentAcademic::class);
 Route::model('student', Student::class);
+Route::model('registration', User::class);
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:password-reset');
+    Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset');
+
+    // Link in the verification email; works without signing in (pending accounts can't).
+    Route::get('/auth/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+        ->whereNumber('id')
+        ->middleware(['signed', 'throttle:password-reset'])
+        ->name('verification.verify');
+
+    // Accepting an invitation creates the account, so these are public; the token is the credential.
+    Route::get('/invitations/accept/{token}', [InvitationController::class, 'preview'])->middleware('throttle:invitation');
+    Route::post('/invitations/accept/{token}', [InvitationController::class, 'accept'])->middleware('throttle:invitation');
 
     // Signed, short-lived link from photoUrl; no token so <img> tags can load it.
     Route::get('/files/student-photos/{student}', [StudentProfileController::class, 'photo'])
@@ -79,6 +99,27 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
+        Route::post('/auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
+            ->middleware('throttle:verification');
+
+        Route::get('/auth/sessions', [SessionController::class, 'index']);
+        Route::delete('/auth/sessions', [SessionController::class, 'destroyOthers']);
+        Route::delete('/auth/sessions/{session}', [SessionController::class, 'destroy'])->whereNumber('session');
+
+        // Onboarding (PRD §6): invitations, self-registration approval, audit log.
+        $invite = 'permission:'.CampusPermission::USERS_CREATE.',sanctum';
+        Route::get('/invitations', [InvitationController::class, 'index'])->middleware($invite);
+        Route::post('/invitations', [InvitationController::class, 'store'])->middleware([$invite, 'throttle:uploads']);
+        Route::post('/invitations/{invitation}/resend', [InvitationController::class, 'resend'])->whereNumber('invitation')->middleware($invite);
+        Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy'])->whereNumber('invitation')->middleware($invite);
+
+        $approve = 'permission:'.CampusPermission::STUDENTS_CREATE.',sanctum';
+        Route::get('/registrations', [RegistrationController::class, 'index'])->middleware($approve);
+        Route::post('/registrations/{registration}/approve', [RegistrationController::class, 'approve'])->whereNumber('registration')->middleware($approve);
+        Route::post('/registrations/{registration}/reject', [RegistrationController::class, 'reject'])->whereNumber('registration')->middleware($approve);
+
+        Route::get('/audit-logs', [AuditLogController::class, 'index'])
+            ->middleware('permission:'.CampusPermission::ACTIVITY_VIEW.',sanctum');
 
         Route::get('/campus/bootstrap', [CampusController::class, 'bootstrap'])
             ->middleware('permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum');
@@ -298,8 +339,9 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
         Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+        // Applying needs a verified email address (PRD §6): recruiters and officers contact it.
         Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
-            ->middleware('permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum');
+            ->middleware(['permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum', 'verified']);
 
         Route::get('/announcements', [AnnouncementController::class, 'index'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_VIEW.',sanctum');
@@ -394,7 +436,6 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/students/{student}/academic-summary', [StudentAcademicsController::class, 'summary'])
             ->whereNumber('student')
             ->middleware('permission:'.CampusPermission::RESULTS_VIEW_SUMMARY.',sanctum');
-
 
         // Attendance Routes
         Route::prefix('attendance')->group(function (): void {
@@ -531,7 +572,6 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/list/designations', [StaffManagementController::class, 'getDesignations'])
                     ->middleware('permission:'.CampusPermission::STAFF_VIEW.',sanctum');
             });
-
 
             // Exam Coordinator Routes
             Route::prefix('exam')->group(function (): void {

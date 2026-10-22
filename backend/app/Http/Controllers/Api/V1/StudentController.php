@@ -16,15 +16,20 @@ use App\Models\Institution;
 use App\Models\Student;
 use App\Models\User;
 use App\Repositories\StudentRepository;
+use App\Services\Audit\AuditLogger;
 use App\Services\Campus\CampusDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 class StudentController extends Controller
 {
-    public function __construct(private readonly CampusDataService $campusData)
-    {
-    }
+    /** Student fields recorded in the audit log when changed by staff or admins. */
+    private const AUDITED_FIELDS = ['name', 'email', 'department_code', 'year', 'status', 'cgpa', 'fee_status'];
+
+    public function __construct(
+        private readonly CampusDataService $campusData,
+        private readonly AuditLogger $audit,
+    ) {}
 
     /**
      * GET /students?page=&per_page= — the students visible to the caller, one page at a time.
@@ -58,6 +63,7 @@ class StudentController extends Controller
             Institution::forNewAccountsOf($actor),
             $this->mentorFor($actor, $department),
         );
+        $this->audit->record('student.created', $student, [], $student->only(self::AUDITED_FIELDS));
 
         return $this->recordResponse($actor, $student, 201);
     }
@@ -74,7 +80,13 @@ class StudentController extends Controller
             'A department is required for this student.',
         );
 
+        $before = $student->only(self::AUDITED_FIELDS);
         $updateStudent->execute($student, $data, $department, $this->mentorFor($actor, $department));
+        $after = $student->fresh()->only(self::AUDITED_FIELDS);
+
+        if ($before != $after) {
+            $this->audit->record('student.updated', $student, array_diff_assoc($before, $after), array_diff_assoc($after, $before));
+        }
 
         return $this->recordResponse($actor, $student);
     }
@@ -83,7 +95,9 @@ class StudentController extends Controller
     {
         $this->authorize('manage', $student);
 
+        $before = $student->only(self::AUDITED_FIELDS);
         $deleteStudent->execute($student);
+        $this->audit->record('student.deleted', $student, $before);
 
         return response()->noContent();
     }

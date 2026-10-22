@@ -3,6 +3,7 @@
 namespace App\Services\Campus;
 
 use App\Enums\UserRole;
+use App\Http\Resources\StudentResource;
 use App\Models\Announcement;
 use App\Models\Company;
 use App\Models\CompanyApplication;
@@ -10,7 +11,6 @@ use App\Models\Department;
 use App\Models\Designation;
 use App\Models\MasterOption;
 use App\Models\Student;
-use App\Http\Resources\StudentResource;
 use App\Models\User;
 use App\Repositories\StudentRepository;
 use App\Support\Campus\CampusMasterCatalog;
@@ -27,9 +27,7 @@ use Illuminate\Support\Str;
  */
 class CampusDataService
 {
-    public function __construct(private readonly StudentRepository $students)
-    {
-    }
+    public function __construct(private readonly StudentRepository $students) {}
 
     public function build(): array
     {
@@ -150,7 +148,7 @@ class CampusDataService
         }
 
         $permissions = $user->getAllPermissions();
-        
+
         // Handle both array and Collection from RBAC system
         if (is_object($permissions) && method_exists($permissions, 'pluck')) {
             return $permissions
@@ -159,7 +157,7 @@ class CampusDataService
                 ->values()
                 ->all();
         }
-        
+
         // Fallback for array
         if (is_array($permissions)) {
             return collect($permissions)
@@ -168,7 +166,7 @@ class CampusDataService
                 ->values()
                 ->all();
         }
-        
+
         return [];
     }
 
@@ -202,6 +200,8 @@ class CampusDataService
             'name' => $user->name,
             'email' => $user->email,
             'role' => $user->role,
+            'status' => $user->statusEnum()->value,
+            'emailVerified' => $user->hasVerifiedEmail(),
             'institutionId' => $user->institution_id,
             'title' => $user->title,
             'departmentCode' => $user->department_code,

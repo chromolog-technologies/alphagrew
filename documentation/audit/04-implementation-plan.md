@@ -192,6 +192,19 @@ P4 items (AI coach, alumni network, gamification, integrations) are out of scope
 | S0-5 | Done, not yet run | `.github/workflows/ci.yml`: PHPUnit on SQLite, migrate → rollback → migrate on MySQL 8, and a frontend type check and build. The MySQL job has not run yet; local MySQL was not running. |
 | S0-6 | Done | Removed the `/placement/*` duplicates (229 API routes now), fixed `fetchStaffWorkload`. |
 
+**Slice 1, 22 October 2026 (not committed).** 136 backend tests pass (10 new in `AuthOnboardingTest`); `tsc` and `vite build` are clean.
+
+| Task | Status | Notes |
+|---|---|---|
+| S1-1 | Done | `POST /auth/forgot-password` (same answer for unknown addresses) and `/auth/reset-password`; the email link opens `/reset-password` in the React app. A reset clears the lockout and signs out every device. Password minimum is now 8 characters. |
+| S1-2 | Done | `User` implements `MustVerifyEmail`. Self-registered students get a signed link (`/auth/email/verify/{id}/{hash}`, works without signing in) that redirects to the app. Changing the profile email resets verification. `POST /companies/{company}/apply` requires a verified address. Fixed a pre-existing bug: `email_verified_at` was not mass assignable, so accounts created through the app were never marked verified; the migration marks existing accounts verified. |
+| S1-3 | Done | `invitations` table (SHA-256 token hash, 7-day expiry); bulk invite of up to 200 addresses for students, staff and placement officers; resend, revoke, public preview and accept. Accepting creates a verified, active account and signs the user in. Screens: Onboarding (admin) and `/invitations/accept`. |
+| S1-4 | Done | `users.status` (`active`, `pending_approval`, `rejected`, `suspended`). Self-registration creates a pending account and returns no token. Approval queue at `/registrations` with approve and reject (reason required, emailed to the student). Screen: `/register`, plus the queue on the Onboarding screen. |
+| S1-5 | Done, simpler than planned | No `devices` table: each Sanctum token already records its browser and last use, so `/auth/sessions` lists tokens and can sign out one device or all others. Lockout: 10 wrong passwords lock the account for 15 minutes (HTTP 423). Screen: Sign-in & Security, for every role. |
+| S1-6 | Done | Append-only `audit_logs` (the model refuses updates and deletes) with `AuditLogger`; secrets are stripped. Recorded: sign-in and lockout, logout, password reset and change, email verification, sessions, invitations, registrations, staff and student changes, results publish and unlock, placement drive changes, demo reset. Viewer at `/audit-logs` (`activity.view`) with action and date filters. |
+
+Rate limits changed: per-address limits raised (login 120/min, registration and invitations 30/min) because a whole campus lab can share one public IP; per-account limits stay strict.
+
 ## 2. Effort summary
 
 | Priority | Slices | Developer-days |

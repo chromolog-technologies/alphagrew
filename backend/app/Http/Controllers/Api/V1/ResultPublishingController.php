@@ -11,6 +11,7 @@ use App\Http\Requests\Marks\UnlockResultsRequest;
 use App\Http\Resources\ResultPublishingLogResource;
 use App\Models\ResultPublishingLog;
 use App\Services\Academics\PublishingReadiness;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -27,9 +28,10 @@ class ResultPublishingController extends Controller
     }
 
     /** POST /result-publishing/publish — 422 with pendingSubjects while any subject is not approved. */
-    public function publish(SemesterResultsRequest $request, PublishSemesterResultsAction $publish): JsonResponse
+    public function publish(SemesterResultsRequest $request, PublishSemesterResultsAction $publish, AuditLogger $audit): JsonResponse
     {
         $log = $publish->execute($request->user(), $request->semester(), $request->ip());
+        $audit->record('results.published', $request->semester(), [], ['totalStudents' => $log->total_students, 'publishingLogId' => $log->id]);
 
         return response()->json([
             'data' => new ResultPublishingLogResource($log),
@@ -38,9 +40,10 @@ class ResultPublishingController extends Controller
     }
 
     /** POST /result-publishing/unlock — locked → approved, with a mandatory reason. */
-    public function unlock(UnlockResultsRequest $request, UnlockSemesterResultsAction $unlock): JsonResponse
+    public function unlock(UnlockResultsRequest $request, UnlockSemesterResultsAction $unlock, AuditLogger $audit): JsonResponse
     {
         $log = $unlock->execute($request->user(), $request->semester(), $request->validated('reason'), $request->ip());
+        $audit->record('results.unlocked', $request->semester(), [], ['reason' => $request->validated('reason'), 'publishingLogId' => $log->id]);
 
         return response()->json([
             'data' => new ResultPublishingLogResource($log),

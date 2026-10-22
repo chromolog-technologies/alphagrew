@@ -51,8 +51,9 @@ class SaveStaffMemberAction
             $staff = User::query()->create([
                 ...$attributes,
                 'institution_id' => $institutionId,
-                'email_verified_at' => now(),
             ]);
+            // Not mass assignable; accounts created by the institution count as verified.
+            $staff->forceFill(['email_verified_at' => now()])->save();
         }
 
         $staff->syncRoles([$role]);

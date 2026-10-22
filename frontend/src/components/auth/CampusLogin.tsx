@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, UserCheck, GraduationCap, Briefcase, Building } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
+import { goTo } from './AuthPages';
 
 interface CampusLoginProps {
   error: string;
@@ -134,6 +135,13 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-600">
                   Password
                 </label>
+                <a
+                  href="/forgot-password"
+                  onClick={(event) => { event.preventDefault(); goTo('/forgot-password'); }}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  Forgot password?
+                </a>
               </div>
               <div className="relative flex items-center">
                 <LockKeyhole size={16} className="absolute left-3.5 text-zinc-400 pointer-events-none" />
@@ -176,6 +184,17 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
                 </>
               )}
             </button>
+
+            <p className="text-center text-xs text-zinc-500">
+              New student?{' '}
+              <a
+                href="/register"
+                onClick={(event) => { event.preventDefault(); goTo('/register'); }}
+                className="font-semibold text-blue-600 hover:text-blue-700"
+              >
+                Register with your institution code
+              </a>
+            </p>
           </form>
 
           {/* Security Footer */}

@@ -8,6 +8,7 @@ use App\Models\CompanyApplication;
 use App\Models\JobPosting;
 use App\Models\PlacementDrive;
 use App\Models\Student;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -162,6 +163,8 @@ class PlacementController extends Controller
             'eligible_departments' => $departments,
         ]);
 
+        app(AuditLogger::class)->record('placement.drive_created', $company, [], $company->only(['name', 'role', 'package_offered', 'drive_date', 'status']));
+
         // Sync with decoupled placement_drives & job_postings tables when available.
         if (Schema::hasTable('placement_drives') && Schema::hasTable('job_postings')) {
             $drive = PlacementDrive::create([
@@ -232,7 +235,13 @@ class PlacementController extends Controller
             $company->location = $validated['location'];
         }
 
+        $changes = $company->getDirty();
+        $original = array_intersect_key($company->getOriginal(), $changes);
         $company->save();
+
+        if ($changes !== []) {
+            app(AuditLogger::class)->record('placement.drive_updated', $company, $original, $changes);
+        }
 
         return response()->json([
             'status' => 'success',
@@ -270,6 +279,7 @@ class PlacementController extends Controller
             if (preg_match('/([0-9]+(?:\.[0-9]+)?)/', (string) $c->package_offered, $matches)) {
                 return (float) $matches[1];
             }
+
             return null;
         })->filter();
 
@@ -359,4 +369,3 @@ class PlacementController extends Controller
         ]);
     }
 }
-

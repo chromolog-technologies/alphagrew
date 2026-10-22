@@ -43,8 +43,8 @@ Artisan::command('alphagrew:super-admin {email} {name} {--password=}', function 
         'role' => UserRole::SuperAdmin->value,
         'institution_id' => null,
         'title' => 'Super Admin',
-        'email_verified_at' => now(),
     ]);
+    $user->forceFill(['email_verified_at' => now()])->save();
     $user->syncRoles([Role::findOrCreate(UserRole::SuperAdmin->value, 'sanctum')]);
 
     $this->info("Super Admin {$email} created.");

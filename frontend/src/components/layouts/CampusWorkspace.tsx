@@ -61,6 +61,9 @@ import { ExamsModule } from '../admin/ExamsModule';
 import { MarksModule } from '../admin/MarksModule';
 import { FeesModule } from '../admin/FeesModule';
 import { SystemSettingsModule } from '../admin/SystemSettingsModule';
+import { OnboardingModule } from '../admin/OnboardingModule';
+import { AuditLogModule } from '../admin/AuditLogModule';
+import { SecuritySettings } from '../shared/SecuritySettings';
 import { DepartmentOverview } from '../staff/DepartmentOverview';
 import { HODStaffManagement } from '../staff/HODStaffManagement';
 import { HODReportsAnalytics } from '../staff/HODReportsAnalytics';
@@ -432,6 +435,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'designations', label: 'Designations', icon: ShieldCheck, permission: 'departments.create' },
     { id: 'staff', label: 'Staff', icon: UserCircle2, permission: 'departments.view' },
     { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
+    { id: 'onboarding', label: 'Onboarding', icon: UserCircle2, permission: 'users.create' },
     { id: 'classes', label: 'Classes', icon: Users, permission: 'departments.create' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, permission: 'departments.create' },
     { id: 'academic_years', label: 'Academic Years', icon: Calendar, permission: 'departments.create' },
@@ -445,7 +449,9 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'settings', label: 'Settings', icon: Settings, permission: 'departments.create' },
+    { id: 'audit_log', label: 'Audit Log', icon: ShieldCheck, permission: 'activity.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
   staff: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
@@ -459,6 +465,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
   student: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
@@ -469,6 +476,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
 };
 
@@ -483,6 +491,7 @@ const navByRole: Record<CampusRole, NavItem[]> = {
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
   staff: baseNavByRole.staff,
   student: baseNavByRole.student,
@@ -493,11 +502,11 @@ const navByRole: Record<CampusRole, NavItem[]> = {
 const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity'] },
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
-  { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'roles'] },
+  { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles'] },
   { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable'] },
   { id: 'finance', label: 'Finance', itemIds: [] },
   { id: 'placement', label: 'Placement', itemIds: ['placement'] },
-  { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'profile'] },
+  { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security'] },
 ];
 
 const monthTrend = [
@@ -5376,6 +5385,12 @@ export default function CampusWorkspace({
         return <FeesModule />;
       case 'settings':
         return <SystemSettingsModule />;
+      case 'onboarding':
+        return <OnboardingModule departments={data.departments} designations={data.designations} />;
+      case 'audit_log':
+        return <AuditLogModule />;
+      case 'security':
+        return <SecuritySettings user={user} />;
       case 'department_overview':
         return <DepartmentOverview />;
       case 'hod_staff_management':
