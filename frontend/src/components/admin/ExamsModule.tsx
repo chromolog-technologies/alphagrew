@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Calendar, Clock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Edit2, Trash2, Calendar, Clock, Loader2 } from 'lucide-react';
+import { examApi } from '../../api/apiClient';
 
 interface Exam {
   id: number;
@@ -32,6 +33,36 @@ export const ExamsModule: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    examApi
+      .list()
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setExams(
+            data.map((item: any, idx: number) => ({
+              id: item.id || idx + 1,
+              name: item.name || `Exam #${item.id}`,
+              course: item.course?.name || item.course_name || 'B.Tech CSE',
+              subject: item.subject?.name || item.subject_name || 'Database Systems',
+              examDate: item.exam_date || item.start_date || '2026-04-15',
+              startTime: item.start_time || '10:00',
+              endTime: item.end_time || '12:00',
+              totalMarks: item.max_marks || item.total_marks || 100,
+              room: item.room || 'Hall-1',
+              status: item.status || 'scheduled',
+            }))
+          );
+        }
+      })
+      .catch(() => {
+        // Keeps initial demo data in offline mode or if unauthorized
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   const [formData, setFormData] = useState({
     name: '',
     course: '',

@@ -57,6 +57,7 @@ export const StudentTimetableView: React.FC = () => {
           return;
         }
 
+
         const response = await fetchStudentTimetable(token);
 
         if (response.success && Array.isArray(response.data)) {

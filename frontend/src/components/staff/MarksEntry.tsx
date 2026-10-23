@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Download, Edit2, Save, X } from 'lucide-react';
 import { fetchStaffMarksStudents, submitStaffMarks, fetchExamsListForMarks, uploadMarksFromFile } from '../../api/campusApi';
-import { getStoredAuthToken } from '../../utils/auth';
+import { getStoredToken } from '../../api/apiClient';
 
 interface StudentMark {
   id: number;
@@ -29,7 +29,7 @@ export const MarksEntry: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = getStoredAuthToken();
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication token not found');
           return;
@@ -85,7 +85,7 @@ export const MarksEntry: React.FC = () => {
       return;
     }
     try {
-      const token = getStoredAuthToken();
+      const token = getStoredToken();
       if (!token) return;
 
       const payload = {

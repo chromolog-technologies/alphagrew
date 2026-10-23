@@ -16,6 +16,26 @@ export function isInstitutionStaffRole(role: CampusRole | undefined): boolean {
   return role === 'staff' || role === 'placement_officer';
 }
 
+/** Display name of each role, as used in the PRD. */
+export const campusRoleLabels: Record<CampusRole, string> = {
+  super_admin: 'Super Admin',
+  institution_admin: 'Institution Admin',
+  placement_officer: 'Placement Officer',
+  staff: 'Staff',
+  student: 'Student',
+  recruiter: 'Recruiter',
+};
+
+/** The portal each role lands in. */
+export const campusPortalLabels: Record<CampusRole, string> = {
+  super_admin: 'Platform console',
+  institution_admin: 'Admin portal',
+  placement_officer: 'Placement portal',
+  staff: 'Staff portal',
+  student: 'Student portal',
+  recruiter: 'Recruiter portal',
+};
+
 /** Maps role names saved by older versions ('admin') to the current ones. */
 export function normalizeCampusRole(role: string): CampusRole {
   return role === 'admin' ? 'institution_admin' : (role as CampusRole);
@@ -395,8 +415,24 @@ export interface CampusAccount {
   permissions?: CampusPermission[];
 }
 
+/** The signed-in user's institution. Null for Super Admin and Recruiter. */
+export interface CampusInstitution {
+  id: number;
+  name: string;
+  code: string;
+  logoUrl?: string | null;
+}
+
+/** A 403 or 404 from the tenant rules, shown in place of the current tab. */
+export interface TenantError {
+  status: 403 | 404;
+  message: string;
+}
+
 export type CampusSession = Omit<CampusAccount, 'password'> & {
   permissions: CampusPermission[];
+  /** Sent by the login and /auth/me payloads once the backend adds it (workflow ticket F2). */
+  institution?: CampusInstitution | null;
 };
 
 export interface CampusDepartment {

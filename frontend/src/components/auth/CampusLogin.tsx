@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building } from 'lucide-react';
+import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building, Info } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
+import { type CampusRole } from '../../campusTypes';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -18,16 +19,26 @@ import {
   AlertDescription,
 } from '@/components/ui';
 
+export interface DemoAccount {
+  email: string;
+  role: CampusRole;
+  label: string;
+}
+
 interface CampusLoginProps {
   error: string;
+  /** Information rather than a failure: expired session, recruiter portal not open, inactive institution. */
+  notice?: string;
+  demoAccounts?: DemoAccount[];
   onLogin: (credentials: { email: string; password: string }) => Promise<void> | void;
+  onShowSignUp?: () => void;
 }
 
 // Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
 const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
 
-export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
-  const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
+export default function CampusLogin({ error, notice, demoAccounts, onLogin, onShowSignUp }: CampusLoginProps) {
+  const [email, setEmail] = useState(demoAccounts?.[0]?.email ?? (showDemoAccess ? 'admin@demo.com' : ''));
   const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -129,6 +140,15 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
               </div>
               )}
 
+              {notice ? (
+                <Alert className="py-2.5 px-3.5 rounded-xl border-blue-200 bg-blue-50/70 text-blue-800">
+                  <Info size={15} className="text-blue-600 inline mr-1.5 -mt-0.5" />
+                  <AlertDescription className="text-xs font-medium inline">
+                    {notice}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               {/* Login Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
@@ -207,9 +227,15 @@ export default function CampusLogin({ error, onLogin }: CampusLoginProps) {
 
                 <p className="text-center text-xs text-slate-500">
                   New student?{' '}
-                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
-                    Register with your institution code
-                  </Link>
+                  {onShowSignUp ? (
+                    <button type="button" onClick={onShowSignUp} className="font-semibold text-blue-600 hover:text-blue-700">
+                      Register with your institution code
+                    </button>
+                  ) : (
+                    <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                      Register with your institution code
+                    </Link>
+                  )}
                 </p>
               </form>
             </CardContent>

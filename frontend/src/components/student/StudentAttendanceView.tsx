@@ -52,12 +52,12 @@ export const StudentAttendanceView: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-
         const token = getStoredAuthToken();
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
         }
+
 
         // Fetch summary and detailed records
         const [summaryResponse, detailedResponse] = await Promise.all([

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, FileText } from 'lucide-react';
 import { fetchExams, createExam, assignExamInvigilators, assignExamClassrooms } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
-import { getStoredAuthToken } from '../../utils/auth';
 
 interface ExamSchedule {
   id: number;
@@ -45,7 +45,7 @@ export const ExamCoordinatorModule: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = getStoredAuthToken();
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication token not found');
           return;

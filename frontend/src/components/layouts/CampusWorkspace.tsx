@@ -86,9 +86,12 @@ const StudentNotifications = lazyNamed(() => import('../student/StudentNotificat
 const StudentCareerProfile = lazyNamed(() => import('../student/StudentCareerProfile'), 'StudentCareerProfile');
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
+import { TenantState } from '../shared';
 import {
   campusMasterCategoryLabels,
   campusPermissionLabels,
+  campusPortalLabels,
+  campusRoleLabels,
   campusStaffAssignablePermissions,
   campusStaffBasePermissions,
   createDefaultCampusStudentResume,
@@ -110,6 +113,7 @@ import type {
   CampusRole,
   CampusSession,
   CampusStudentResume,
+  TenantError,
   CompanyStatus,
   CompanyType,
   FeeStatus,
@@ -118,6 +122,9 @@ import type {
 
 interface CampusWorkspaceProps {
   error: string;
+  /** 403 or 404 from the last API call; replaces the tab content until dismissed. */
+  tenantError?: TenantError | null;
+  onDismissTenantError?: () => void;
   user: CampusSession;
   data: CampusData;
   onLogout: () => Promise<void> | void;
@@ -433,6 +440,19 @@ type SidebarNavGroup = {
 
 type CardTone = 'navy' | 'sky' | 'teal' | 'amber' | 'indigo' | 'emerald';
 
+// Header role chip colours from documentation/frontend/roles-tenancy-design.md (D5).
+const roleChipTone: Record<CampusRole, string> = {
+  super_admin: 'bg-[#0a2342] text-white',
+  institution_admin: 'bg-[#e6f1fb] text-[#0b4d88]',
+  placement_officer: 'bg-[#fff4e5] text-[#8a4b00]',
+  staff: 'bg-[#eef4fa] text-[#123a66]',
+  student: 'bg-[#ecfdf3] text-[#05603a]',
+  recruiter: 'bg-[#eef4fa] text-[#123a66]',
+};
+
+// Same page sizes as GET /students (per_page up to 100).
+const STUDENTS_PER_PAGE_OPTIONS = [25, 50, 100];
+
 const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
   admin: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
@@ -480,10 +500,11 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
     { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'attendance.view' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'attendance.view' },
-    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
-    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
+    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'profile.view' },
+    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'marks.view' },
+    { id: 'marks', label: 'Marks & Results', icon: ChartColumn, permission: 'marks.view' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'announcements.view' },
     { id: 'profile', label: 'Career & AI Hub', icon: UserCircle2, permission: 'profile.view' },
@@ -514,7 +535,7 @@ const navByRole: Record<CampusRole, NavItem[]> = {
 const workspaceTabIds = new Set(Object.values(navByRole).flat().map((item) => item.id));
 
 const sidebarNavGroups: SidebarNavGroup[] = [
-  { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity'] },
+  { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
   { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
@@ -522,6 +543,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer'] },
   { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
 ];
+
 
 const monthTrend = [
   { month: 'Jan', offers: 8, drives: 2 },
@@ -1069,6 +1091,8 @@ function Modal({
 
 export default function CampusWorkspace({
   error,
+  tenantError = null,
+  onDismissTenantError,
   user,
   data,
   onLogout,
@@ -1246,6 +1270,11 @@ export default function CampusWorkspace({
   const homeTab = availableNav[0]?.id ?? 'dashboard';
   const activeTab = routeTab ?? homeTab;
   const setActiveTab = (tabId: string) => navigate(`/app/${tabId}`);
+
+  // A 403/404 belongs to the tab it happened on; moving to another tab clears it.
+  useEffect(() => {
+    onDismissTenantError?.();
+  }, [activeTab]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarDropdowns, setSidebarDropdowns] = useState<Record<string, boolean>>({
     overview: true,
@@ -1270,6 +1299,8 @@ export default function CampusWorkspace({
   const [headerSearch, setHeaderSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [studentPage, setStudentPage] = useState(1);
+  const [studentsPerPage, setStudentsPerPage] = useState(STUDENTS_PER_PAGE_OPTIONS[0]);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(user.studentId ?? data.students[0]?.id ?? null);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(data.departments[0]?.id ?? null);
@@ -1584,6 +1615,17 @@ export default function CampusWorkspace({
     );
     return matchesSearch && matchesDepartment && matchesHeader;
   });
+
+  // Pages the filtered list in the browser. Moves to fetchStudentsPage() once GET /students
+  // accepts search and department filters and the bootstrap stops sending every student.
+  const studentPageCount = Math.max(1, Math.ceil(filteredStudents.length / studentsPerPage));
+  const currentStudentPage = Math.min(studentPage, studentPageCount);
+  const studentPageStart = (currentStudentPage - 1) * studentsPerPage;
+  const pagedStudents = filteredStudents.slice(studentPageStart, studentPageStart + studentsPerPage);
+
+  useEffect(() => {
+    setStudentPage(1);
+  }, [studentSearch, departmentFilter, studentsPerPage]);
 
   const staffMembers = data.users.filter((account) => isInstitutionStaffRole(account.role));
   const filteredStaffMembers = staffMembers.filter((account) =>
@@ -1918,14 +1960,17 @@ export default function CampusWorkspace({
   const isPhase1LockedTab = (tabId: string) => isAdminRole(user.role) && !isPhase1Complete && phase1LockedTabIds.has(tabId);
   const activeNavLabel = availableNav.find((item) => item.id === activeTab)?.label ?? 'Dashboard';
   const breadcrumbItems = activeTab === 'dashboard' ? ['Dashboard'] : ['Dashboard', activeNavLabel];
-  const headerRoleLabel: Record<CampusRole, string> = {
-    super_admin: 'Super admin',
-    institution_admin: 'Campus admin',
-    placement_officer: 'Placement office',
-    staff: 'Staff workspace',
-    student: 'Student workspace',
-    recruiter: 'Recruiter workspace',
-  };
+  // The institution comes from the session (workflow ticket F2); until the backend sends it,
+  // institution users see the demo campus name.
+  const institutionName =
+    user.institution?.name ?? (user.role === 'super_admin' ? 'All institutions' : campusBrand.campusName);
+  const institutionCode = user.institution?.code;
+  const institutionInitials = institutionName
+    .split(/\s+/)
+    .filter((word) => /^[A-Za-z]/.test(word) && !['of', 'and', 'the'].includes(word.toLowerCase()))
+    .slice(0, 3)
+    .map((word) => word[0].toUpperCase())
+    .join('');
   const userInitials =
     user.name
       .split(' ')
@@ -3603,7 +3648,7 @@ export default function CampusWorkspace({
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((student) => (
+                {pagedStudents.map((student) => (
                   <tr key={student.id} className="rounded-[18px] bg-slate-50 text-sm text-slate-700">
                     <td className="rounded-l-[24px] px-4 py-4">
                       <div>
@@ -3659,6 +3704,55 @@ export default function CampusWorkspace({
               </div>
             ) : null}
           </div>
+
+          {filteredStudents.length > 0 ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-[#4d6d8f]">
+                <p>
+                  Showing {studentPageStart + 1}–{studentPageStart + pagedStudents.length} of {filteredStudents.length}
+                </p>
+                <label className="flex items-center gap-2">
+                  <span>Per page</span>
+                  <select
+                    value={studentsPerPage}
+                    onChange={(event) => setStudentsPerPage(Number(event.target.value))}
+                    className="h-11 rounded-[10px] border border-slate-200 bg-slate-50 px-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+                  >
+                    {STUDENTS_PER_PAGE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {studentPageCount > 1 ? (
+                <nav aria-label="Student pages" className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStudentPage(currentStudentPage - 1)}
+                    disabled={currentStudentPage === 1}
+                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-[#123a66] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <ChevronLeft size={16} aria-hidden="true" />
+                    Previous
+                  </button>
+                  <span className="px-1 text-sm text-[#4d6d8f]" aria-current="page">
+                    Page {currentStudentPage} of {studentPageCount}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStudentPage(currentStudentPage + 1)}
+                    disabled={currentStudentPage === studentPageCount}
+                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-[#123a66] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </button>
+                </nav>
+              ) : null}
+            </div>
+          ) : null}
         </Panel>
 
         <Panel className="h-fit p-6 xl:self-start">
@@ -5372,11 +5466,14 @@ export default function CampusWorkspace({
             <div className="space-y-4 p-7">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500">Access role</span>
-                <span className="font-semibold capitalize text-slate-950">{user.role}</span>
+                <span className="font-semibold text-slate-950">{campusRoleLabels[user.role]}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-500">Campus</span>
-                <span className="font-semibold text-slate-950">{campusBrand.campusName}</span>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-slate-500">Institution</span>
+                <span className="text-right font-semibold text-slate-950">
+                  {institutionName}
+                  {institutionCode ? <span className="ml-1 font-normal text-slate-500">({institutionCode})</span> : null}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-slate-500">Department</span>
@@ -5542,6 +5639,21 @@ export default function CampusWorkspace({
                 </span>
                 <ChevronRight size={13} className="hidden sm:inline-block text-zinc-400" />
                 <span className="hidden sm:inline-block text-xs font-semibold text-blue-600">{activeNavLabel}</span>
+              </div>
+
+              <div
+                className="hidden min-w-0 items-center gap-2.5 rounded-[14px] border border-[#d5e4f2] bg-[#f8fbff] py-1.5 pl-1.5 pr-3 lg:flex"
+                title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
+              >
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#e6f1fb] text-xs font-bold text-[#0b4d88]">
+                  {institutionInitials}
+                </span>
+                <span className="min-w-0">
+                  <span className="block max-w-[240px] truncate text-sm font-semibold text-[#0a2342]">{institutionName}</span>
+                  {institutionCode ? (
+                    <span className="block text-xs text-[#4d6d8f]">Institution code {institutionCode}</span>
+                  ) : null}
+                </span>
               </div>
             </div>
           </div>
@@ -6029,13 +6141,27 @@ export default function CampusWorkspace({
 
               <AnimatePresence mode="wait">
                 <motion.div
-                  key={`${user.role}-${activeTab}`}
+                  key={`${user.role}-${activeTab}-${tenantError?.status ?? 'ok'}`}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -14 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <Suspense fallback={<PageLoading />}>{renderTabContent()}</Suspense>
+                  <Suspense fallback={<PageLoading />}>
+                    {tenantError ? (
+                      <div className="py-10">
+                        <TenantState
+                          status={tenantError.status}
+                          message={tenantError.message}
+                          institutionName={user.institution?.name ?? campusBrand.campusName}
+                          actionLabel="Go back"
+                          onAction={() => onDismissTenantError?.()}
+                        />
+                      </div>
+                    ) : (
+                      renderTabContent()
+                    )}
+                  </Suspense>
                 </motion.div>
               </AnimatePresence>
             </main>

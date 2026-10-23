@@ -1,26 +1,12 @@
 import { useEffect, useState } from 'react';
+import { getStoredToken } from '../api/apiClient';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') || 'http://localhost:8000/api/v1');
-const AUTH_KEY = 'chromolog-campus-auth';
 
 function getTokenFromStorage(): string | null {
-  const legacyToken = localStorage.getItem('auth_token');
-  if (legacyToken) {
-    return legacyToken;
-  }
-
-  const raw = localStorage.getItem(AUTH_KEY);
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as { token?: string };
-    return parsed.token ?? null;
-  } catch {
-    return null;
-  }
+  return getStoredToken();
 }
+
 
 export interface UserPermissions {
   permissions: Record<string, Record<string, boolean>>;

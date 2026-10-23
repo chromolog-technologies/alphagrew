@@ -62,7 +62,7 @@ class GradeRuleController extends Controller
         }
 
         DB::transaction(function (): void {
-            GradeRule::query()->withTrashed()->forceDelete();
+            GradeRule::withTrashed()->get()->each->forceDelete();
 
             foreach (GradeRule::defaults() as $index => $rule) {
                 GradeRule::query()->create([...$rule, 'sort_order' => $index + 1]);

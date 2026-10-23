@@ -1,24 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Check, AlertCircle, Loader, Save, Plus, Trash2 } from 'lucide-react';
+import { getStoredToken } from '../../api/apiClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
-const AUTH_KEY = 'chromolog-campus-auth';
-
-function authToken(): string | null {
-  const legacyToken = localStorage.getItem('auth_token');
-  if (legacyToken) {
-    return legacyToken;
-  }
-
-  try {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (!stored) return null;
-    const auth = JSON.parse(stored) as { token?: string };
-    return auth.token ?? null;
-  } catch {
-    return null;
-  }
-}
 
 interface Student {
   id: number;
@@ -47,7 +31,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const token = authToken();
+  const token = getStoredToken();
 
   // Load subjects on mount
   useEffect(() => {

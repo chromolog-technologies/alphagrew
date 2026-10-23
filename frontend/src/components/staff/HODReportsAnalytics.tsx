@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Filter, TrendingUp, Users, BarChart3, PieChart } from 'lucide-react';
 import { fetchAcademicPerformanceReport, fetchAttendanceReportForDept, fetchPlacementAnalyticsReport } from '../../api/campusApi';
+import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
-import { getStoredAuthToken } from '../../utils/auth';
 
 interface StudentPerformance {
   name: string;
@@ -33,7 +33,7 @@ export const HODReportsAnalytics: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = getStoredAuthToken();
+        const token = getStoredToken();
         if (!token) {
           setError('Authentication token not found');
           return;

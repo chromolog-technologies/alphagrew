@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\Staff\MarksController as StaffMarksController;
 use App\Http\Controllers\Api\Staff\PlacementController;
 use App\Http\Controllers\Api\Staff\ReportsController;
 use App\Http\Controllers\Api\Staff\StaffManagementController;
+use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
 use App\Http\Controllers\Api\Student\MarksController;
 use App\Http\Controllers\Api\Student\MaterialsController;
@@ -411,6 +412,9 @@ Route::prefix('v1')->group(function (): void {
         $marksCreate = 'permission:'.CampusPermission::MARKS_CREATE.',sanctum';
         $marksApprove = 'permission:'.CampusPermission::MARKS_APPROVE.',sanctum';
         $marksPublish = 'permission:'.CampusPermission::MARKS_PUBLISH.',sanctum';
+
+        // Exams to enter marks against (read-only until exam scheduling is built)
+        Route::get('/exams', [ExamController::class, 'index'])->middleware($marksView);
 
         // Stage 1: grading scale and mark schemes.
         Route::prefix('grade-rules')->group(function () use ($marksView, $marksCreate): void {
