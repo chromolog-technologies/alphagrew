@@ -3,7 +3,6 @@ import { Plus, Search, Check, X, AlertCircle } from 'lucide-react';
 import { fetchStaffAttendanceStudents, submitStaffAttendance, fetchStaffClasses } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
-import { getStoredAuthToken } from '../../utils/auth';
 
 interface AttendanceMarkingProps {
   staffRole: 'faculty' | 'hod' | 'admin';

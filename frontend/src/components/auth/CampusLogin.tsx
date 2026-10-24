@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
+import { type CampusRole } from '../../campusTypes';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -144,6 +145,15 @@ export default function CampusLogin({ error, notice, onLogin }: CampusLoginProps
               </div>
               )}
 
+              {notice ? (
+                <Alert className="py-2.5 px-3.5 rounded-xl border-blue-200 bg-blue-50/70 text-blue-800">
+                  <Info size={15} className="text-blue-600 inline mr-1.5 -mt-0.5" />
+                  <AlertDescription className="text-xs font-medium inline">
+                    {notice}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+
               {/* Login Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1.5">
@@ -222,9 +232,15 @@ export default function CampusLogin({ error, notice, onLogin }: CampusLoginProps
 
                 <p className="text-center text-xs text-slate-500">
                   New student?{' '}
-                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
-                    Register with your institution code
-                  </Link>
+                  {onShowSignUp ? (
+                    <button type="button" onClick={onShowSignUp} className="font-semibold text-blue-600 hover:text-blue-700">
+                      Register with your institution code
+                    </button>
+                  ) : (
+                    <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                      Register with your institution code
+                    </Link>
+                  )}
                 </p>
               </form>
             </CardContent>

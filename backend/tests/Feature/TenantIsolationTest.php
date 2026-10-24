@@ -207,13 +207,13 @@ class TenantIsolationTest extends TestCase
     public function test_resetting_grade_rules_keeps_other_institutions_rules(): void
     {
         DB::table('grade_rules')->insert([
-            'institution_id' => $this->institutionB, 'min_score' => 0, 'max_score' => 100, 'grade' => 'P', 'gpa' => 4,
+            'institution_id' => $this->institutionB, 'min_score' => 0, 'max_score' => 100, 'grade' => 'P', 'grade_point' => 4,
             'sort_order' => 1, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
         $this->withToken($this->tokenFor('admin@demo.com'))->postJson('/api/v1/grade-rules/setup-defaults')
             ->assertOk()
-            ->assertJsonCount(7, 'data');
+            ->assertJsonCount(count(\App\Models\GradeRule::defaults()), 'data');
 
         // Running it twice must not trip the per-institution unique score bands.
         $this->withToken($this->tokenFor('admin@demo.com'))->postJson('/api/v1/grade-rules/setup-defaults')->assertOk();

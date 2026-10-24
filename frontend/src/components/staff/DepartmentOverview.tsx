@@ -19,20 +19,6 @@ interface SchoolPerformance {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
-const AUTH_KEY = 'chromolog-campus-auth';
-
-function authToken(): string | null {
-  const legacyToken = localStorage.getItem('auth_token');
-  if (legacyToken) return legacyToken;
-  try {
-    const stored = localStorage.getItem(AUTH_KEY);
-    if (!stored) return null;
-    const auth = JSON.parse(stored) as { token?: string };
-    return auth.token ?? null;
-  } catch {
-    return null;
-  }
-}
 
 export const DepartmentOverview: React.FC = () => {
   const [stats, setStats] = useState<any>(null);

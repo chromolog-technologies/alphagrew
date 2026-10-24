@@ -3,7 +3,6 @@ import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
 import { fetchAllStaffMembers, createNewStaffMember, deleteStaffMember, assignClassesToStaff } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
-import { getStoredAuthToken } from '../../utils/auth';
 
 interface StaffMember {
   id: number;

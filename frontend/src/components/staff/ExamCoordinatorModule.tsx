@@ -3,7 +3,6 @@ import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, FileText } from 'lucide-r
 import { fetchExams, createExam, assignExamInvigilators, assignExamClassrooms } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
 import { PrototypeNotice } from '../shared';
-import { getStoredAuthToken } from '../../utils/auth';
 
 interface ExamSchedule {
   id: number;
