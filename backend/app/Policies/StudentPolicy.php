@@ -23,4 +23,14 @@ class StudentPolicy
 
         return Response::allow();
     }
+
+    /** View one student's full profile: same department rule as manage. */
+    public function view(User $user, Student $student): Response
+    {
+        if ($user->role === UserRole::Staff->value && $user->department_code !== $student->department_code) {
+            return Response::deny('You can only view students in your own department.');
+        }
+
+        return Response::allow();
+    }
 }

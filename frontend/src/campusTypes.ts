@@ -59,7 +59,9 @@ export type CampusPermission =
   | 'reports.view'
   | 'profile.view'
   | 'demo.reset'
-  | 'attendance.view';
+  | 'attendance.view'
+  | 'users.create'
+  | 'activity.view';
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
@@ -135,7 +137,9 @@ export const campusPermissionLabels: Record<CampusPermission, string> = {
   'profile.view': 'Profile',
   'demo.reset': 'Reset demo',
   'attendance.view': 'Attendance',
-};    
+  'users.create': 'Invite users',
+  'activity.view': 'Audit log',
+};
 
 export const campusStaffAssignablePermissions: CampusPermission[] = [
   'students.view',
@@ -389,6 +393,9 @@ export interface CampusAccount {
   email: string;
   password?: string;
   role: CampusRole;
+  /** active | pending_approval | rejected | suspended; only active accounts can sign in. */
+  status?: string;
+  emailVerified?: boolean;
   /** Null for Super Admin and Recruiter, who sit outside any institution. */
   institutionId?: number | null;
   title: string;

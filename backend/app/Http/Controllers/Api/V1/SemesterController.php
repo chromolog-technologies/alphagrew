@@ -95,9 +95,21 @@ class SemesterController extends Controller
     public function getAcademicYears(): JsonResponse
     {
         $academicYears = AcademicYear::query()
-            ->select('id', 'name', 'start_year', 'end_year')
-            ->orderBy('start_year', 'desc')
-            ->get();
+            ->orderBy('start_date', 'desc')
+            ->get()
+            ->map(function ($ay) {
+                return [
+                    'id' => $ay->id,
+                    'year' => $ay->year,
+                    'name' => $ay->year,
+                    'code' => $ay->code,
+                    'start_date' => $ay->start_date ? $ay->start_date->format('Y-m-d') : null,
+                    'end_date' => $ay->end_date ? $ay->end_date->format('Y-m-d') : null,
+                    'start_year' => $ay->start_date ? (int) $ay->start_date->format('Y') : null,
+                    'end_year' => $ay->end_date ? (int) $ay->end_date->format('Y') : null,
+                    'is_active' => (bool) $ay->is_active,
+                ];
+            });
 
         return response()->json($academicYears);
     }

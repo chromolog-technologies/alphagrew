@@ -155,13 +155,24 @@ class DepartmentController extends Controller
      */
     public function getStats(Department $department): JsonResponse
     {
+        $totalStudents = $department->students()->count();
+        $totalFaculty = $department->staff()->count();
+        $avgCgpa = (float) ($department->students()->avg('cgpa') ?? 0);
+        $placedStudents = $department->students()->whereNotNull('placed_company')->count();
+        $placementRate = $totalStudents > 0 ? round(($placedStudents / $totalStudents) * 100, 1) : 0;
+
         return response()->json([
             'data' => [
                 'id' => $department->id,
                 'name' => $department->name,
-                'hod_name' => $department->hod?->first_name . ' ' . $department->hod?->last_name,
-                'staff_count' => $department->staff()->count(),
-                'student_count' => $department->students()->count(),
+                'code' => $department->code,
+                'hod_name' => $department->hod ? ($department->hod->first_name . ' ' . $department->hod->last_name) : null,
+                'staff_count' => $totalFaculty,
+                'total_faculty' => $totalFaculty,
+                'student_count' => $totalStudents,
+                'total_students' => $totalStudents,
+                'average_cgpa' => round($avgCgpa, 2),
+                'placement_rate' => $placementRate,
                 'courses_count' => $department->courses()->count(),
                 'intake_capacity' => $department->intake_capacity,
                 'status' => $department->status,

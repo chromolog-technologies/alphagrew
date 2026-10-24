@@ -2,146 +2,73 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Exceptions\BusinessRuleException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Marks\SaveGradeRuleRequest;
+use App\Http\Resources\GradeRuleResource;
 use App\Models\GradeRule;
-use Illuminate\Http\Request;
+use App\Support\Tenancy\Tenant;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * The institution's grading scale (Academic Results spec §4 Stage 1).
+ */
 class GradeRuleController extends Controller
 {
-    public function __construct()
+    /** GET /grade-rules — highest band first. */
+    public function index(): AnonymousResourceCollection
     {
-        $this->middleware('auth:sanctum');
-        $this->middleware('permission:marks.create', ['only' => ['store', 'update', 'destroy', 'setupDefaults']]);
-        $this->middleware('permission:marks.view', ['only' => ['index', 'show']]);
+        return GradeRuleResource::collection(GradeRule::query()->orderByDesc('max_score')->orderBy('sort_order')->get());
     }
 
-    /**
-     * Get all grade rules
-     */
-    public function index()
+    /** GET /grade-rules/{gradeRule} */
+    public function show(GradeRule $gradeRule): GradeRuleResource
     {
-        $rules = GradeRule::orderBy('sort_order')
-            ->orderByDesc('min_score')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $rules,
-            'message' => 'Grade rules retrieved successfully',
-        ]);
+        return new GradeRuleResource($gradeRule);
     }
 
-    /**
-     * Get a specific grade rule
-     */
-    public function show(GradeRule $rule)
+    /** POST /grade-rules */
+    public function store(SaveGradeRuleRequest $request): JsonResponse
     {
-        return response()->json([
-            'success' => true,
-            'data' => $rule,
-            'message' => 'Grade rule retrieved successfully',
-        ]);
+        $rule = GradeRule::query()->create($request->attributesForModel());
+
+        return response()->json(['data' => new GradeRuleResource($rule)], 201);
     }
 
-    /**
-     * Create a new grade rule
-     */
-    public function store(Request $request)
+    /** PUT /grade-rules/{gradeRule} — applies to marks graded from now on. */
+    public function update(SaveGradeRuleRequest $request, GradeRule $gradeRule): GradeRuleResource
     {
-        $validated = $request->validate([
-            'min_score' => 'required|integer|min:0|max:100',
-            'max_score' => 'required|integer|min:0|max:100|gte:min_score',
-            'grade' => 'required|string|max:3',
-            'gpa' => 'required|numeric|min:0|max:4',
-            'description' => 'nullable|string',
-            'sort_order' => 'integer',
-        ]);
+        $gradeRule->update($request->attributesForModel());
 
-        // Check for overlap
-        $overlap = GradeRule::where(function ($q) use ($validated) {
-            $q->whereBetween('min_score', [$validated['min_score'], $validated['max_score']])
-                ->orWhereBetween('max_score', [$validated['min_score'], $validated['max_score']]);
-        })->exists();
+        return new GradeRuleResource($gradeRule);
+    }
 
-        if ($overlap) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Grade range overlaps with existing rule',
-            ], 422);
+    /** DELETE /grade-rules/{gradeRule} — removed outright so the score band can be reused. */
+    public function destroy(GradeRule $gradeRule): Response
+    {
+        $gradeRule->forceDelete();
+
+        return response()->noContent();
+    }
+
+    /** POST /grade-rules/setup-defaults — replaces the institution's scale with the default 10-point one. */
+    public function setupDefaults(Tenant $tenant): AnonymousResourceCollection
+    {
+        if (! $tenant->scopes()) {
+            throw BusinessRuleException::unprocessable('Grade rules belong to an institution; sign in as one of its users.');
         }
 
-        $rule = GradeRule::create($validated);
+        DB::transaction(function (): void {
+            GradeRule::query()->withTrashed()->forceDelete();
 
-        return response()->json([
-            'success' => true,
-            'data' => $rule,
-            'message' => 'Grade rule created successfully',
-        ], 201);
-    }
+            foreach (GradeRule::defaults() as $index => $rule) {
+                GradeRule::query()->create([...$rule, 'sort_order' => $index + 1]);
+            }
+        });
 
-    /**
-     * Update a grade rule
-     */
-    public function update(Request $request, GradeRule $rule)
-    {
-        $validated = $request->validate([
-            'min_score' => 'integer|min:0|max:100',
-            'max_score' => 'integer|min:0|max:100',
-            'grade' => 'string|max:3',
-            'gpa' => 'numeric|min:0|max:4',
-            'description' => 'nullable|string',
-            'sort_order' => 'integer',
-        ]);
-
-        $rule->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'data' => $rule,
-            'message' => 'Grade rule updated successfully',
-        ]);
-    }
-
-    /**
-     * Delete a grade rule
-     */
-    public function destroy(GradeRule $rule)
-    {
-        $rule->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Grade rule deleted successfully',
-        ]);
-    }
-
-    /**
-     * Setup default grade rules (A+, A, B, etc.)
-     */
-    public function setupDefaults()
-    {
-        // Clear this institution's rules. truncate() would ignore the institution scope and empty the
-        // table for every institution; force-delete so the per-institution unique score bands are free.
-        GradeRule::withTrashed()->get()->each->forceDelete();
-
-        $defaults = [
-            ['min_score' => 90, 'max_score' => 100, 'grade' => 'A+', 'gpa' => 4.0, 'sort_order' => 1],
-            ['min_score' => 80, 'max_score' => 89, 'grade' => 'A', 'gpa' => 3.7, 'sort_order' => 2],
-            ['min_score' => 70, 'max_score' => 79, 'grade' => 'B+', 'gpa' => 3.3, 'sort_order' => 3],
-            ['min_score' => 60, 'max_score' => 69, 'grade' => 'B', 'gpa' => 3.0, 'sort_order' => 4],
-            ['min_score' => 50, 'max_score' => 59, 'grade' => 'C', 'gpa' => 2.0, 'sort_order' => 5],
-            ['min_score' => 40, 'max_score' => 49, 'grade' => 'D', 'gpa' => 1.0, 'sort_order' => 6],
-            ['min_score' => 0, 'max_score' => 39, 'grade' => 'F', 'gpa' => 0.0, 'sort_order' => 7],
-        ];
-
-        foreach ($defaults as $rule) {
-            GradeRule::create($rule);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => GradeRule::getAllSorted(),
-            'message' => 'Default grade rules set up successfully',
-        ]);
+        return $this->index();
     }
 }

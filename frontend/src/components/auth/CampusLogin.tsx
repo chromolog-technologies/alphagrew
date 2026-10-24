@@ -1,12 +1,25 @@
 import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, Info, LockKeyhole, Mail } from 'lucide-react';
+import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
-import { campusRoleLabels, type CampusRole } from '../../campusTypes';
+import { Link } from 'react-router-dom';
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  Button,
+  Input,
+  Label,
+  Badge,
+  Alert,
+  AlertDescription,
+} from '@/components/ui';
 
-const DEMO_PASSWORD = 'demo123';
-// Set VITE_HIDE_DEMO_ACCOUNTS=true in a build that real users sign in to.
-const showDemoAccounts = import.meta.env.VITE_HIDE_DEMO_ACCOUNTS !== 'true';
+
+import { type CampusRole } from '../../campusTypes';
 
 export interface DemoAccount {
   email: string;
@@ -14,7 +27,7 @@ export interface DemoAccount {
   label: string;
 }
 
-interface CampusLoginProps {
+export interface CampusLoginProps {
   error: string;
   /** Information rather than a failure: expired session, recruiter portal not open, inactive institution. */
   notice?: string;
@@ -23,20 +36,22 @@ interface CampusLoginProps {
   onShowSignUp?: () => void;
 }
 
-function initialsOf(label: string) {
-  return label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase() ?? '')
-    .join('');
-}
+// Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
+const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
 
-export default function CampusLogin({ error, notice, demoAccounts = [], onLogin, onShowSignUp }: CampusLoginProps) {
-  const [email, setEmail] = useState(demoAccounts[0]?.email ?? '');
-  const [password, setPassword] = useState(demoAccounts.length ? DEMO_PASSWORD : '');
+export default function CampusLogin({ error, notice, onLogin }: CampusLoginProps) {
+  const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
+  const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
+  const [showPassword, setShowPassword] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
-  const pickerVisible = showDemoAccounts && demoAccounts.length > 0;
+
+  const demoRoles = [
+    { label: 'Admin', email: 'admin@demo.com', role: 'System Admin', icon: ShieldCheck },
+    { label: 'Placement', email: 'placement@demo.com', role: 'Placement Officer', icon: Briefcase },
+    { label: 'Faculty / HOD', email: 'hod.cse@demo.com', role: 'Department HOD', icon: Building },
+    { label: 'Student', email: 'student@demo.com', role: 'Candidate', icon: GraduationCap },
+  ];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -48,150 +63,182 @@ export default function CampusLogin({ error, notice, demoAccounts = [], onLogin,
     }
   };
 
-  const pickDemoAccount = (account: DemoAccount) => {
-    setEmail(account.email);
-    setPassword(DEMO_PASSWORD);
+  const handleSelectRole = (roleEmail: string) => {
+    setEmail(roleEmail);
+    setPassword('demo123');
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#edf6ff_100%)] px-4 py-8 sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(11,77,136,0.11),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(56,189,248,0.16),_transparent_26%),radial-gradient(circle_at_bottom_left,_rgba(8,41,75,0.08),_transparent_24%)]" />
-      <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-4xl items-center justify-center">
+    <div className="relative min-h-screen overflow-hidden bg-slate-50 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+      {/* Background radial effects */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,111,238,0.08),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(99,102,241,0.08),_transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
+
+      <div className="relative mx-auto w-full max-w-md">
         <motion.div
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex w-full flex-wrap items-stretch justify-center gap-5"
+          transition={{ duration: 0.35, ease: 'easeOut' }}
         >
-          <section className="w-full max-w-[430px] flex-[1_1_380px] rounded-[30px] border border-white/90 bg-white/94 p-5 shadow-[0_36px_84px_-44px_rgba(10,35,66,0.28)] backdrop-blur sm:p-6">
-            <div className="mb-5 flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-[22px] bg-[linear-gradient(145deg,#082c56,#1da9ea)] p-2 shadow-[0_24px_48px_-28px_rgba(8,44,86,0.42)]">
-                <div className="flex h-full w-full items-center justify-center rounded-[18px] bg-white">
+          <Card className="rounded-3xl border-slate-200/90 shadow-2xl bg-white/95 backdrop-blur-xl">
+            <CardHeader className="p-6 sm:p-8 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-2 text-white shadow-md shadow-blue-500/20">
+
                   <img
                     src="/alpha-logo.png"
                     alt="Alpha Grew logo"
-                    className="h-9 w-9 rounded-xl object-contain"
+                    className="h-8 w-8 rounded-xl object-contain"
                   />
                 </div>
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4d6d8f]">
-                  {campusBrand.companyName}
-                </p>
-                <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-[#0a2342]">
-                  {campusBrand.campusName}
-                </h1>
-                <p className="mt-1 text-sm text-[#4d6d8f]">
-                  Sign in to continue
-                </p>
-              </div>
-            </div>
-
-            {notice ? (
-              <div role="status" className="mt-5 flex gap-3 rounded-[18px] border border-[#c7def3] bg-[#eef6ff] px-4 py-3 text-sm leading-relaxed text-[#123a66]">
-                <Info size={18} className="mt-0.5 flex-shrink-0 text-[#0b5c9e]" aria-hidden="true" />
-                <span>{notice}</span>
-              </div>
-            ) : null}
-
-            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
-              <div className="space-y-2.5">
-                <label htmlFor="login-email" className="text-sm font-semibold text-[#173a61]">Email Address</label>
-                <div className="flex items-center gap-3 rounded-[18px] border border-[#d5e4f2] bg-[#f8fbff] px-4 py-3.5 transition focus-within:border-[#67bee9] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#dff2fd]">
-                  <Mail size={20} className="text-[#7a9abb]" aria-hidden="true" />
-                  <input
-                    id="login-email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    className="w-full border-none bg-transparent text-base text-[#0a2342] outline-none placeholder:text-[#7b94ae]"
-                    placeholder="name@university.edu"
-                    type="email"
-                    autoComplete="username"
-                  />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                      {campusBrand.companyName}
+                    </span>
+                    <Badge variant="info" className="gap-1 py-0 px-1.5 text-[9px] font-bold rounded-full">
+                      <Sparkles size={9} /> CRM
+                    </Badge>
+                  </div>
+                  <CardTitle className="truncate text-xl font-black tracking-tight text-slate-900 mt-0.5">
+                    {campusBrand.campusName}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 font-medium">
+                    Sign in to your enterprise workspace
+                  </CardDescription>
                 </div>
               </div>
+            </CardHeader>
 
-              <div className="space-y-2.5">
-                <label htmlFor="login-password" className="text-sm font-semibold text-[#173a61]">Password</label>
-                <div className="flex items-center gap-3 rounded-[18px] border border-[#d5e4f2] bg-[#f8fbff] px-4 py-3.5 transition focus-within:border-[#67bee9] focus-within:bg-white focus-within:ring-4 focus-within:ring-[#dff2fd]">
-                  <LockKeyhole size={20} className="text-[#7a9abb]" aria-hidden="true" />
-                  <input
-                    id="login-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    className="w-full border-none bg-transparent text-base text-[#0a2342] outline-none placeholder:text-[#7b94ae]"
-                    placeholder="Enter password"
-                    type="password"
-                    autoComplete="current-password"
-                  />
+            <CardContent className="p-6 sm:p-8 pt-0 space-y-5">
+              {/* Quick Demo Role Picker (development and demo builds only) */}
+              {showDemoAccess && (
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
+                  <span>Quick Demo Access</span>
+                  <span className="text-[10px] text-slate-400 font-normal lowercase">pwd: demo123</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {demoRoles.map((demo) => {
+                    const isSelected = email === demo.email;
+                    const Icon = demo.icon;
+                    return (
+                      <Button
+                        key={demo.label}
+                        type="button"
+                        variant={isSelected ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleSelectRole(demo.email)}
+                        className={`h-9 justify-start gap-2 rounded-xl text-xs font-semibold px-2.5 transition ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-sm'
+                            : 'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 border-slate-200'
+                        }`}
+                      >
+                        <Icon size={14} className={isSelected ? 'text-white' : 'text-blue-600 shrink-0'} />
+                        <span className="truncate">{demo.label}</span>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
+              )}
 
-              {error ? (
-                <div role="alert" className="rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                  {error}
+              {/* Login Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="login-email" required className="text-xs uppercase tracking-wider text-slate-600">
+                    Email Address
+                  </Label>
+                  <div className="relative flex items-center">
+                    <Mail size={16} className="absolute left-3.5 text-slate-400 pointer-events-none z-10" />
+                    <Input
+                      id="login-email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      className="pl-10 h-10 text-sm bg-slate-50/60 focus:bg-white"
+                      placeholder="name@university.edu"
+                      type="email"
+                      required
+                    />
+                  </div>
                 </div>
-              ) : null}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#082c56,#1ba8e9)] px-4 py-3.5 text-base font-semibold text-white shadow-[0_24px_45px_-28px_rgba(8,44,86,0.55)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {submitting ? 'Signing in...' : 'Sign In'}
-                {!submitting ? <ArrowRight size={18} /> : null}
-              </button>
-            </form>
-
-            {onShowSignUp ? (
-              <p className="mt-5 text-center text-sm text-[#4d6d8f]">
-                New student?{' '}
-                <button type="button" onClick={onShowSignUp} className="font-semibold text-[#0b5c9e] hover:text-[#08467a] hover:underline">
-                  Create an account with your institution code
-                </button>
-              </p>
-            ) : null}
-          </section>
-
-          {pickerVisible ? (
-            <aside className="w-full max-w-[430px] flex-[1_1_320px] rounded-[30px] border border-white/90 bg-white/94 p-5 shadow-[0_36px_84px_-44px_rgba(10,35,66,0.28)] backdrop-blur sm:p-6">
-              <h2 className="text-lg font-bold text-[#0a2342]">Demo accounts</h2>
-              <p className="mt-1 text-sm text-[#4d6d8f]">
-                Pick a role to fill the form. Password for all: <span className="font-semibold">{DEMO_PASSWORD}</span>
-              </p>
-              <div className="mt-4 space-y-2.5">
-                {demoAccounts.map((account) => {
-                  const selected = account.email === email;
-                  return (
-                    <button
-                      key={account.email}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="login-password" required className="text-xs uppercase tracking-wider text-slate-600">
+                      Password
+                    </Label>
+                    <Link to="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative flex items-center">
+                    <LockKeyhole size={16} className="absolute left-3.5 text-slate-400 pointer-events-none z-10" />
+                    <Input
+                      id="login-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      className="pl-10 pr-10 h-10 text-sm bg-slate-50/60 focus:bg-white"
+                      placeholder="Enter password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                    />
+                    <Button
                       type="button"
-                      onClick={() => pickDemoAccount(account)}
-                      aria-pressed={selected}
-                      className={`flex min-h-[60px] w-full items-center gap-3 rounded-[16px] px-3 py-2.5 text-left transition ${
-                        selected ? 'border-2 border-[#0b4d88] bg-[#f2f8fe]' : 'border border-[#d5e4f2] bg-white hover:bg-[#f8fbff]'
-                      }`}
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-1.5 h-7 w-7 text-slate-400 hover:text-slate-600"
+                      aria-label="Toggle password visibility"
                     >
-                      <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[12px] bg-[#e6f1fb] text-sm font-bold text-[#0b4d88]">
-                        {initialsOf(campusRoleLabels[account.role])}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[15px] font-semibold text-[#0a2342]">{campusRoleLabels[account.role]}</span>
-                        <span className="block truncate text-[13px] text-[#4d6d8f]">
-                          {account.email}
-                          {account.label !== campusRoleLabels[account.role] ? ` · ${account.label}` : ''}
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="mt-4 text-[13px] leading-relaxed text-[#4d6d8f]">
-                Super Admin has no demo login. Create one with{' '}
-                <code className="rounded-md bg-[#eef4fa] px-1.5 py-0.5 text-xs">php artisan alphagrew:super-admin</code>.
-              </p>
-            </aside>
-          ) : null}
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </Button>
+                  </div>
+                </div>
+
+                {error ? (
+                  <Alert variant="destructive" className="py-2.5 px-3.5 rounded-xl">
+                    <AlertDescription className="text-xs font-medium">
+                      {error}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-sm font-semibold shadow-md shadow-blue-500/20 hover:shadow-lg transition-all"
+                >
+                  {submitting ? (
+                    <span>Signing in...</span>
+                  ) : (
+                    <>
+                      <span>Sign In to Workspace</span>
+                      <ArrowRight size={16} className="ml-1" />
+                    </>
+                  )}
+                </Button>
+
+                <p className="text-center text-xs text-slate-500">
+                  New student?{' '}
+                  <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                    Register with your institution code
+                  </Link>
+                </p>
+              </form>
+            </CardContent>
+
+            {/* Security Footer */}
+            <CardFooter className="px-6 sm:px-8 py-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+              <span className="flex items-center gap-1">
+                <ShieldCheck size={13} className="text-emerald-500" />
+                Tenant Protected
+              </span>
+              <span>Version 2.4.0</span>
+            </CardFooter>
+          </Card>
+
         </motion.div>
       </div>
     </div>

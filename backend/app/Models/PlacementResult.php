@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\LogsActivity;
 
 class PlacementResult extends Model
 {
-    use LogsActivity;
+    use BelongsToInstitution, LogsActivity;
 
     protected $table = 'placement_results';
 

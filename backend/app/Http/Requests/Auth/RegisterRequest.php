@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Institution;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Validator;
 
 /**
@@ -32,7 +33,7 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email'), Rule::unique('students', 'email')],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', Password::min(8)],
             'institutionCode' => ['required', 'string', 'max:50'],
             'departmentCode' => ['required', 'string', 'max:20'],
         ];

@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToInstitution;
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\LogsActivity;
 
 class RevaluationRequest extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use BelongsToInstitution, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'mark_entry_id',

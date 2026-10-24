@@ -4,6 +4,7 @@
  */
 
 import { ApiError, apiErrorFromResponse } from './apiError';
+import { notifySessionExpired } from './campusApi';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
@@ -67,6 +68,9 @@ export async function apiCall(
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
   if (!response.ok) {
+    if (response.status === 401) {
+      notifySessionExpired();
+    }
     throw apiErrorFromResponse(response.status, payload, `API request failed with status ${response.status}`);
   }
 

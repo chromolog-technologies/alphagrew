@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Actions\Auth\AttemptLoginAction;
 use App\Actions\Students\CreateStudentAction;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -9,41 +10,20 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Campus\CampusDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly CampusDataService $campusData)
+    public function __construct(private readonly CampusDataService $campusData) {}
+
+    public function login(LoginRequest $request, AttemptLoginAction $attemptLogin): JsonResponse
     {
-    }
-
-    public function login(LoginRequest $request): JsonResponse
-    {
-        $user = User::query()
-            ->with(['student:id,user_id', 'institution'])
-            ->where('email', $request->validated('email'))
-            ->first();
-
-        if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
-            return response()->json(['message' => 'Invalid credentials.'], 422);
-        }
-
-        if (! ($user->roleEnum()?->hasPortal() ?? true)) {
-            return response()->json([
-                'message' => 'The recruiter portal is not available yet. Contact the placement office of the institution that invited you.',
-            ], 403);
-        }
-
-        if (($user->roleEnum()?->requiresInstitution() ?? true) && ! $user->institution?->isActive()) {
-            return response()->json([
-                'message' => 'Your institution account is inactive. Contact your institution administrator.',
-            ], 403);
-        }
+        $user = $attemptLogin->execute($request->validated('email'), $request->validated('password'));
 
         // Keep Spatie permissions aligned with the role and designation.
         $user->syncPermissions($this->campusData->permissionsFor($user));
@@ -51,7 +31,11 @@ class AuthController extends Controller
         return response()->json($this->campusData->authPayload($user, $this->issueToken($request, $user)));
     }
 
-    public function register(RegisterRequest $request, CreateStudentAction $createStudent): JsonResponse
+    /**
+     * Student self-registration. The account waits for approval by the institution and
+     * the student is sent an email to verify the address; no token is issued.
+     */
+    public function register(RegisterRequest $request, CreateStudentAction $createStudent, AuditLogger $audit): JsonResponse
     {
         $department = $request->department();
 
@@ -60,11 +44,17 @@ class AuthController extends Controller
             $department,
             $request->institution()->id,
             $department->hod ?? '',
+            selfRegistered: true,
         );
 
         $user = $student->user()->firstOrFail()->load('student:id,user_id');
+        $user->sendEmailVerificationNotification();
+        $audit->record('registration.submitted', $user, actor: $user);
 
-        return response()->json($this->campusData->authPayload($user, $this->issueToken($request, $user)), 201);
+        return response()->json([
+            'message' => 'Registration received. Verify your email address; you can sign in once your institution approves your registration.',
+            'user' => $this->campusData->authenticatedUser($user),
+        ], 201);
     }
 
     public function me(Request $request): JsonResponse
@@ -74,19 +64,25 @@ class AuthController extends Controller
         ]);
     }
 
-    public function updateProfile(UpdateProfileRequest $request): JsonResponse
+    public function updateProfile(UpdateProfileRequest $request, AuditLogger $audit): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
         $payload = $request->validated();
+        $emailChanged = strcasecmp($payload['email'], $user->email) !== 0;
+        $passwordChanged = ! empty($payload['password']);
 
-        DB::transaction(function () use ($user, $payload): void {
+        DB::transaction(function () use ($user, $payload, $emailChanged): void {
             $user->update([
                 'name' => $payload['name'],
                 'email' => $payload['email'],
                 'title' => $payload['title'],
                 ...(! empty($payload['password']) ? ['password' => $payload['password']] : []),
             ]);
+
+            if ($emailChanged) {
+                $user->forceFill(['email_verified_at' => null])->save();
+            }
 
             if ($user->role === UserRole::Student->value && $user->student) {
                 $user->student->update([
@@ -96,6 +92,17 @@ class AuthController extends Controller
             }
         });
 
+        if ($emailChanged) {
+            $user->sendEmailVerificationNotification();
+            $audit->record('auth.email_changed', $user);
+        }
+
+        if ($passwordChanged) {
+            // Sign out every other device; this one keeps its token.
+            $user->tokens()->whereKeyNot($user->currentAccessToken()?->getKey())->delete();
+            $audit->record('auth.password_changed', $user);
+        }
+
         $user = $user->fresh(['student:id,user_id']);
 
         return response()->json([
@@ -104,9 +111,10 @@ class AuthController extends Controller
         ]);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request, AuditLogger $audit): JsonResponse
     {
         $request->user()->currentAccessToken()?->delete();
+        $audit->record('auth.logout', $request->user());
 
         return response()->json(['message' => 'Logged out successfully.']);
     }

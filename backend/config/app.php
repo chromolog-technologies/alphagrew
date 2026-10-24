@@ -70,6 +70,10 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    // The React app. Links in emails (password reset, invitations, after email
+    // verification) point here.
+    'frontend_url' => rtrim((string) env('FRONTEND_URL', env('APP_URL', 'http://localhost')), '/'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

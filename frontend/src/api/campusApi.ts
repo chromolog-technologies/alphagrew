@@ -18,7 +18,7 @@ export { ApiError, isApiError } from './apiError';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
-type AuthResponse = {
+export type AuthResponse = {
   token: string;
   user: CampusSession;
   data: CampusData;
@@ -149,11 +149,19 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
-  if (!response.ok) {
+    if (response.status === 401 && token) {
+      notifySessionExpired();
+    }
     throw apiErrorFromResponse(response.status, payload, 'API request failed.');
-  }
 
   return payload as T;
+}
+
+/** Fired when the API rejects the stored token (expired or revoked); App signs the user out. */
+export const SESSION_EXPIRED_EVENT = 'campus:session-expired';
+
+export function notifySessionExpired() {
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 export function isCampusApiConfigured() {
@@ -869,8 +877,7 @@ export function assignClassesToStaff(token: string, staffId: number, classes: nu
 }
 
 export function fetchStaffWorkload(token: string, staffId?: number) {
-  const params = staffId ? `?staff_id=${staffId}` : '';
-  return request<any>(`/staff/management${params}/workload`, undefined, token);
+  return request<any>(`/staff/management/${staffId ?? 'me'}/workload`, undefined, token);
 }
 
 export function fetchDepartmentsListForStaff(token: string) {
@@ -1079,3 +1086,718 @@ export function generateCustomReport(token: string, payload: any) {
     token,
   );
 }
+
+// ---------------------------------------------------------------------------
+// AI Interview Journey API (documentation/ai-interview-journey-backend-spec.md)
+// ---------------------------------------------------------------------------
+
+export type ResumeRecord = {
+  id: number;
+  title: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string;
+  status: 'uploaded' | 'parsing' | 'parsed' | 'failed';
+  isDefault: boolean;
+  parseError?: string | null;
+  createdAt: string;
+  analysis?: ResumeAnalysisRecord | null;
+};
+
+export type ResumeDetailRecord = ResumeRecord & {
+  parsedData: {
+    education?: Array<{ institution?: string; degree?: string; graduationYear?: number; score?: string }>;
+    skills?: Array<{ name: string; category?: string; proficiencyHint?: string }>;
+    experience?: Array<{ organisation?: string; role?: string; startDate?: string; highlights?: string[] }>;
+    projects?: Array<{ title?: string; techStack?: string[]; description?: string; metrics?: string }>;
+  } | null;
+};
+
+export type ResumeAnalysisRecord = {
+  overallScore: number;
+  atsCompatibilityScore: number;
+  sectionScores: Record<string, number>;
+  strengths: string[];
+  improvements: string[];
+  extractedSkills: Array<{ name: string; category?: string }>;
+  modelVersion: string;
+};
+
+export type InterviewSession = {
+  id: number;
+  mode: 'technical' | 'hr' | 'resume_deep_dive' | 'system_design' | 'mixed';
+  targetRole: string;
+  targetExperienceLevel: 'fresher' | 'junior' | 'intermediate';
+  baseDifficulty: number;
+  currentDifficulty: number;
+  status: 'planned' | 'in_progress' | 'evaluating' | 'completed' | 'abandoned' | 'failed';
+  timeLimitMinutes: number;
+  plan: {
+    totalTargetTurns: number | null;
+    competencies: Array<{ name: string; weight: number; plannedTurns: number }>;
+  };
+  resumeId: number | null;
+  jobPostingId: number | null;
+  endReason: string | null;
+  consentGivenAt: string | null;
+  startedAt: string | null;
+  endsAt: string | null;
+  endedAt: string | null;
+  overallScore?: number | null;
+  createdAt: string;
+};
+
+export type InterviewTurn = {
+  id: number;
+  sequence: number;
+  kind: 'question' | 'follow_up' | 'clarification' | 'system_hint';
+  competency: string;
+  difficulty: number;
+  questionText: string;
+  questionAudioUrl: string | null;
+  askedAt: string;
+  answerText: string | null;
+  answeredAt: string | null;
+  answerDurationSeconds: number | null;
+  quickSignal?: {
+    relevance: number;
+    depth: 'shallow' | 'adequate' | 'profound';
+    technicalScore: number;
+    claimDetected?: boolean;
+  } | null;
+};
+
+export type InterviewDetail = InterviewSession & {
+  turns: InterviewTurn[];
+};
+
+export type InterviewEvaluation = {
+  interviewId: number;
+  overallScore: number;
+  dimensionScores: Record<string, number>;
+  dimensionWeights: Record<string, number>;
+  competencyBreakdown: Array<{ competency: string; score: number; summary: string }>;
+  strengths: string[];
+  weaknesses: string[];
+  perTurnEvaluations: Array<{ turnId: number; sequence: number; question: string; answer: string; score: number; feedback: string }>;
+  recommendations: string[];
+  rubricVersion: string;
+  modelName: string;
+  evaluatedAt: string;
+  note: string;
+};
+
+export type SkillGapReport = {
+  id: number;
+  interviewId: number | null;
+  targetRole: string;
+  overallMatchPercentage: number;
+  competencies: Array<{
+    skill: string;
+    expectedLevel: string;
+    demonstratedLevel: string;
+    status: 'exceeds' | 'meets' | 'gap' | 'missing';
+    remediation?: string;
+  }>;
+  generatedAt: string;
+};
+
+export type AiRecommendation = {
+  id: number;
+  type: string;
+  title: string;
+  detail: string;
+  skill: string;
+  action: string;
+  priority: 'high' | 'medium' | 'low';
+  status: 'open' | 'done' | 'dismissed';
+  sourceType: string;
+  sourceId: number | null;
+  createdAt: string;
+};
+
+export type StudentReadiness = {
+  overall: number;
+  components: {
+    resumeScore?: number;
+    academicSummary?: number;
+    assessmentAttempts?: number;
+    interviewEvaluation?: number;
+  };
+  calculatedAt: string;
+  history: Array<{ overall: number; trigger: string; calculatedAt: string }>;
+  note: string;
+};
+
+export const resumeApi = {
+  list(token: string) {
+    return request<{ data: ResumeRecord[] }>('/students/me/resumes', undefined, token);
+  },
+  upload(token: string, file: File, title: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    return request<{ data: ResumeRecord }>(
+      '/students/me/resumes',
+      {
+        method: 'POST',
+        body: formData,
+      },
+      token,
+    );
+  },
+  get(token: string, resumeId: number) {
+    return request<{ data: ResumeDetailRecord }>(`/students/me/resumes/${resumeId}`, undefined, token);
+  },
+  getAnalysis(token: string, resumeId: number) {
+    return request<{ data: ResumeAnalysisRecord }>(`/students/me/resumes/${resumeId}/analysis`, undefined, token);
+  },
+  getDownloadUrl(token: string, resumeId: number) {
+    return request<{ data: { url: string; expiresAt: string } }>(`/students/me/resumes/${resumeId}/download`, undefined, token);
+  },
+  queueAnalysis(token: string, resumeId: number) {
+    return request<{ data: { status: string } }>(
+      `/students/me/resumes/${resumeId}/analysis`,
+      { method: 'POST' },
+      token,
+    );
+  },
+  delete(token: string, resumeId: number) {
+    return request<{ message: string }>(
+      `/students/me/resumes/${resumeId}`,
+      { method: 'DELETE' },
+      token,
+    );
+  },
+};
+
+export const interviewApi = {
+  create(
+    token: string,
+    payload: {
+      mode: 'technical' | 'hr' | 'resume_deep_dive' | 'system_design' | 'mixed';
+      targetRole?: string;
+      targetExperienceLevel?: 'fresher' | 'junior' | 'intermediate';
+      baseDifficulty?: number;
+      resumeId?: number | null;
+      jobPostingId?: number | null;
+      timeLimitMinutes?: number;
+    },
+  ) {
+    return request<{ data: InterviewSession }>(
+      '/students/me/interviews',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      token,
+    );
+  },
+  history(token: string, params?: { status?: string; page?: number; perPage?: number }) {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.perPage) searchParams.append('perPage', params.perPage.toString());
+    const qs = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    return request<{ data: InterviewSession[]; meta?: any }>(`/students/me/interviews${qs}`, undefined, token);
+  },
+  get(token: string, interviewId: number) {
+    return request<{ data: InterviewDetail }>(`/interviews/${interviewId}`, undefined, token);
+  },
+  start(token: string, interviewId: number) {
+    return request<{ data: { firstTurn: InterviewTurn } }>(
+      `/interviews/${interviewId}/start`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ consentAccepted: true }),
+      },
+      token,
+    );
+  },
+  answerTurn(
+    token: string,
+    interviewId: number,
+    turnId: number,
+    answerText?: string,
+    audio?: File,
+  ) {
+    if (audio) {
+      const formData = new FormData();
+      formData.append('audio', audio);
+      if (answerText) formData.append('answerText', answerText);
+      return request<{ data: { nextTurn: InterviewTurn | null; isCompleted: boolean } }>(
+        `/interviews/${interviewId}/turns/${turnId}/answer`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+        token,
+      );
+    }
+    return request<{ data: { nextTurn: InterviewTurn | null; isCompleted: boolean } }>(
+      `/interviews/${interviewId}/turns/${turnId}/answer`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ answerText }),
+      },
+      token,
+    );
+  },
+  finish(token: string, interviewId: number, reason?: string) {
+    return request<{ data: { status: string } }>(
+      `/interviews/${interviewId}/finish`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason ?? 'user_ended' }),
+      },
+      token,
+    );
+  },
+  getEvaluation(token: string, interviewId: number) {
+    return request<{ data: InterviewEvaluation }>(`/interviews/${interviewId}/evaluation`, undefined, token);
+  },
+  getSkillGap(token: string, interviewId: number) {
+    return request<{ data: SkillGapReport }>(`/interviews/${interviewId}/skill-gap`, undefined, token);
+  },
+  getRecommendations(token: string, status?: 'open' | 'done' | 'dismissed') {
+    const qs = status ? `?status=${status}` : '';
+    return request<{ data: AiRecommendation[] }>(`/students/me/recommendations${qs}`, undefined, token);
+  },
+  updateRecommendation(token: string, recommendationId: number, status: 'open' | 'done' | 'dismissed') {
+    return request<{ data: AiRecommendation }>(
+      `/students/me/recommendations/${recommendationId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      },
+      token,
+    );
+  },
+  getReadinessScore(token: string) {
+    return request<{ data: StudentReadiness }>('/students/me/readiness-score', undefined, token);
+  },
+  getReadinessHistory(token: string) {
+    return request<{ data: Array<{ overall: number; trigger: string; calculatedAt: string }> }>(
+      '/students/me/readiness/history',
+      undefined,
+      token,
+    );
+  },
+};
+
+// ============================================
+// Academic Results & Marks Lifecycle (Stages 1–6)
+// documentation/academic-results-backend-spec.md
+// ============================================
+
+// Stage 1: Grade Rules & Mark Schemes
+export function fetchGradeRules(token: string) {
+  return request<any>('/grade-rules', undefined, token);
+}
+
+export function setupDefaultGradeRules(token: string) {
+  return request<any>('/grade-rules/setup-defaults', { method: 'POST' }, token);
+}
+
+export function saveGradeRule(token: string, payload: any, id?: number) {
+  return request<any>(
+    id ? `/grade-rules/${id}` : '/grade-rules',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function deleteGradeRule(token: string, id: number) {
+  return request<any>(`/grade-rules/${id}`, { method: 'DELETE' }, token);
+}
+
+export function fetchMarkSchemes(token: string, semesterId?: number, subjectId?: number) {
+  const params = new URLSearchParams();
+  if (semesterId) params.append('semesterId', semesterId.toString());
+  if (subjectId) params.append('subjectId', subjectId.toString());
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request<any>(`/mark-schemes${qs}`, undefined, token);
+}
+
+export function saveMarkScheme(token: string, payload: any, id?: number) {
+  return request<any>(
+    id ? `/mark-schemes/${id}` : '/mark-schemes',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+// Stage 2 & 3: Faculty Marks Entry & Submission
+export function fetchMarkEntries(token: string, examId?: number, subjectId?: number, status?: string) {
+  const params = new URLSearchParams();
+  if (examId) params.append('examId', examId.toString());
+  if (subjectId) params.append('subjectId', subjectId.toString());
+  if (status) params.append('status', status);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request<any>(`/mark-entries${qs}`, undefined, token);
+}
+
+export function fetchMarkRoster(token: string, examId: number, subjectId: number) {
+  return request<any>(`/mark-entries/get-students?examId=${examId}&subjectId=${subjectId}`, undefined, token);
+}
+
+export function saveDraftMarks(token: string, payload: {
+  examId: number;
+  subjectId: number;
+  entries: Array<{
+    studentId: number;
+    internalMarks?: number | null;
+    externalMarks?: number | null;
+    extraMarks?: number;
+    isAbsent?: boolean;
+    remarks?: string;
+  }>;
+}) {
+  return request<any>(
+    '/mark-entries/save-draft',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function submitMarksForReview(token: string, payload: {
+  examId: number;
+  subjectId: number;
+  declarationConfirmed?: boolean;
+}) {
+  return request<any>(
+    '/mark-entries/submit',
+    {
+      method: 'POST',
+      body: JSON.stringify({ declarationConfirmed: true, ...payload }),
+    },
+    token,
+  );
+}
+
+// Stage 4: Review, Moderation & Approval
+export function fetchReviewQueue(token: string, examId?: number, subjectId?: number, status?: string | string[]) {
+  const params = new URLSearchParams();
+  if (examId) params.append('examId', examId.toString());
+  if (subjectId) params.append('subjectId', subjectId.toString());
+  if (status) {
+    if (Array.isArray(status)) {
+      status.forEach(s => params.append('status[]', s));
+    } else {
+      params.append('status', status);
+    }
+  }
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request<any>(`/mark-review/get-submitted-marks${qs}`, undefined, token);
+}
+
+export function fetchExamSummary(token: string, examId: number, subjectId: number) {
+  return request<any>(`/mark-review/exam-summary?examId=${examId}&subjectId=${subjectId}`, undefined, token);
+}
+
+export function verifyMarkEntry(token: string, markEntryId: number, payload?: { remarks?: string; adjustments?: Record<string, any> }) {
+  return request<any>(
+    `/mark-review/${markEntryId}/verify`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload ?? {}),
+    },
+    token,
+  );
+}
+
+export function approveMarkEntry(token: string, markEntryId: number) {
+  return request<any>(
+    `/mark-review/${markEntryId}/approve`,
+    {
+      method: 'POST',
+    },
+    token,
+  );
+}
+
+export function rejectMarkEntry(token: string, markEntryId: number, payload: { remarks?: string; reason?: string }) {
+  return request<any>(
+    `/mark-review/${markEntryId}/reject`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ remarks: payload.remarks || payload.reason, reason: payload.reason || payload.remarks }),
+    },
+    token,
+  );
+}
+
+export function bulkApproveMarks(token: string, payload: { examId: number; subjectId: number }) {
+  return request<any>(
+    '/mark-review/bulk-approve',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+// Stage 5: Result Publishing & Locking
+export function fetchPublishingStatus(token: string, semesterId: number) {
+  return request<any>(`/result-publishing/status?semesterId=${semesterId}`, undefined, token);
+}
+
+export function publishSemesterResults(token: string, semesterId: number) {
+  return request<any>(
+    '/result-publishing/publish',
+    {
+      method: 'POST',
+      body: JSON.stringify({ semesterId }),
+    },
+    token,
+  );
+}
+
+export function unlockSemesterResults(token: string, semesterId: number, reason: string) {
+  return request<any>(
+    '/result-publishing/unlock',
+    {
+      method: 'POST',
+      body: JSON.stringify({ semesterId, reason }),
+    },
+    token,
+  );
+}
+
+export function fetchPublishingLogs(token: string, semesterId?: number) {
+  const qs = semesterId ? `?semesterId=${semesterId}` : '';
+  return request<any>(`/result-publishing/logs${qs}`, undefined, token);
+}
+
+// Stage 6: Student Published Results
+export function fetchStudentPublishedSemesters(token: string) {
+  return request<any>('/student/results/semesters', undefined, token);
+}
+
+export function fetchStudentSemesterGradeCard(token: string, semesterId: number) {
+  return request<any>(`/student/results/semester/${semesterId}`, undefined, token);
+}
+
+export function fetchStudentAllResults(token: string) {
+  return request<any>('/student/results/all', undefined, token);
+}
+
+export function fetchStudentAcademicSummary(token: string, studentId: number) {
+  return request<any>(`/students/${studentId}/academic-summary`, undefined, token);
+}
+
+// ============================================
+// Student Journey API (Steps 2, 3, 6)
+// documentation/student-journey-backend-spec.md
+// ============================================
+
+// Step 2: Student Career Profile
+export function fetchMyProfile(token: string) {
+  return request<any>('/students/me/profile', undefined, token);
+}
+
+export function updateMyProfile(token: string, payload: {
+  headline?: string;
+  about?: string;
+  dateOfBirth?: string;
+  phone?: string;
+  alternateEmail?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  linkedinUrl?: string;
+  githubUrl?: string;
+  portfolioUrl?: string;
+  preferredRoles?: string[];
+  preferredLocations?: string[];
+  willingToRelocate?: boolean;
+  visibility?: Record<string, boolean>;
+}) {
+  return request<any>(
+    '/students/me/profile',
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function uploadMyProfilePhoto(token: string, photo: File) {
+  const formData = new FormData();
+  formData.append('photo', photo);
+  return request<any>(
+    '/students/me/profile/photo',
+    {
+      method: 'POST',
+      body: formData,
+    },
+    token,
+  );
+}
+
+// Step 2 Sub-resources: Projects, Certifications, Experience
+export function fetchMyProjects(token: string) {
+  return request<any>('/students/me/projects', undefined, token);
+}
+
+export function saveMyProject(token: string, payload: {
+  title: string;
+  description?: string;
+  techStack: string[];
+  url?: string;
+  startDate: string;
+  endDate?: string;
+}, id?: number) {
+  return request<any>(
+    id ? `/students/me/projects/${id}` : '/students/me/projects',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function deleteMyProject(token: string, id: number) {
+  return request<any>(`/students/me/projects/${id}`, { method: 'DELETE' }, token);
+}
+
+export function fetchMyCertifications(token: string) {
+  return request<any>('/students/me/certifications', undefined, token);
+}
+
+export function saveMyCertification(token: string, payload: {
+  name: string;
+  issuer: string;
+  issuedOn: string;
+  expiresOn?: string;
+  credentialUrl?: string;
+}, id?: number) {
+  return request<any>(
+    id ? `/students/me/certifications/${id}` : '/students/me/certifications',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function deleteMyCertification(token: string, id: number) {
+  return request<any>(`/students/me/certifications/${id}`, { method: 'DELETE' }, token);
+}
+
+export function fetchMyExperience(token: string) {
+  return request<any>('/students/me/experience', undefined, token);
+}
+
+export function saveMyExperience(token: string, payload: {
+  type: 'internship' | 'job' | 'freelance';
+  organisation: string;
+  role: string;
+  startDate: string;
+  endDate?: string;
+  description?: string;
+}, id?: number) {
+  return request<any>(
+    id ? `/students/me/experience/${id}` : '/students/me/experience',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function deleteMyExperience(token: string, id: number) {
+  return request<any>(`/students/me/experience/${id}`, { method: 'DELETE' }, token);
+}
+
+// Step 3: Prior Education & Derived Academic Summary
+export function fetchMyAcademics(token: string) {
+  return request<any>('/students/me/academics', undefined, token);
+}
+
+export function saveMyEducation(token: string, payload: {
+  level: 'class_10' | 'class_12' | 'diploma' | 'ug' | 'pg';
+  boardOrUniversity: string;
+  institutionName: string;
+  yearOfPassing: number;
+  scoreType: 'percentage' | 'cgpa';
+  score: number;
+}, id?: number) {
+  return request<any>(
+    id ? `/students/me/education/${id}` : '/students/me/education',
+    {
+      method: id ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function deleteMyEducation(token: string, id: number) {
+  return request<any>(`/students/me/education/${id}`, { method: 'DELETE' }, token);
+}
+
+export function fetchStaffStudentAcademics(token: string, studentId: number) {
+  return request<any>(`/students/${studentId}/academics`, undefined, token);
+}
+
+export function verifyStudentEducation(token: string, studentId: number, educationId: number, payload: {
+  verified: boolean;
+  remarks?: string;
+}) {
+  return request<any>(
+    `/students/${studentId}/education/${educationId}/verify`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function recalculateStudentAcademics(token: string, studentId: number) {
+  return request<any>(`/students/${studentId}/academics/recalculate`, { method: 'POST' }, token);
+}
+
+// Step 6: Skills Catalogue & Student Skills Profile
+export function fetchSkillsCatalogue(token: string, search?: string, category?: string) {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (category) params.append('category', category);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request<any>(`/skills${qs}`, undefined, token);
+}
+
+export function fetchMySkills(token: string) {
+  return request<any>('/students/me/skills', undefined, token);
+}
+
+export function updateMySkills(token: string, skills: Array<{ skillId: number; level: number }>) {
+  return request<any>(
+    '/students/me/skills',
+    {
+      method: 'PUT',
+      body: JSON.stringify({ skills }),
+    },
+    token,
+  );
+}
+
+export function deleteMySkill(token: string, skillId: number) {
+  return request<any>(`/students/me/skills/${skillId}`, { method: 'DELETE' }, token);
+}
+

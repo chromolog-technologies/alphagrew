@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Plus, Lock, Users, Edit2, Trash2, Check, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Lock, Users, Edit2, Trash2, Check, X, Loader } from 'lucide-react';
+import { apiCall } from '../../api/apiClient';
 
 interface Permission {
   id: number;
@@ -44,6 +45,32 @@ export const RolesPermissionsModule: React.FC = () => {
       createdAt: '2026-01-10',
     },
   ]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        setLoading(true);
+        const res = await apiCall('/permissions/roles/all', 'GET');
+        if (res?.roles && Array.isArray(res.roles) && res.roles.length > 0) {
+          setRoles(res.roles.map((r: any, idx: number) => ({
+            id: r.id || idx + 1,
+            name: r.name ? r.name.replace('_', ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Role',
+            description: `${r.permissions_count || 0} permissions assigned`,
+            permissions: Array.isArray(r.permissions) ? r.permissions.map((_: any, pIdx: number) => pIdx + 1) : [1],
+            userCount: r.users_count || 0,
+            createdAt: '2026-01-01',
+          })));
+        }
+      } catch (err) {
+        console.warn('Could not load real roles from API, using fallback:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoles();
+  }, []);
 
   const [permissions] = useState<Permission[]>([
     { id: 1, name: 'dashboard.view', description: 'View Dashboard', module: 'Dashboard' },

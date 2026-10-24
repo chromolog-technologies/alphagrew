@@ -127,7 +127,7 @@ class AttendanceController extends Controller
                         'faculty_id' => $user->id,
                         'attendance_date' => $validated['attendance_date'],
                         'status' => $record['status'],
-                        'remarks' => $validated['remarks'],
+                        'remarks' => $validated['remarks'] ?? null,
                     ]);
                     $created[] = $attendance;
                 }
@@ -148,6 +148,26 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Subjects the signed-in user may mark attendance for.
+     * Staff do not have the departments permission that guards GET /subjects.
+     */
+    public function subjects(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->hasPermissionTo('attendance.mark', 'sanctum')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $subjects = Subject::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+
+        return response()->json(['subjects' => $subjects]);
+    }
+
+    /**
      * Get students for a specific subject (for marking attendance)
      */
     public function getStudentsForSubject(Request $request, $subjectId)
@@ -161,27 +181,30 @@ class AttendanceController extends Controller
 
         $subject = Subject::findOrFail($subjectId);
 
-        // Get all classes that have this subject in current semester
-        $classes = ClassModel::where('subject_id', $subjectId)
-            ->orWhereHas('semester', function (Builder $query) {
-                $query->where('is_active', true);
+        // Classes have no subject_id. A subject belongs to a course and a semester number;
+        // the roster is the students in that course's classes for the same semester.
+        $classIds = ClassModel::query()
+            ->where('course_id', $subject->course_id)
+            ->whereHas('semester', function (Builder $query) use ($subject) {
+                $query->where('semester_number', $subject->semester_number);
             })
-            ->get();
+            ->pluck('id');
 
-        // Get students in those classes
-        $students = Student::whereHas('classes', function (Builder $query) use ($classes) {
-            $query->whereIn('classes.id', $classes->pluck('id'));
-        })
-        ->with('user')
-        ->get()
-        ->map(function ($student) {
-            return [
-                'id' => $student->id,
-                'roll_number' => $student->roll_number,
-                'name' => $student->user->name,
-                'email' => $student->user->email,
-            ];
-        });
+        $students = Student::query()
+            ->whereHas('classes', function (Builder $query) use ($classIds) {
+                $query->whereIn('classes.id', $classIds);
+            })
+            ->with('user')
+            ->orderBy('registration_number')
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'roll_number' => $student->registration_number,
+                    'name' => $student->user?->name ?? $student->name,
+                    'email' => $student->user?->email ?? $student->email,
+                ];
+            });
 
         return response()->json([
             'subject' => [
@@ -251,7 +274,7 @@ class AttendanceController extends Controller
             'student' => [
                 'id' => $student->id,
                 'name' => $student->user->name,
-                'roll_number' => $student->roll_number,
+                'roll_number' => $student->registration_number,
                 'email' => $student->user->email,
             ],
             'overall' => [

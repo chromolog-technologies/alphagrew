@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Traits\BelongsToInstitution;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
@@ -18,6 +20,7 @@ class Student extends Model
         'email',
         'registration_number',
         'department_code',
+        'batch_id',
         'year',
         'gender',
         'status',
@@ -47,8 +50,75 @@ class Student extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function classes(): BelongsToMany
+    {
+        return $this->belongsToMany(ClassModel::class, 'class_student', 'student_id', 'class_id')
+            ->withPivot('assigned_from', 'assigned_to')
+            ->withTimestamps();
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
     public function applications(): HasMany
     {
         return $this->hasMany(CompanyApplication::class);
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    public function projects(): HasMany
+    {
+        return $this->hasMany(StudentProject::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function certifications(): HasMany
+    {
+        return $this->hasMany(StudentCertification::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function experience(): HasMany
+    {
+        return $this->hasMany(StudentExperience::class)->orderBy('sort_order')->orderByDesc('start_date');
+    }
+
+    /** Skills with level and source (student_skills rows). Replaces the legacy students.skills JSON. */
+    public function studentSkills(): HasMany
+    {
+        return $this->hasMany(StudentSkill::class);
+    }
+
+    /** Prior education (10th, 12th, diploma, previous degree). */
+    public function education(): HasMany
+    {
+        return $this->hasMany(StudentAcademic::class);
+    }
+
+    /** CGPA, backlogs and attendance derived from published results. */
+    public function academicSummary(): HasOne
+    {
+        return $this->hasOne(StudentAcademicSummary::class);
+    }
+
+    /** Uploaded resume files (AI Interview Journey stage 1). */
+    public function resumes(): HasMany
+    {
+        return $this->hasMany(Resume::class);
+    }
+
+    public function interviews(): HasMany
+    {
+        return $this->hasMany(AiInterview::class);
+    }
+
+    /** Readiness history, newest last. */
+    public function readinessScores(): HasMany
+    {
+        return $this->hasMany(ReadinessScore::class)->orderBy('calculated_at')->orderBy('id');
     }
 }

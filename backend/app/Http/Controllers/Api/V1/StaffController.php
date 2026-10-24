@@ -11,6 +11,7 @@ use App\Http\Requests\Staff\UpdateStaffMemberRequest;
 use App\Http\Resources\StaffMemberResource;
 use App\Models\Institution;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Campus\CampusDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,9 +21,13 @@ use Illuminate\Http\Request;
  */
 class StaffController extends Controller
 {
-    public function __construct(private readonly CampusDataService $campusData)
-    {
-    }
+    /** Fields recorded in the audit log when an account changes (they decide what it can access). */
+    private const AUDITED_FIELDS = ['name', 'email', 'role', 'department_code', 'designation_id'];
+
+    public function __construct(
+        private readonly CampusDataService $campusData,
+        private readonly AuditLogger $audit,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -41,14 +46,24 @@ class StaffController extends Controller
     {
         $actor = $request->user();
 
-        $saveStaff->execute($request->toData(), institutionId: Institution::forNewAccountsOf($actor));
+        $staff = $saveStaff->execute($request->toData(), institutionId: Institution::forNewAccountsOf($actor));
+        $this->audit->record('staff.created', $staff, [], $staff->only(self::AUDITED_FIELDS));
 
         return response()->json(['data' => $this->campusData->buildForUser($actor)], 201);
     }
 
     public function update(UpdateStaffMemberRequest $request, User $staff, SaveStaffMemberAction $saveStaff): JsonResponse
     {
+        $before = $staff->only(self::AUDITED_FIELDS);
         $saveStaff->execute($request->toData(), $staff);
+        $after = $staff->only(self::AUDITED_FIELDS);
+
+        if ($before !== $after || $request->filled('password')) {
+            $this->audit->record('staff.updated', $staff, $before, [
+                ...$after,
+                ...($request->filled('password') ? ['passwordChanged' => true] : []),
+            ]);
+        }
 
         return response()->json(['data' => $this->campusData->buildForUser($request->user())]);
     }
@@ -58,7 +73,9 @@ class StaffController extends Controller
         $this->ensureAdmin($request->user());
         abort_unless($staff->isInstitutionStaff(), 404);
 
+        $before = $staff->only(self::AUDITED_FIELDS);
         $deleteStaff->execute($staff);
+        $this->audit->record('staff.deleted', $staff, $before);
 
         return response()->json(['data' => $this->campusData->buildForUser($request->user())]);
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import {
   applyToCompanyWithCampusApi,
   createAnnouncementWithCampusApi,
@@ -31,11 +31,19 @@ import {
   updateStaffWithCampusApi,
   updateStudentWithCampusApi,
   updateStudentResumeWithCampusApi,
+  SESSION_EXPIRED_EVENT,
+  type AuthResponse,
   type StudentRecordResponse,
 } from './api/campusApi';
+import { Navigate, Route, Routes } from 'react-router-dom';
+import { resendVerificationEmail } from './api/accountApi';
+import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
-import { CampusLogin, CampusSignUp, type DemoAccount, type SignUpPayload } from './components/auth';
-import CampusWorkspace from './components/layouts/CampusWorkspace';
+import { CampusLogin, type DemoAccount, type SignUpPayload } from './components/auth';
+import { PageLoading } from './components/shared/RouteStatus';
+
+// Loaded after sign-in, so the sign-in page doesn't download the whole workspace.
+const CampusWorkspace = lazy(() => import('./components/layouts/CampusWorkspace'));
 import {
   campusDefaultDesignations,
   campusDefaultMasters,
@@ -275,6 +283,29 @@ export default function App() {
     localStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   }, [auth]);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setAuth(null);
+      setError('Your session has expired. Please sign in again.');
+    };
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+  }, []);
+
+  // The email verification link redirects here with ?verified=1 (or =invalid).
+  const [notice, setNotice] = useState(() => {
+    const verified = new URLSearchParams(window.location.search).get('verified');
+    if (verified === '1') return 'Your email address is verified.';
+    if (verified === 'invalid') return 'That verification link is not valid. Sign in and request a new one.';
+    return '';
+  });
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has('verified')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     if (!apiConfigured || !auth?.token) {
@@ -1663,42 +1694,38 @@ export default function App() {
     setAuth(null);
   };
 
+  const handleInvitationAccepted = (response: AuthResponse) => {
+    setData(applyBrandAccents(response.data));
+    setAuth({ token: response.token, user: response.user });
+    setError('');
+  };
+
   if (!auth?.user) {
-    if (authView === 'signup') {
-      return (
-        <CampusSignUp
-          onRegister={handleRegister}
-          onShowLogin={() => {
-            setAuthView('login');
-            setError('');
-          }}
-        />
-      );
-    }
-
-    // Offline demo mode signs in against the local dataset, so list one account per role from it.
-    const demoAccounts: DemoAccount[] = apiConfigured
-      ? apiDemoAccounts
-      : data.users
-          .filter((account, index, accounts) => accounts.findIndex((other) => other.role === account.role) === index)
-          .map((account) => ({ email: account.email, role: account.role, label: account.title }));
-
+    // Signed out: the account pages opened from emails, otherwise the sign-in page. A deep
+    // link such as /app/marks stays in the address bar and opens after signing in.
     return (
-      <CampusLogin
-        error={error}
-        notice={loginNotice}
-        demoAccounts={demoAccounts}
-        onLogin={handleLogin}
-        onShowSignUp={() => {
-          setAuthView('signup');
-          setError('');
-          setLoginNotice('');
-        }}
-      />
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/invitations/accept" element={<AcceptInvitationPage onSignedIn={handleInvitationAccepted} />} />
+        <Route
+          path="*"
+          element={
+            <>
+              <CampusLogin error={error} notice={loginNotice} onLogin={handleLogin} />
+              <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+            </>
+          }
+        />
+      </Routes>
     );
   }
 
-  return (
+  const workspace = (
+    <>
+    <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+    {apiConfigured && auth.user.emailVerified === false ? <VerifyEmailReminder email={auth.user.email} /> : null}
     <CampusWorkspace
       error={error}
       tenantError={tenantError}
@@ -1732,5 +1759,65 @@ export default function App() {
       onDeleteStaff={handleDeleteStaff}
       onApplyToCompany={handleApplyToCompany}
     />
+    </>
+  );
+
+  // Signed in: every page lives at /app/<page>; anything else opens the dashboard.
+  return (
+    <Routes>
+      <Route path="/app/:tab" element={<Suspense fallback={<PageLoading />}>{workspace}</Suspense>} />
+      <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+    </Routes>
+  );
+}
+
+/** A dismissible status message, e.g. after following an email verification link. */
+function AccountNotice({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  if (!message) return null;
+
+  return (
+    <div role="status" className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-lg">
+      <span className="flex-1">{message}</span>
+      <button type="button" onClick={onDismiss} className="font-semibold text-blue-600 hover:text-blue-700">
+        Dismiss
+      </button>
+    </div>
+  );
+}
+
+/** Shown until the signed-in user verifies their email address; applying to drives needs it. */
+function VerifyEmailReminder({ email }: { email: string }) {
+  const [message, setMessage] = useState('');
+  const [hidden, setHidden] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  if (hidden) return null;
+
+  const resend = async () => {
+    setSending(true);
+    try {
+      setMessage((await resendVerificationEmail()).message);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : 'Could not send the email. Try again later.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div role="status" className="fixed bottom-4 left-4 z-50 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg">
+      <p className="font-semibold">Verify your email address</p>
+      <p className="mt-1">
+        {message || `We sent a link to ${email}. You need a verified address to apply to placement drives.`}
+      </p>
+      <div className="mt-3 flex gap-3">
+        <button type="button" disabled={sending} onClick={() => void resend()} className="font-semibold text-amber-900 underline disabled:opacity-60">
+          {sending ? 'Sending…' : 'Resend link'}
+        </button>
+        <button type="button" onClick={() => setHidden(true)} className="font-semibold text-amber-800">
+          Later
+        </button>
+      </div>
+    </div>
   );
 }

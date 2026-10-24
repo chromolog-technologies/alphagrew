@@ -9,5 +9,3 @@ export { HODReportsAnalytics } from './HODReportsAnalytics';
 export { HODStaffManagement } from './HODStaffManagement';
 export { MarksEntry } from './MarksEntry';
 export { PlacementOfficerModule } from './PlacementOfficerModule';
-export { default as RecruiterDashboard } from './RecruiterDashboard';
-export { default as TPODashboard } from './TPODashboard';

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Audit\AuditLogger;
 use App\Services\Campus\CampusDataService;
 use Database\Seeders\CampusDemoSeeder;
 use Illuminate\Http\JsonResponse;
@@ -17,9 +18,7 @@ use Illuminate\Support\Facades\Artisan;
  */
 class CampusController extends Controller
 {
-    public function __construct(private readonly CampusDataService $campusData)
-    {
-    }
+    public function __construct(private readonly CampusDataService $campusData) {}
 
     public function bootstrap(Request $request): JsonResponse
     {
@@ -39,6 +38,7 @@ class CampusController extends Controller
             '--class' => CampusDemoSeeder::class,
             '--force' => true,
         ]);
+        app(AuditLogger::class)->record('demo.reset', null, [], [], User::query()->find($request->user()->id));
 
         $user = User::query()
             ->with('student:id,user_id')

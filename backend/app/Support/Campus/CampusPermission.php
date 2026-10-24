@@ -8,6 +8,7 @@ final class CampusPermission
     // Dashboard & Core
     public const DASHBOARD_VIEW = 'dashboard.view';
     public const PROFILE_VIEW = 'profile.view';
+    public const PROFILE_EDIT = 'profile.edit';
     public const DEMO_RESET = 'demo.reset';
 
     // Master Data Management
@@ -78,7 +79,16 @@ final class CampusPermission
     public const MARKS_EDIT = 'marks.edit';
     public const MARKS_DELETE = 'marks.delete';
     public const MARKS_PUBLISH = 'marks.publish';
+    // Verify / approve / reject submitted marks. Granted through the HOD (own department)
+    // and Exam Coordinator (whole institution) designations, never the base staff role.
     public const MARKS_APPROVE = 'marks.approve';
+
+    // Results: a student's derived CGPA / backlog summary, for placement eligibility.
+    public const RESULTS_VIEW_SUMMARY = 'results.view_summary';
+
+    // AI Interview Journey: a student's own resumes and mock interviews.
+    public const RESUMES_MANAGE = 'resumes.manage';
+    public const INTERVIEWS_PRACTICE = 'interviews.practice';
 
     // Timetable Management
     public const TIMETABLE_VIEW = 'timetable.view';
@@ -155,6 +165,7 @@ final class CampusPermission
             // Dashboard & Core
             self::DASHBOARD_VIEW,
             self::PROFILE_VIEW,
+            self::PROFILE_EDIT,
             self::DEMO_RESET,
 
             // Master Data
@@ -227,6 +238,13 @@ final class CampusPermission
             self::MARKS_DELETE,
             self::MARKS_PUBLISH,
             self::MARKS_APPROVE,
+
+            // Results
+            self::RESULTS_VIEW_SUMMARY,
+
+            // AI Interview Journey
+            self::RESUMES_MANAGE,
+            self::INTERVIEWS_PRACTICE,
 
             // Timetable
             self::TIMETABLE_VIEW,
@@ -315,6 +333,7 @@ final class CampusPermission
                 self::PROFILE_VIEW,
                 self::STUDENTS_VIEW,
                 self::STUDENTS_VIEW_ALL,
+                self::RESULTS_VIEW_SUMMARY,
                 self::DEPARTMENTS_VIEW,
                 self::COURSES_VIEW,
                 self::COMPANIES_VIEW,

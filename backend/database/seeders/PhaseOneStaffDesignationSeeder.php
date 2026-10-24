@@ -47,7 +47,7 @@ class PhaseOneStaffDesignationSeeder extends Seeder
             [
                 'name' => 'Exam Coordinator',
                 'slug' => 'exam-coordinator',
-                'description' => 'Coordinates exam flow and marks operations.',
+                'description' => 'Coordinates exam flow and marks operations; approves and publishes results institution-wide.',
                 'permissions' => [
                     'dashboard.view',
                     'profile.view',
@@ -57,6 +57,8 @@ class PhaseOneStaffDesignationSeeder extends Seeder
                     'reports.view',
                     'marks.view',
                     'marks.create',
+                    'marks.approve',
+                    'marks.publish',
                 ],
             ],
         ];

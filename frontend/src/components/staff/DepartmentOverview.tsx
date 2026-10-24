@@ -18,9 +18,27 @@ interface SchoolPerformance {
   passPercentage: number;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
+const AUTH_KEY = 'chromolog-campus-auth';
+
+function authToken(): string | null {
+  const legacyToken = localStorage.getItem('auth_token');
+  if (legacyToken) return legacyToken;
+  try {
+    const stored = localStorage.getItem(AUTH_KEY);
+    if (!stored) return null;
+    const auth = JSON.parse(stored) as { token?: string };
+    return auth.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export const DepartmentOverview: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [performance, setPerformance] = useState<any>(null);
+  const [departmentName, setDepartmentName] = useState<string>('Computer Science & Engineering Department');
+  const [isLiveStats, setIsLiveStats] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,23 +46,63 @@ export const DepartmentOverview: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = getStoredToken();
+        const token = authToken();
+
         if (!token) {
           setError('Authentication token not found');
           return;
         }
 
-        const [overviewResponse, performanceResponse] = await Promise.all([
-          fetchDepartmentOverview(token),
-          fetchDepartmentPerformance(token)
-        ]);
+        // Attempt to fetch real persisted department stats
+        let liveStatsLoaded = false;
+        try {
+          const deptsRes = await fetch(`${API_BASE_URL}/departments`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          });
 
-        if (overviewResponse?.data) {
-          setStats(overviewResponse.data);
+          if (deptsRes.ok) {
+            const deptsPayload = await deptsRes.json();
+            const deptsList = Array.isArray(deptsPayload?.data) ? deptsPayload.data : (Array.isArray(deptsPayload) ? deptsPayload : []);
+            if (deptsList.length > 0) {
+              const primaryDept = deptsList[0];
+              const statsRes = await fetch(`${API_BASE_URL}/departments/${primaryDept.id}/stats`, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+              });
+
+              if (statsRes.ok) {
+                const statsPayload = await statsRes.json();
+                if (statsPayload?.data) {
+                  setStats(statsPayload.data);
+                  setDepartmentName(statsPayload.data.name || primaryDept.name || departmentName);
+                  setIsLiveStats(true);
+                  liveStatsLoaded = true;
+                }
+              }
+            }
+          }
+        } catch {
+          // If real stats endpoint is unreachable, fallback to sample data
         }
 
-        if (performanceResponse?.data) {
-          setPerformance(performanceResponse.data);
+        if (!liveStatsLoaded) {
+          const [overviewResponse, performanceResponse] = await Promise.all([
+            fetchDepartmentOverview(token),
+            fetchDepartmentPerformance(token)
+          ]);
+
+          if (overviewResponse?.data) {
+            setStats(overviewResponse.data);
+          }
+
+          if (performanceResponse?.data) {
+            setPerformance(performanceResponse.data);
+          }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch department data');
@@ -76,10 +134,10 @@ export const DepartmentOverview: React.FC = () => {
   }
 
   const defaultStats = {
-    totalStudents: stats?.total_students || 0,
-    totalFaculty: stats?.total_faculty || 0,
-    averageCGPA: stats?.average_cgpa || 0,
-    placementRate: stats?.placement_rate || 0,
+    totalStudents: stats?.total_students ?? stats?.totalStudents ?? 0,
+    totalFaculty: stats?.total_faculty ?? stats?.staff_count ?? stats?.totalFaculty ?? 0,
+    averageCGPA: stats?.average_cgpa ?? stats?.averageCGPA ?? 0,
+    placementRate: stats?.placement_rate ?? stats?.placementRate ?? 0,
   };
 
   const schoolPerformance: SchoolPerformance[] = performance?.schoolPerformance || [];
@@ -88,10 +146,10 @@ export const DepartmentOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PrototypeNotice />
+      {!isLiveStats && <PrototypeNotice />}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Department Overview</h2>
-        <p className="mt-1 text-sm text-slate-600">Computer Science & Engineering Department</p>
+        <p className="mt-1 text-sm text-slate-600">{departmentName}</p>
       </div>
 
       {/* Key Metrics */}

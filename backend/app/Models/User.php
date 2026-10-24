@@ -2,24 +2,25 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
+use App\Enums\UserStatus;
 use App\Traits\BelongsToInstitution;
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Traits\LogsActivity;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
-use App\Enums\UserRole;
-use App\Traits\LogsActivity;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use BelongsToInstitution, HasApiTokens, HasFactory, HasRoles, Notifiable, SoftDeletes, LogsActivity;
+    use BelongsToInstitution, HasApiTokens, HasFactory, HasRoles, LogsActivity, Notifiable, SoftDeletes;
 
     protected string $guard_name = 'sanctum';
 
@@ -35,6 +36,8 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'status',
+        'status_reason',
         'institution_id',
         'title',
         'department_code',
@@ -70,7 +73,19 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'locked_until' => 'datetime',
         ];
+    }
+
+    /** Unknown or missing values count as active (accounts created before statuses existed). */
+    public function statusEnum(): UserStatus
+    {
+        return UserStatus::tryFrom((string) $this->status) ?? UserStatus::Active;
+    }
+
+    public function isLocked(): bool
+    {
+        return $this->locked_until !== null && $this->locked_until->isFuture();
     }
 
     /** The role as an enum; null for a value that isn't one of the six roles. */
