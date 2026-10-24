@@ -31,7 +31,7 @@ export const HODStaffManagement: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = getStoredAuthToken();
+        const token = getStoredToken();
 
         if (!token) {
           setError('Authentication token not found');
@@ -56,7 +56,7 @@ export const HODStaffManagement: React.FC = () => {
 
   const handleDeleteStaff = async (id: number) => {
     try {
-      const token = getStoredAuthToken();
+      const token = getStoredToken();
 
       if (!token) return;
       

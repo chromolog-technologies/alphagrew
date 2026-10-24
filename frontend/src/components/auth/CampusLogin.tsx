@@ -1,8 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building } from 'lucide-react';
+import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building, Info } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
-import { type CampusRole } from '../../campusTypes';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -18,8 +17,6 @@ import {
   Alert,
   AlertDescription,
 } from '@/components/ui';
-
-
 import { type CampusRole } from '../../campusTypes';
 
 export interface DemoAccount {
@@ -40,7 +37,7 @@ export interface CampusLoginProps {
 // Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
 const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
 
-export default function CampusLogin({ error, notice, onLogin }: CampusLoginProps) {
+export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: CampusLoginProps) {
   const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
   const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
   const [showPassword, setShowPassword] = useState(false);

@@ -32,7 +32,7 @@ export const DepartmentOverview: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const token = authToken();
+        const token = getStoredToken();
 
         if (!token) {
           setError('Authentication token not found');
