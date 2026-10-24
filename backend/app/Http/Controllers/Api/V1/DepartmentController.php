@@ -65,9 +65,9 @@ class DepartmentController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'code' => 'required|string|max:50|unique:departments,code',
+            'code' => ['required', 'string', 'max:50', TenantRule::unique('departments', 'code')],
             'description' => 'nullable|string|max:1000',
-            'hod_id' => 'nullable|integer|exists:users,id',
+            'hod_id' => ['nullable', 'integer', TenantRule::exists('users', 'id')],
             'contact_email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
             'intake_capacity' => 'nullable|integer|min:0',
@@ -97,7 +97,7 @@ class DepartmentController extends Controller
                 TenantRule::unique('departments', 'code')->ignore($department->id),
             ],
             'description' => 'nullable|string|max:1000',
-            'hod_id' => 'nullable|integer|exists:users,id',
+            'hod_id' => ['nullable', 'integer', TenantRule::exists('users', 'id')],
             'contact_email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:20',
             'intake_capacity' => 'nullable|integer|min:0',

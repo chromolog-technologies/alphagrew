@@ -475,15 +475,15 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('permission:attendance.view,sanctum');
             Route::post('/mark', [AttendanceController::class, 'markAttendance'])
                 ->middleware('permission:attendance.mark,sanctum');
-            Route::get('/subject/{subjectId}/students', [AttendanceController::class, 'getStudentsForSubject'])
+            Route::get('/subject/{subjectId}/students', [AttendanceController::class, 'getStudentsForSubject'])->whereNumber('subjectId')
                 ->middleware('permission:attendance.mark,sanctum');
-            Route::get('/student/{studentId}/report', [AttendanceController::class, 'getStudentReport'])
+            Route::get('/student/{studentId}/report', [AttendanceController::class, 'getStudentReport'])->whereNumber('studentId')
                 ->middleware('permission:attendance.view,sanctum');
-            Route::get('/subject/{subjectId}/report', [AttendanceController::class, 'getSubjectReport'])
+            Route::get('/subject/{subjectId}/report', [AttendanceController::class, 'getSubjectReport'])->whereNumber('subjectId')
                 ->middleware('permission:attendance.view,sanctum');
-            Route::put('/{attendanceId}', [AttendanceController::class, 'update'])
+            Route::put('/{attendanceId}', [AttendanceController::class, 'update'])->whereNumber('attendanceId')
                 ->middleware('permission:attendance.edit,sanctum');
-            Route::delete('/{attendanceId}', [AttendanceController::class, 'delete'])
+            Route::delete('/{attendanceId}', [AttendanceController::class, 'delete'])->whereNumber('attendanceId')
                 ->middleware('permission:attendance.delete,sanctum');
             Route::post('/approve', [AttendanceController::class, 'approveAttendance'])
                 ->middleware('permission:attendance.approve,sanctum');

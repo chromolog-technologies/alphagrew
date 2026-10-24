@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToInstitution;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,12 +26,23 @@ class Timetable extends Model
         'effective_to',
     ];
 
+    // start_time / end_time stay "HH:MM:SS" strings: Eloquent has no "time" cast.
     protected $casts = [
-        'start_time' => 'time',
-        'end_time' => 'time',
         'effective_from' => 'date',
         'effective_to' => 'date',
     ];
+
+    /** A class's slots that are in effect today. */
+    public function scopeActiveFor(Builder $query, int $classId): Builder
+    {
+        $today = now()->toDateString();
+
+        return $query->where('class_id', $classId)
+            ->whereDate('effective_from', '<=', $today)
+            ->where(function (Builder $query) use ($today) {
+                $query->whereNull('effective_to')->orWhereDate('effective_to', '>=', $today);
+            });
+    }
 
     public function class(): BelongsTo
     {
