@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\V1\CustomFieldController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
+use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\GradeRuleController;
 use App\Http\Controllers\Api\V1\Interviews\InterviewController;
 use App\Http\Controllers\Api\V1\BatchController;
@@ -442,6 +443,9 @@ Route::prefix('v1')->group(function (): void {
         $marksCreate = 'permission:'.CampusPermission::MARKS_CREATE.',sanctum';
         $marksApprove = 'permission:'.CampusPermission::MARKS_APPROVE.',sanctum';
         $marksPublish = 'permission:'.CampusPermission::MARKS_PUBLISH.',sanctum';
+
+        // Exams to enter marks against (read-only until exam scheduling is built)
+        Route::get('/exams', [ExamController::class, 'index'])->middleware($marksView);
 
         // Stage 1: grading scale and mark schemes.
         Route::prefix('grade-rules')->group(function () use ($marksView, $marksCreate): void {

@@ -25,6 +25,16 @@ class MarkEntryTest extends TestCase
         $this->buildMarksFixtures();
     }
 
+    public function test_lists_the_exams_marks_are_entered_against(): void
+    {
+        $this->asUser('faculty@dsc.test')
+            ->getJson("/api/v1/exams?semester_id={$this->ids['semesters'][1]}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $this->ids['exams']['DS101'])
+            ->assertJsonPath('data.0.subject.code', 'DS101');
+    }
+
     public function test_grade_rules_and_schemes_are_validated(): void
     {
         $this->asUser('admin@demo.com')->getJson('/api/v1/grade-rules')

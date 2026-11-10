@@ -133,6 +133,8 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const isFormData = init?.body instanceof FormData;
 
   const requestHeaders: HeadersInit = {
+    // Without it Laravel answers a validation error with a redirect instead of a 422.
+    Accept: 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(init?.headers ?? {}),
   };
@@ -149,10 +151,12 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
+  if (!response.ok) {
     if (response.status === 401 && token) {
       notifySessionExpired();
     }
     throw apiErrorFromResponse(response.status, payload, 'API request failed.');
+  }
 
   return payload as T;
 }
