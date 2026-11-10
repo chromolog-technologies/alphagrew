@@ -3,12 +3,14 @@
 namespace App\Http\Requests\Students;
 
 use App\DTOs\StudentData;
+use App\Models\CustomFieldDefinition;
 use App\Models\Student;
+use App\Services\CustomFields\CustomFieldService;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use App\Support\Tenancy\TenantRule;
 
 class UpdateStudentRequest extends FormRequest
 {
@@ -36,7 +38,19 @@ class UpdateStudentRequest extends FormRequest
             ],
             ...StoreStudentRequest::profileRules(),
             'password' => ['nullable', 'string', 'min:6'],
+            ...app(CustomFieldService::class)->rules(CustomFieldDefinition::ENTITY_STUDENT),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return app(CustomFieldService::class)->attributes(CustomFieldDefinition::ENTITY_STUDENT);
+    }
+
+    /** @return array<string, mixed> */
+    public function customFields(): array
+    {
+        return $this->validated('customFields') ?? [];
     }
 
     public function student(): Student

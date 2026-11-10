@@ -11,6 +11,7 @@ use App\Http\Requests\Students\ListStudentsRequest;
 use App\Http\Requests\Students\StoreStudentRequest;
 use App\Http\Requests\Students\UpdateStudentRequest;
 use App\Http\Resources\StudentResource;
+use App\Models\CustomFieldDefinition;
 use App\Models\Department;
 use App\Models\Institution;
 use App\Models\Student;
@@ -18,8 +19,10 @@ use App\Models\User;
 use App\Repositories\StudentRepository;
 use App\Services\Audit\AuditLogger;
 use App\Services\Campus\CampusDataService;
+use App\Services\CustomFields\CustomFieldService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class StudentController extends Controller
 {
@@ -29,6 +32,7 @@ class StudentController extends Controller
     public function __construct(
         private readonly CampusDataService $campusData,
         private readonly AuditLogger $audit,
+        private readonly CustomFieldService $customFields,
     ) {}
 
     /**
@@ -57,12 +61,17 @@ class StudentController extends Controller
 
         $department = $this->departmentFor($actor, $data->departmentCode, 'A department is required for new students.');
 
-        $student = $createStudent->execute(
-            $data,
-            $department,
-            Institution::forNewAccountsOf($actor),
-            $this->mentorFor($actor, $department),
-        );
+        $student = DB::transaction(function () use ($request, $createStudent, $data, $department, $actor): Student {
+            $student = $createStudent->execute(
+                $data,
+                $department,
+                Institution::forNewAccountsOf($actor),
+                $this->mentorFor($actor, $department),
+            );
+            $this->customFields->save($student, CustomFieldDefinition::ENTITY_STUDENT, $request->customFields());
+
+            return $student;
+        });
         $this->audit->record('student.created', $student, [], $student->only(self::AUDITED_FIELDS));
 
         return $this->recordResponse($actor, $student, 201);
@@ -81,7 +90,10 @@ class StudentController extends Controller
         );
 
         $before = $student->only(self::AUDITED_FIELDS);
-        $updateStudent->execute($student, $data, $department, $this->mentorFor($actor, $department));
+        DB::transaction(function () use ($request, $updateStudent, $student, $data, $department, $actor): void {
+            $updateStudent->execute($student, $data, $department, $this->mentorFor($actor, $department));
+            $this->customFields->save($student, CustomFieldDefinition::ENTITY_STUDENT, $request->customFields());
+        });
         $after = $student->fresh()->only(self::AUDITED_FIELDS);
 
         if ($before != $after) {
@@ -129,6 +141,7 @@ class StudentController extends Controller
 
         return response()->json([
             'student' => new StudentResource($student),
+            'customFields' => $this->customFields->valuesFor($student, CustomFieldDefinition::ENTITY_STUDENT),
             'user' => $actor->isAdmin() && $student->user
                 ? $this->campusData->sessionUser($student->user)
                 : null,

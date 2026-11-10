@@ -23,6 +23,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CampusController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CourseController;
+use App\Http\Controllers\Api\V1\CustomFieldController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
 use App\Http\Controllers\Api\V1\GradeRuleController;
@@ -361,6 +363,35 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
         Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum');
+
+        // Custom form fields. Definitions are readable by everyone (forms need them); values are
+        // authorised per record type in the controller.
+        $manageFields = 'permission:'.CampusPermission::CUSTOM_FIELDS_MANAGE.',sanctum';
+        Route::get('/custom-fields', [CustomFieldController::class, 'index']);
+        Route::post('/custom-fields', [CustomFieldController::class, 'store'])->middleware($manageFields);
+        Route::patch('/custom-fields/{customField}', [CustomFieldController::class, 'update'])->whereNumber('customField')->middleware($manageFields);
+        Route::delete('/custom-fields/{customField}', [CustomFieldController::class, 'destroy'])->whereNumber('customField')->middleware($manageFields);
+        Route::get('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'showValues'])
+            ->whereIn('entity', ['student', 'staff', 'subject', 'exam'])->whereNumber('id');
+        Route::put('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'updateValues'])
+            ->whereIn('entity', ['student', 'staff', 'subject', 'exam'])->whereNumber('id');
+
+        // Dashboards: role templates, user-built dashboards and the widget query engine.
+        // Every query runs within the caller's own data scope (App\Services\Dashboards\DashboardScope).
+        $viewDashboards = 'permission:'.CampusPermission::DASHBOARD_VIEW.',sanctum';
+        $buildDashboards = 'permission:'.CampusPermission::DASHBOARDS_BUILD.',sanctum';
+        Route::middleware($viewDashboards)->group(function () use ($buildDashboards): void {
+            Route::get('/dashboards/sources', [DashboardController::class, 'sources']);
+            Route::post('/dashboards/query', [DashboardController::class, 'query']);
+            Route::get('/dashboards', [DashboardController::class, 'index']);
+            Route::get('/dashboards/home', [DashboardController::class, 'home']);
+            Route::get('/dashboards/{dashboard}', [DashboardController::class, 'show'])->whereNumber('dashboard');
+            Route::post('/dashboards', [DashboardController::class, 'store'])->middleware($buildDashboards);
+            Route::patch('/dashboards/{dashboard}', [DashboardController::class, 'update'])->whereNumber('dashboard')->middleware($buildDashboards);
+            Route::delete('/dashboards/{dashboard}', [DashboardController::class, 'destroy'])->whereNumber('dashboard')->middleware($buildDashboards);
+            Route::put('/dashboards/{dashboard}/share', [DashboardController::class, 'share'])->whereNumber('dashboard')
+                ->middleware('permission:'.CampusPermission::DASHBOARDS_SHARE.',sanctum');
+        });
 
         Route::get('/companies', [CompanyController::class, 'index'])
             ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');

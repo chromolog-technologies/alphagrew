@@ -3,10 +3,12 @@
 namespace App\Http\Requests\Students;
 
 use App\DTOs\StudentData;
+use App\Models\CustomFieldDefinition;
+use App\Services\CustomFields\CustomFieldService;
 use App\Support\Campus\CampusMasterCatalog;
+use App\Support\Tenancy\TenantRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use App\Support\Tenancy\TenantRule;
 
 class StoreStudentRequest extends FormRequest
 {
@@ -26,7 +28,19 @@ class StoreStudentRequest extends FormRequest
             'email' => ['required', 'email', TenantRule::unique('students', 'email'), Rule::unique('users', 'email')],
             ...self::profileRules(),
             'password' => ['required', 'string', 'min:6'],
+            ...app(CustomFieldService::class)->rules(CustomFieldDefinition::ENTITY_STUDENT, creating: true),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return app(CustomFieldService::class)->attributes(CustomFieldDefinition::ENTITY_STUDENT);
+    }
+
+    /** @return array<string, mixed> */
+    public function customFields(): array
+    {
+        return $this->validated('customFields') ?? [];
     }
 
     /**
