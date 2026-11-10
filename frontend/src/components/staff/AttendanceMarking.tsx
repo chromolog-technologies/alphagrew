@@ -37,6 +37,7 @@ export const AttendanceMarking: React.FC<AttendanceMarkingProps> = ({ staffRole 
       try {
         setLoading(true);
         const token = getStoredToken();
+
         if (!token) {
           setError('Authentication token not found');
           return;
@@ -103,6 +104,7 @@ export const AttendanceMarking: React.FC<AttendanceMarkingProps> = ({ staffRole 
     }
     try {
       const token = getStoredToken();
+
       if (!token) return;
 
       const payload = {

@@ -1713,7 +1713,7 @@ export default function App() {
           path="*"
           element={
             <>
-              <CampusLogin error={error} onLogin={handleLogin} />
+              <CampusLogin error={error} notice={loginNotice} onLogin={handleLogin} />
               <AccountNotice message={notice} onDismiss={() => setNotice('')} />
             </>
           }

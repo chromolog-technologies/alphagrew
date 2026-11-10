@@ -33,6 +33,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
 
   const token = getStoredToken();
 
+
   // Load subjects on mount
   useEffect(() => {
     fetchSubjects();

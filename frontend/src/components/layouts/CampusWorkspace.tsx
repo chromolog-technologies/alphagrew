@@ -507,9 +507,10 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
     { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'attendance.view' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'profile.view' },
+    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'attendance.view' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'marks.view' },
-    { id: 'marks', label: 'Marks & Results', icon: ChartColumn, permission: 'marks.view' },
+    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
+
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
     { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
@@ -546,6 +547,7 @@ const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years', 'custom_fields'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
   { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
+
   { id: 'finance', label: 'Finance', itemIds: [] },
   { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer'] },
   { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
@@ -1282,6 +1284,7 @@ export default function CampusWorkspace({
   useEffect(() => {
     onDismissTenantError?.();
   }, [activeTab]);
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [sidebarDropdowns, setSidebarDropdowns] = useState<Record<string, boolean>>({
     overview: true,
@@ -5599,6 +5602,7 @@ export default function CampusWorkspace({
         return user.role === 'student'
           ? <StudentMarksView />
           : <MarksModule />;
+
       case 'fees':
         return <FeesModule />;
       case 'settings':
@@ -5665,6 +5669,7 @@ export default function CampusWorkspace({
                 </span>
                 <ChevronRight size={13} className="hidden sm:inline-block text-zinc-400" />
                 <span className="hidden sm:inline-block text-xs font-semibold text-blue-600">{activeNavLabel}</span>
+
               </div>
 
               <div
@@ -5760,6 +5765,7 @@ export default function CampusWorkspace({
                         <span key={day}>{day}</span>
                       ))}
                     </div>
+
 
                     <div className="mt-2 grid grid-cols-7 gap-1">
                       {calendarGrid.map((item) => (
@@ -6173,21 +6179,20 @@ export default function CampusWorkspace({
                   exit={{ opacity: 0, y: -14 }}
                   transition={{ duration: 0.22 }}
                 >
-                  <Suspense fallback={<PageLoading />}>
-                    {tenantError ? (
-                      <div className="py-10">
-                        <TenantState
-                          status={tenantError.status}
-                          message={tenantError.message}
-                          institutionName={user.institution?.name ?? campusBrand.campusName}
-                          actionLabel="Go back"
-                          onAction={() => onDismissTenantError?.()}
-                        />
-                      </div>
-                    ) : (
-                      renderTabContent()
-                    )}
-                  </Suspense>
+                  {tenantError ? (
+                    <div className="py-10">
+                      <TenantState
+                        status={tenantError.status}
+                        message={tenantError.message}
+                        institutionName={user.institution?.name ?? campusBrand.campusName}
+                        actionLabel="Go back"
+                        onAction={() => onDismissTenantError?.()}
+                      />
+                    </div>
+                  ) : (
+                    <Suspense fallback={<PageLoading />}>{renderTabContent()}</Suspense>
+                  )}
+
                 </motion.div>
               </AnimatePresence>
             </main>

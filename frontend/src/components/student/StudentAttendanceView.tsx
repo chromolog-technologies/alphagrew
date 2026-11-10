@@ -22,6 +22,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 
+
 interface AttendanceRecord {
   id: number;
   subject: string;
@@ -52,7 +53,9 @@ export const StudentAttendanceView: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+
         const token = getStoredAuthToken();
+
         if (!token) {
           setError('Authentication required. Please log in.');
           return;

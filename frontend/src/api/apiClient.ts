@@ -3,8 +3,8 @@
  * This client handles API requests with authentication tokenautomatically retrieved from localStorage
  */
 
-import { notifySessionExpired } from './campusApi';
 import { ApiError, apiErrorFromResponse } from './apiError';
+import { notifySessionExpired } from './campusApi';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 

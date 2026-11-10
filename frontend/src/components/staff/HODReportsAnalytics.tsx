@@ -34,6 +34,7 @@ export const HODReportsAnalytics: React.FC = () => {
       try {
         setLoading(true);
         const token = getStoredToken();
+
         if (!token) {
           setError('Authentication token not found');
           return;

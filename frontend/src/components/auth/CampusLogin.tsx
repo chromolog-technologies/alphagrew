@@ -2,7 +2,6 @@ import { useState, type FormEvent } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building, Info } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
-import { type CampusRole } from '../../campusTypes';
 import { Link } from 'react-router-dom';
 import {
   Card,
@@ -18,6 +17,7 @@ import {
   Alert,
   AlertDescription,
 } from '@/components/ui';
+import { type CampusRole } from '../../campusTypes';
 
 export interface DemoAccount {
   email: string;
@@ -25,7 +25,7 @@ export interface DemoAccount {
   label: string;
 }
 
-interface CampusLoginProps {
+export interface CampusLoginProps {
   error: string;
   /** Information rather than a failure: expired session, recruiter portal not open, inactive institution. */
   notice?: string;
@@ -37,10 +37,11 @@ interface CampusLoginProps {
 // Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
 const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
 
-export default function CampusLogin({ error, notice, demoAccounts, onLogin, onShowSignUp }: CampusLoginProps) {
-  const [email, setEmail] = useState(demoAccounts?.[0]?.email ?? (showDemoAccess ? 'admin@demo.com' : ''));
+export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: CampusLoginProps) {
+  const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
   const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
   const [showPassword, setShowPassword] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
 
   const demoRoles = [
@@ -81,6 +82,7 @@ export default function CampusLogin({ error, notice, demoAccounts, onLogin, onSh
             <CardHeader className="p-6 sm:p-8 pb-4">
               <div className="flex items-center gap-3.5">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 p-2 text-white shadow-md shadow-blue-500/20">
+
                   <img
                     src="/alpha-logo.png"
                     alt="Alpha Grew logo"
@@ -249,6 +251,7 @@ export default function CampusLogin({ error, notice, demoAccounts, onLogin, onSh
               <span>Version 2.4.0</span>
             </CardFooter>
           </Card>
+
         </motion.div>
       </div>
     </div>

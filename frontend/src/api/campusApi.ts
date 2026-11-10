@@ -149,12 +149,10 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
   const contentType = response.headers.get('content-type') ?? '';
   const payload = contentType.includes('application/json') ? await response.json() : null;
 
-  if (!response.ok) {
     if (response.status === 401 && token) {
       notifySessionExpired();
     }
     throw apiErrorFromResponse(response.status, payload, 'API request failed.');
-  }
 
   return payload as T;
 }

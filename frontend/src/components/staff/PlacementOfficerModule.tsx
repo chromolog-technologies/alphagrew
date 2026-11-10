@@ -38,6 +38,7 @@ import {
 } from '@/components/ui';
 
 interface PlacementDriveRecord {
+
   id: number;
   name: string;
   company_name?: string;
@@ -89,6 +90,7 @@ export const PlacementOfficerModule: React.FC = () => {
     drive_date: '',
     location: 'Campus',
   });
+
 
   const loadData = useCallback(async () => {
     try {

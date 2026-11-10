@@ -18,7 +18,8 @@ import {
   fetchStudentAllResults, 
   fetchStudentSemesterGradeCard 
 } from '../../api/campusApi';
-import { getStoredToken } from '../../api/apiClient';
+import { getStoredAuthToken } from '../../utils/auth';
+
 
 interface ExamMark {
   id: number;
@@ -87,8 +88,12 @@ interface GradeCardData {
   publishedAt?: string;
   subjects: GradeCardSubject[];
 }
+
+const AUTH_KEY = 'chromolog-campus-auth';
+
+
 function getTokenFromStorage(): string | null {
-  return getStoredToken();
+  return getStoredAuthToken();
 }
 
 export const StudentMarksView: React.FC = () => {

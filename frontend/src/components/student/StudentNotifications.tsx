@@ -24,6 +24,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 
+
 interface Notification {
   id: number;
   title: string;
@@ -55,6 +56,7 @@ export const StudentNotifications: React.FC = () => {
       if (!token) {
         setError('Authentication required. Please log in.');
         return;
+
       }
 
       const response = await fetchStudentNotifications(token);

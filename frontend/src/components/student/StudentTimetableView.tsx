@@ -23,6 +23,7 @@ import {
   Skeleton,
 } from '@/components/ui';
 
+
 interface ClassSession {
   id: number;
   courseCode: string;
@@ -52,6 +53,7 @@ export const StudentTimetableView: React.FC = () => {
         setError(null);
 
         const token = getStoredAuthToken();
+
         if (!token) {
           setError('Authentication required. Please log in.');
           return;
