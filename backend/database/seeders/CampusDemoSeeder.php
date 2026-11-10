@@ -33,6 +33,8 @@ class CampusDemoSeeder extends Seeder
             DB::table('role_has_permissions')->delete();
             DB::table('model_has_roles')->delete();
             DB::table('model_has_permissions')->delete();
+            // Academic records point at students, users and departments, so they go first.
+            AcademicDemoSeeder::clear();
             DB::table('roles')->delete();
             DB::table('permissions')->delete();
             DB::table('job_application_events')->delete();
@@ -226,5 +228,11 @@ class CampusDemoSeeder extends Seeder
 
             app(PermissionRegistrar::class)->forgetCachedPermissions();
         });
+
+        // Subjects, attendance, exams, marks and results for the dashboards. Tests build their
+        // own academic fixtures (and seed often), so they seed this explicitly when they need it.
+        if (! app()->runningUnitTests()) {
+            $this->call(AcademicDemoSeeder::class);
+        }
     }
 }

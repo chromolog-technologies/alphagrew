@@ -39,7 +39,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { resendVerificationEmail } from './api/accountApi';
 import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
-import { CampusLogin } from './components/auth';
+import { CampusLogin, type DemoAccount, type SignUpPayload } from './components/auth';
 import { PageLoading } from './components/shared/RouteStatus';
 
 // Loaded after sign-in, so the sign-in page doesn't download the whole workspace.

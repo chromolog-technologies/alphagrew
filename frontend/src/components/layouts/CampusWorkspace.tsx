@@ -890,7 +890,7 @@ function Sparkline({ points, color = '#2563eb' }: { points: number[]; color?: st
   const pathD = `M ${svgPoints.join(' L ')}`;
   
   return (
-    <svg width={width} height={height} className="flex-shrink-0 opacity-85">
+    <svg width={width} height={height} className="shrink-0 opacity-85">
       <path
         d={pathD}
         fill="none"
@@ -946,7 +946,7 @@ function MetricCard({
           <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
           <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Sparkline points={sparklineData} color={strokeColor} />
         </div>
       </div>
@@ -1032,7 +1032,7 @@ function AdminSnapshotCard({
           <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
           <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Sparkline points={sparklineData} color={strokeColor} />
         </div>
       </div>
@@ -2725,7 +2725,7 @@ export default function CampusWorkspace({
   };
 
   const dashboardHero = (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-slate-900 to-zinc-900 p-6 text-white shadow-xl md:p-8">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-linear-to-br from-zinc-950 via-slate-900 to-zinc-900 p-6 text-white shadow-xl md:p-8">
       {/* Background glow */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-indigo-600/15 blur-3xl" />
@@ -2800,7 +2800,7 @@ export default function CampusWorkspace({
         <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
           {breadcrumbItems.map((item, index) => (
             <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-zinc-300" /> : null}
+              {index > 0 ? <ChevronRight size={12} className="shrink-0 text-zinc-300" /> : null}
               <span className="truncate">{item}</span>
             </div>
           ))}
@@ -2966,7 +2966,7 @@ export default function CampusWorkspace({
                 </div>
               </div>
 
-              <div className="h-[340px] px-4 py-5 sm:px-6">
+              <div className="h-85 px-4 py-5 sm:px-6">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={activeAdminAnalytics.data as any} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
                     <CartesianGrid stroke="#ebf1f7" vertical={false} strokeDasharray="4 6" />
@@ -3194,7 +3194,7 @@ export default function CampusWorkspace({
         <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a93ac]">
           {breadcrumbItems.map((item, index) => (
             <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-[#9ab1c8]" /> : null}
+              {index > 0 ? <ChevronRight size={12} className="shrink-0 text-[#9ab1c8]" /> : null}
               <span className="truncate">{item}</span>
             </div>
           ))}
@@ -3291,7 +3291,7 @@ export default function CampusWorkspace({
         <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a93ac]">
           {breadcrumbItems.map((item, index) => (
             <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-[#9ab1c8]" /> : null}
+              {index > 0 ? <ChevronRight size={12} className="shrink-0 text-[#9ab1c8]" /> : null}
               <span className="truncate">{item}</span>
             </div>
           ))}
@@ -3339,7 +3339,7 @@ export default function CampusWorkspace({
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-blue-100 bg-linear-to-br from-blue-50/80 via-white to-indigo-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
                 <Sparkles size={20} />
@@ -3362,7 +3362,7 @@ export default function CampusWorkspace({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50/80 via-white to-purple-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
                 <FileText size={20} />
@@ -3385,7 +3385,7 @@ export default function CampusWorkspace({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/80 via-white to-emerald-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-teal-100 bg-linear-to-br from-teal-50/80 via-white to-emerald-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
                 <Calendar size={20} />
@@ -3670,7 +3670,7 @@ export default function CampusWorkspace({
               <tbody>
                 {pagedStudents.map((student) => (
                   <tr key={student.id} className="rounded-[18px] bg-slate-50 text-sm text-slate-700">
-                    <td className="rounded-l-[24px] px-4 py-4">
+                    <td className="rounded-l-3xl px-4 py-4">
                       <div>
                         <p className="font-semibold text-slate-950">{student.name}</p>
                         <p className="mt-1 text-xs text-slate-500">{student.email}</p>
@@ -3683,7 +3683,7 @@ export default function CampusWorkspace({
                         {student.status}
                       </span>
                     </td>
-                    <td className="rounded-r-[24px] px-4 py-4 text-right">
+                    <td className="rounded-r-3xl px-4 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
@@ -4371,7 +4371,7 @@ export default function CampusWorkspace({
             {kanbanStages.map((stage) => {
               const stageCompanies = filteredPlacementCompanies.filter((company) => stage.statusFilter(company.status));
               return (
-                <div key={stage.id} className="flex flex-col rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3 shadow-sm min-h-[420px]">
+                <div key={stage.id} className="flex flex-col rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3 shadow-sm min-h-105">
                   <div className="flex items-center justify-between pb-3 border-b border-zinc-200/80 mb-3">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
@@ -4390,7 +4390,7 @@ export default function CampusWorkspace({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-sm">
                               {company.name.charAt(0)}
                             </div>
                             <div className="min-w-0">
@@ -4399,7 +4399,7 @@ export default function CampusWorkspace({
                             </div>
                           </div>
                           {can('placement.create') && (
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => openCompanyEditor(company)}
@@ -4769,7 +4769,7 @@ export default function CampusWorkspace({
                   <div className="flex gap-4">
                     <div
                       className={classNames(
-                        'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl',
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
                         item.type === 'Announcement' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600',
                       )}
                     >
@@ -4789,7 +4789,7 @@ export default function CampusWorkspace({
                           <h4 className="mt-3 text-lg font-bold text-slate-950">{item.title}</h4>
                           <p className="mt-2 text-sm leading-7 text-slate-600">{item.summary}</p>
                         </div>
-                        <div className="rounded-[18px] bg-white px-4 py-3 text-left shadow-[0_14px_28px_-24px_rgba(15,23,42,0.18)] lg:min-w-[116px] lg:text-right">
+                        <div className="rounded-[18px] bg-white px-4 py-3 text-left shadow-[0_14px_28px_-24px_rgba(15,23,42,0.18)] lg:min-w-29 lg:text-right">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Date</p>
                           <p className="mt-1 text-sm font-semibold text-slate-950">{formatDate(item.date)}</p>
                         </div>
@@ -5643,14 +5643,14 @@ export default function CampusWorkspace({
             <button
               type="button"
               onClick={() => setIsSidebarOpen((current) => !current)}
-              className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-100 lg:hidden"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-100 lg:hidden"
               aria-label="Toggle sidebar navigation"
             >
               <Menu size={18} />
             </button>
 
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-sm p-1">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-tr from-blue-600 to-indigo-600 shadow-sm p-1">
                 <img
                   src="/alpha-logo.png"
                   alt="Alpha Grew logo"
@@ -5671,11 +5671,11 @@ export default function CampusWorkspace({
                 className="hidden min-w-0 items-center gap-2.5 rounded-[14px] border border-[#d5e4f2] bg-[#f8fbff] py-1.5 pl-1.5 pr-3 lg:flex"
                 title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
               >
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#e6f1fb] text-xs font-bold text-[#0b4d88]">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#e6f1fb] text-xs font-bold text-[#0b4d88]">
                   {institutionInitials}
                 </span>
                 <span className="min-w-0">
-                  <span className="block max-w-[240px] truncate text-sm font-semibold text-[#0a2342]">{institutionName}</span>
+                  <span className="block max-w-60 truncate text-sm font-semibold text-[#0a2342]">{institutionName}</span>
                   {institutionCode ? (
                     <span className="block text-xs text-[#4d6d8f]">Institution code {institutionCode}</span>
                   ) : null}
@@ -5720,7 +5720,7 @@ export default function CampusWorkspace({
                     initial={{ opacity: 0, y: 10, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[300px] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-75 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
                   >
                     <div className="flex items-center justify-between">
                       <button
@@ -5794,7 +5794,7 @@ export default function CampusWorkspace({
             <button
               type="button"
               onClick={() => handleNavSelection(user.role === 'student' ? 'placement' : 'reports')}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:from-indigo-100 hover:to-blue-100"
+              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-linear-to-r from-indigo-50 to-blue-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:from-indigo-100 hover:to-blue-100"
               title="Open AI Career Assistant"
             >
               <Sparkles size={13} className="text-indigo-600 animate-pulse" />
@@ -5822,7 +5822,7 @@ export default function CampusWorkspace({
               </button>
 
               {isNotificationOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[350px] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-87.5 max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
                   <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Activity</p>
@@ -5844,7 +5844,7 @@ export default function CampusWorkspace({
                     {activityFeed.length ? (
                       activityFeed.map((announcement) => (
                         <div key={announcement.id} className="flex gap-2.5 rounded-xl border border-zinc-100 bg-zinc-50/70 p-2.5">
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
                             <Bell size={14} />
                           </div>
                           <div className="min-w-0 flex-1">
@@ -5881,7 +5881,7 @@ export default function CampusWorkspace({
                 aria-haspopup="menu"
                 aria-expanded={isProfileMenuOpen}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
                   {userInitials}
                 </span>
                 <span className="hidden min-w-0 sm:block text-left">
@@ -5938,16 +5938,16 @@ export default function CampusWorkspace({
           onClick={() => setIsSidebarOpen(false)}
         />
 
-        <div className="mx-auto max-w-[1640px] px-4 pb-8 pt-[80px] sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-410 px-4 pb-8 pt-20 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row">
             {/* HeroUI CRM Dark Enterprise Sidebar */}
             <aside
               className={classNames(
-                'fixed left-4 top-[80px] z-40 h-[calc(100vh-96px)] w-[268px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0B0F17] p-3 shadow-2xl transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[80px] lg:h-[calc(100vh-96px)] lg:max-w-none lg:flex-shrink-0 flex flex-col text-zinc-200',
+                'fixed left-4 top-20 z-40 h-[calc(100vh-96px)] w-67 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0B0F17] p-3 shadow-2xl transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-20 lg:h-[calc(100vh-96px)] lg:max-w-none lg:shrink-0 flex flex-col text-zinc-200',
                 isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%] lg:hidden',
               )}
             >
-              <div className="mb-2 flex justify-end lg:hidden flex-shrink-0">
+              <div className="mb-2 flex justify-end lg:hidden shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(false)}
@@ -5959,8 +5959,8 @@ export default function CampusWorkspace({
               </div>
 
               {/* Profile Card on Top */}
-              <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-2.5 flex items-center gap-2.5 flex-shrink-0">
-                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-md">
+              <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-2.5 flex items-center gap-2.5 shrink-0">
+                <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-tr from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-md">
                   {userInitials}
                   <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[#0B0F17]" />
                 </div>
@@ -5977,7 +5977,7 @@ export default function CampusWorkspace({
                   const hasActiveItem = group.items.some((item) => item.id === activeTab);
 
                   return (
-                    <div key={group.id} className="rounded-xl border border-white/5 bg-white/[0.02] p-1">
+                    <div key={group.id} className="rounded-xl border border-white/5 bg-white/2 p-1">
                       <button
                         type="button"
                         onClick={() =>
@@ -5994,7 +5994,7 @@ export default function CampusWorkspace({
                         <span>{group.label}</span>
                         <ChevronDown
                           size={12}
-                          className={classNames('flex-shrink-0 text-zinc-500 transition-transform duration-150', isOpen ? 'rotate-180' : '')}
+                          className={classNames('shrink-0 text-zinc-500 transition-transform duration-150', isOpen ? 'rotate-180' : '')}
                         />
                       </button>
 
@@ -6071,8 +6071,8 @@ export default function CampusWorkspace({
               </div>
 
               {/* Bottom Workspace Status Pill */}
-              <div className="mt-auto pt-2.5 border-t border-zinc-800/80 flex-shrink-0">
-                <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2 text-xs">
+              <div className="mt-auto pt-2.5 border-t border-zinc-800/80 shrink-0">
+                <div className="rounded-xl border border-white/5 bg-white/3 p-2 text-xs">
                   <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-0.5">
                     <span className="font-semibold text-zinc-300">Alpha CRM</span>
                     <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
@@ -6094,16 +6094,16 @@ export default function CampusWorkspace({
                     Complete the foundation first before academic, reporting, and placement modules unlock.
                   </p>
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.departments ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.departments ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.departments ? 'Done' : 'Pending'}: Departments
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.courses ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.courses ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.courses ? 'Done' : 'Pending'}: Courses
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.staffAndDesignations ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.staffAndDesignations ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.staffAndDesignations ? 'Done' : 'Pending'}: Staff + Designations
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.students ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.students ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.students ? 'Done' : 'Pending'}: Students
                     </div>
                   </div>
@@ -6111,13 +6111,13 @@ export default function CampusWorkspace({
               ) : null}
 
               {phase1Notice ? (
-                <div className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
                   {phase1Notice}
                 </div>
               ) : null}
 
               {credentialNotice ? (
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 px-5 py-5 text-zinc-900 shadow-sm">
+                <div className="rounded-2xl border border-blue-200 bg-linear-to-r from-blue-50/80 to-indigo-50/80 px-5 py-5 text-zinc-900 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
@@ -6211,7 +6211,7 @@ export default function CampusWorkspace({
               type="button"
               onClick={closeDeleteModal}
               disabled={isDeleteSubmitting}
-              className="rounded-[16px] border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
@@ -6219,7 +6219,7 @@ export default function CampusWorkspace({
               type="button"
               onClick={confirmDelete}
               disabled={isDeleteSubmitting}
-              className="rounded-[16px] bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
             >
               {isDeleteSubmitting ? 'Deleting...' : 'Delete'}
             </button>
