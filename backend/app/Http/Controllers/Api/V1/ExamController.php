@@ -16,9 +16,16 @@ class ExamController extends Controller
     public function index(ListExamsRequest $request): JsonResponse
     {
         $exams = Exam::query()
-            ->with(['subject:id,name,code', 'examType:id,name'])
+            ->with(['subject:id,name,code', 'examType:id,name', 'semester:id,name,is_active'])
             ->when($request->validated('semester_id'), fn ($query, $semesterId) => $query->where('semester_id', $semesterId))
             ->when($request->validated('subject_id'), fn ($query, $subjectId) => $query->where('subject_id', $subjectId))
+            // Same rule as SubjectPolicy::enterMarks, so every exam listed can be opened for entry.
+            ->when($request->boolean('mine'), fn ($query) => $query->whereExists(fn ($allocation) => $allocation
+                ->selectRaw('1')
+                ->from('subject_allocations')
+                ->whereColumn('subject_allocations.subject_id', 'exams.subject_id')
+                ->whereColumn('subject_allocations.semester_id', 'exams.semester_id')
+                ->where('subject_allocations.faculty_id', $request->user()->id)))
             ->orderByDesc('exam_date')
             ->get(['id', 'name', 'subject_id', 'exam_type_id', 'semester_id', 'exam_date', 'max_marks', 'status']);
 

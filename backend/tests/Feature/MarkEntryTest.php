@@ -32,7 +32,13 @@ class MarkEntryTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', $this->ids['exams']['DS101'])
-            ->assertJsonPath('data.0.subject.code', 'DS101');
+            ->assertJsonPath('data.0.subject.code', 'DS101')
+            ->assertJsonPath('data.0.semester.name', 'Semester 1');
+
+        // mine=1: only exams of subjects allocated to the caller, which they can open for entry.
+        $this->asUser('faculty@dsc.test')->getJson('/api/v1/exams?mine=1')->assertOk()->assertJsonCount(1, 'data');
+        $this->asUser('hod@dsc.test')->getJson('/api/v1/exams?mine=1')->assertOk()->assertJsonCount(0, 'data');
+        $this->asUser('hod@dsc.test')->getJson('/api/v1/exams')->assertOk()->assertJsonCount(1, 'data');
     }
 
     public function test_grade_rules_and_schemes_are_validated(): void

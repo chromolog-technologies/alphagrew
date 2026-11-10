@@ -5601,7 +5601,8 @@ export default function CampusWorkspace({
       case 'marks':
         return user.role === 'student'
           ? <StudentMarksView />
-          : <MarksModule />;
+          // Teachers enter marks for their allocated subjects; admins and reviewers have none.
+          : <MarksModule canEnterMarks={isApiConfigured() && user.role === 'staff' && can('marks.create')} />;
 
       case 'fees':
         return <FeesModule />;
