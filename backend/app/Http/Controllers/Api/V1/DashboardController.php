@@ -80,7 +80,7 @@ class DashboardController extends Controller
         return response()->json([
             'data' => DashboardResource::collection($this->visibleTo($user))->resolve($request),
             'templates' => array_map(
-                fn (string $key) => DashboardResource::template(DashboardTemplates::get($key)),
+                fn (string $key) => DashboardResource::template($this->templateFor($user, $key)),
                 DashboardTemplates::keysFor($user),
             ),
             'defaultTemplate' => DashboardTemplates::keyFor($user),
@@ -104,7 +104,7 @@ class DashboardController extends Controller
         return response()->json([
             'data' => $home
                 ? (new DashboardResource($home))->resolve($request)
-                : DashboardResource::template(DashboardTemplates::get(DashboardTemplates::keyFor($user))),
+                : DashboardResource::template($this->templateFor($user, DashboardTemplates::keyFor($user))),
         ]);
     }
 
@@ -123,7 +123,7 @@ class DashboardController extends Controller
         $description = $request->validated('description');
 
         if ($key = $request->validated('fromTemplate')) {
-            $template = DashboardTemplates::get($key);
+            $template = $this->templateFor($user, $key);
             $widgets ??= $template['widgets'];
             $templateKey = $key;
             $description ??= $template['description'];
@@ -204,6 +204,26 @@ class DashboardController extends Controller
         ]);
 
         return response()->json(['data' => (new DashboardResource($dashboard->fresh('owner')))->resolve($request)]);
+    }
+
+    /**
+     * A template without the widgets whose data the user cannot query (e.g. attendance for a
+     * placement officer), so nobody opens a dashboard full of "not available" tiles.
+     *
+     * @return array{key: string, name: string, description: string, widgets: list<array<string, mixed>>}
+     */
+    private function templateFor(User $user, string $key): array
+    {
+        $template = DashboardTemplates::get($key);
+        $sources = app(SourceRegistry::class);
+        $allowed = array_map(fn ($source) => $source->key(), $sources->availableTo($user, DashboardScope::for($user)));
+
+        $template['widgets'] = array_values(array_filter(
+            $template['widgets'],
+            fn (array $widget) => in_array($widget['spec']['source'], $allowed, true),
+        ));
+
+        return $template;
     }
 
     /** @return Collection<int, Dashboard> */

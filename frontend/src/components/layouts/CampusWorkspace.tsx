@@ -84,6 +84,12 @@ const StudentAttendanceView = lazyNamed(() => import('../student/StudentAttendan
 const StudentMarksView = lazyNamed(() => import('../student/StudentMarksView'), 'StudentMarksView');
 const StudentNotifications = lazyNamed(() => import('../student/StudentNotifications'), 'StudentNotifications');
 const StudentCareerProfile = lazyNamed(() => import('../student/StudentCareerProfile'), 'StudentCareerProfile');
+const DashboardHome = lazyNamed(() => import('../dashboards/DashboardHome'), 'DashboardHome');
+const CustomFieldsModule = lazyNamed(() => import('../admin/CustomFieldsModule'), 'CustomFieldsModule');
+import { SlidersHorizontal } from 'lucide-react';
+import { isApiConfigured } from '../../api/http';
+import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
+import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
 import { TenantState } from '../shared';
@@ -468,6 +474,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'subjects', label: 'Subjects', icon: BookOpen, permission: 'departments.create' },
     { id: 'academic_years', label: 'Academic Years', icon: Calendar, permission: 'departments.create' },
     { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'departments.create' },
+    { id: 'custom_fields', label: 'Custom Fields', icon: SlidersHorizontal, permission: 'custom_fields.manage' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
     { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'departments.create' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
@@ -536,7 +543,7 @@ const workspaceTabIds = new Set(Object.values(navByRole).flat().map((item) => it
 
 const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
-  { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
+  { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years', 'custom_fields'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
   { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
   { id: 'finance', label: 'Finance', itemIds: [] },
@@ -1325,6 +1332,13 @@ export default function CampusWorkspace({
   const [editingDesignation, setEditingDesignation] = useState<CampusDesignation | null>(null);
   const [editingStaff, setEditingStaff] = useState<CampusData['users'][number] | null>(null);
   const [studentDraft, setStudentDraft] = useState<StudentDraft>(createStudentDraft);
+  // Admin-defined student fields: definitions while the form is open, current values when editing.
+  const [studentCustomFields, setStudentCustomFields] = useState<CustomFieldValues>({});
+  const studentFieldDefinitions = useCustomFieldDefinitions('student', { enabled: showStudentModal && isApiConfigured() });
+  const studentFieldValues = useCustomFieldValues('student', showStudentModal && isApiConfigured() ? editingStudent?.id : null);
+  useEffect(() => {
+    if (studentFieldValues.data) setStudentCustomFields(studentFieldValues.data);
+  }, [studentFieldValues.data]);
   const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(createDepartmentDraft);
   const [companyDraft, setCompanyDraft] = useState<CompanyDraft>(createCompanyDraft);
   const [announcementDraft, setAnnouncementDraft] = useState<AnnouncementDraft>(createAnnouncementDraft);
@@ -1999,6 +2013,7 @@ export default function CampusWorkspace({
     setShowStudentModal(false);
     setEditingStudent(null);
     setStudentDraft(createStudentDraft());
+    setStudentCustomFields({});
   };
 
   const closeDepartmentModal = () => {
@@ -2073,6 +2088,8 @@ export default function CampusWorkspace({
       setStudentDraft(createStudentDraft());
     }
 
+    // Values for an existing student load from the API (see studentFieldValues).
+    setStudentCustomFields({});
     setShowStudentModal(true);
   };
 
@@ -2288,6 +2305,9 @@ export default function CampusWorkspace({
       feeStatus: studentDraft.feeStatus,
       password: studentDraft.password.trim() || undefined,
       skills: studentDraft.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+      ...(studentFieldDefinitions.data?.length
+        ? { customFields: toPayload(studentFieldDefinitions.data, studentCustomFields) }
+        : {}),
     };
 
     const action = editingStudent
@@ -5534,7 +5554,13 @@ export default function CampusWorkspace({
 
     switch (activeTab) {
       case 'dashboard':
+        // Live API: role templates and user-built dashboards. Offline demo mode keeps the sample dashboards.
+        if (isApiConfigured()) {
+          return <DashboardHome canBuild={can('dashboards.build')} canShare={can('dashboards.share')} designations={data.designations} />;
+        }
         return isAdminRole(user.role) ? renderAdminDashboard() : isInstitutionStaffRole(user.role) ? renderStaffDashboard() : renderStudentDashboard();
+      case 'custom_fields':
+        return <CustomFieldsModule />;
       case 'activity':
         return renderActivityTab();
       case 'masters':
@@ -6322,6 +6348,11 @@ export default function CampusWorkspace({
                 className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </label>
+            <CustomFieldInputs
+              definitions={studentFieldDefinitions.data ?? []}
+              values={studentCustomFields}
+              onChange={setStudentCustomFields}
+            />
             <p className="text-sm leading-6 text-slate-500 md:col-span-2">
               After saving, the workspace will show the student login details so you can share them immediately.
             </p>

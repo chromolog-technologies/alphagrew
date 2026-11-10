@@ -81,6 +81,16 @@ class DashboardTest extends TestCase
         }
 
         $this->assertSame(['student'], array_column($this->asUser('s1@dsc.test')->getJson('/api/v1/dashboards')->json('templates'), 'key'));
+
+        // Templates leave out widgets the viewer has no access to: placement officers cannot
+        // read attendance or marks, so those Management widgets are not offered to them.
+        $placement = $this->asUser('placement@demo.com')->getJson('/api/v1/dashboards/home')
+            ->assertOk()
+            ->assertJsonPath('data.templateKey', DashboardTemplates::MANAGEMENT)
+            ->json('data.widgets');
+        $this->assertNotEmpty($placement);
+        $this->assertSame([], array_values(array_intersect(array_column(array_column($placement, 'spec'), 'source'), ['attendance', 'marks'])));
+        $this->assertAllWidgetsRun('placement@demo.com', $placement);
     }
 
     public function test_marks_are_limited_to_the_viewers_scope(): void

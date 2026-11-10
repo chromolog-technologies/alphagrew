@@ -61,7 +61,10 @@ export type CampusPermission =
   | 'demo.reset'
   | 'attendance.view'
   | 'users.create'
-  | 'activity.view';
+  | 'activity.view'
+  | 'dashboards.build'
+  | 'dashboards.share'
+  | 'custom_fields.manage';
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
@@ -139,6 +142,9 @@ export const campusPermissionLabels: Record<CampusPermission, string> = {
   'attendance.view': 'Attendance',
   'users.create': 'Invite users',
   'activity.view': 'Audit log',
+  'dashboards.build': 'Build dashboards',
+  'dashboards.share': 'Share dashboards',
+  'custom_fields.manage': 'Manage custom fields',
 };
 
 export const campusStaffAssignablePermissions: CampusPermission[] = [
