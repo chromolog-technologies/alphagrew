@@ -54,6 +54,8 @@ export async function apiCall(
   const options: RequestOptions = {
     method,
     headers: {
+      // Without it Laravel answers a validation error with a redirect instead of a 422.
+      'Accept': 'application/json',
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
