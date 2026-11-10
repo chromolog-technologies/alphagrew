@@ -37,8 +37,9 @@ draft ──submit──▶ submitted ──verify──▶ verified ──appro
 |---|---|
 | `semester_id` | optional, existing semester |
 | `subject_id` | optional, existing subject |
+| `mine` | optional boolean. Only exams whose subject is allocated to the caller in the exam's semester, which is the same rule that allows mark entry. The teacher's Enter Marks screen uses it. |
 
-**200 OK**
+**200 OK**, newest exam first:
 
 ```json
 {
@@ -46,10 +47,13 @@ draft ──submit──▶ submitted ──verify──▶ verified ──appro
     "id": 4, "name": "End Semester Nov 2026", "subject_id": 12, "exam_type_id": 2, "semester_id": 5,
     "exam_date": "2026-11-20", "max_marks": 100, "status": "scheduled",
     "subject": { "id": 12, "name": "Database Systems", "code": "CS305" },
-    "exam_type": { "id": 2, "name": "End Semester" }
+    "exam_type": { "id": 2, "name": "End Semester" },
+    "semester": { "id": 5, "name": "Odd Semester 2026-27", "is_active": true }
   }]
 }
 ```
+
+`semester` lets teachers group their exams without calling `GET /semesters`, which needs `departments.view`.
 
 ---
 

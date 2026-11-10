@@ -13,6 +13,8 @@ This folder documents every HTTP endpoint the Laravel backend in `backend/` expo
 | [06-student-portal.md](06-student-portal.md) | Everything under `/students/me`, `/student/*`, resumes, AI interviews, readiness, signed file URLs |
 | [07-staff-portal-and-attendance.md](07-staff-portal-and-attendance.md) | `/staff/*` portal endpoints (mostly sample data) and the attendance module |
 | [08-known-issues.md](08-known-issues.md) | Defects and gaps found while documenting |
+| [09-dashboards-and-custom-fields.md](09-dashboards-and-custom-fields.md) | Role dashboards, user-built dashboards, sharing, the widget query engine, custom form fields |
+| [10-frontend-coverage.md](10-frontend-coverage.md) | Which endpoints the web app uses, which have no screen, and which screens have no real backend |
 
 > **Regenerating the index.** The endpoint table at the bottom of this file is generated from the live route table. If routes change, re-run `php artisan route:list --path=api --json` and update the table, or ask for this reference to be refreshed.
 
@@ -336,7 +338,7 @@ Parameter names differ by endpoint. Each endpoint lists its own.
 
 **Legend.** ✓ allowed by the role's base permissions. **D** allowed only when the user's designation grants the permission (staff and placement officers). — denied. · not applicable (public or signed URL). The index reflects route permissions plus the role checks made inside controllers and form requests. Record-level rules such as "own department" are in the Notes column and the module files.
 
-Total: 262 routes.
+Total: 277 routes.
 
 | Method | Path | Auth | Permission | SA | IA | PO | STF | STU | REC | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -391,6 +393,21 @@ Total: 262 routes.
 | GET | `/api/v1/courses/{course}` | Bearer | `departments.view` | ✓ | ✓ | ✓ | D | — | — |  |
 | PUT | `/api/v1/courses/{course}` | Bearer | `departments.create` | ✓ | ✓ | D | D | — | — |  |
 | DELETE | `/api/v1/courses/{course}` | Bearer | `departments.create` | ✓ | ✓ | D | D | — | — |  |
+| GET | `/api/v1/custom-fields` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Inactive fields only for `custom_fields.manage`. |
+| POST | `/api/v1/custom-fields` | Bearer | `custom_fields.manage` | ✓ | ✓ | — | — | — | — |  |
+| PATCH | `/api/v1/custom-fields/{customField}` | Bearer | `custom_fields.manage` | ✓ | ✓ | — | — | — | — | 409 on a type change once values exist. |
+| DELETE | `/api/v1/custom-fields/{customField}` | Bearer | `custom_fields.manage` | ✓ | ✓ | — | — | — | — | Soft delete. |
+| GET | `/api/v1/custom-fields/values/{entity}/{id}` | Bearer | — | ✓ | ✓ | ✓ | D | ✓ | — | Checked per entity in the controller; students see their own. |
+| PUT | `/api/v1/custom-fields/values/{entity}/{id}` | Bearer | — | ✓ | ✓ | D | D | — | — | Needs the entity's edit permission (see 09). |
+| GET | `/api/v1/dashboards` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | — | Own, shared with you, and templates. |
+| POST | `/api/v1/dashboards` | Bearer | `dashboards.build` | ✓ | ✓ | ✓ | ✓ | ✓ | — |  |
+| GET | `/api/v1/dashboards/home` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | — |  |
+| POST | `/api/v1/dashboards/query` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | — | Runs in the caller's own data scope. |
+| GET | `/api/v1/dashboards/sources` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | — |  |
+| GET | `/api/v1/dashboards/{dashboard}` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | — | 404 unless owned or shared with you. |
+| PATCH | `/api/v1/dashboards/{dashboard}` | Bearer | `dashboards.build` | ✓ | ✓ | ✓ | ✓ | ✓ | — | Owner only. |
+| DELETE | `/api/v1/dashboards/{dashboard}` | Bearer | `dashboards.build` | ✓ | ✓ | ✓ | ✓ | ✓ | — | Owner only. |
+| PUT | `/api/v1/dashboards/{dashboard}/share` | Bearer | `dashboards.share` | ✓ | ✓ | — | — | — | — | Owner only. |
 | GET | `/api/v1/departments` | Bearer | `departments.view` | ✓ | ✓ | ✓ | D | — | — |  |
 | POST | `/api/v1/departments` | Bearer | `departments.create` | ✓ | ✓ | D | D | — | — |  |
 | GET | `/api/v1/departments/list/hod-options` | Bearer | `departments.view` | ✓ | ✓ | ✓ | D | — | — |  |
