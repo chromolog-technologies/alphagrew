@@ -58,6 +58,17 @@ return [
     ),
 
     /*
+    | `php artisan db:seed` adds the demo accounts (admin@demo.com and others, all with
+    | a known password) only when this flag is on, which by default is only in local
+    | and testing. Roles and permissions are always seeded.
+    */
+
+    'demo_seed_enabled' => (bool) env(
+        'DEMO_SEED_ENABLED',
+        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)
+    ),
+
+    /*
     |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------

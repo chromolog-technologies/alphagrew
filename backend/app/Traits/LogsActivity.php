@@ -18,12 +18,14 @@ trait LogsActivity
         });
 
         static::updated(function ($model) {
+            // Hidden attributes (password hash, remember token) are recorded as changed,
+            // never with their values.
+            $hidden = $model->getHidden();
             $changes = [];
             foreach ($model->getChanges() as $key => $newValue) {
-                $changes[$key] = [
-                    'old' => $model->getOriginal($key),
-                    'new' => $newValue,
-                ];
+                $changes[$key] = in_array($key, $hidden, true)
+                    ? ['old' => '[redacted]', 'new' => '[redacted]']
+                    : ['old' => $model->getOriginal($key), 'new' => $newValue];
             }
 
             if (!empty($changes)) {

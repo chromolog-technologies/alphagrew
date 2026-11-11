@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Student;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
+use App\Models\Student;
 
 class AttendanceController extends Controller
 {
@@ -15,10 +16,10 @@ class AttendanceController extends Controller
 
     public function index(Request $request)
     {
-        $student = auth()->user();
+        $studentId = $this->ownStudentId($request);
 
         // Get attendance records for the current student
-        $attendanceBySubject = Attendance::where('student_id', $student->id)
+        $attendanceBySubject = Attendance::where('student_id', $studentId)
             ->with(['subject'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -32,8 +33,8 @@ class AttendanceController extends Controller
                 $late = $records->where('status', 'late')->count();
 
                 return [
-                    'subject' => $records->first()->subject->name,
-                    'subject_code' => $records->first()->subject->code ?? 'N/A',
+                    'subject' => $records->first()->subject?->name,
+                    'subject_code' => $records->first()->subject?->code ?? 'N/A',
                     'total_classes' => $total,
                     'present' => $present,
                     'absent' => $absent,
@@ -53,10 +54,10 @@ class AttendanceController extends Controller
 
     public function getDetailedRecords(Request $request)
     {
-        $student = auth()->user();
+        $studentId = $this->ownStudentId($request);
         $subjectFilter = $request->query('subject_id');
 
-        $query = Attendance::where('student_id', $student->id)
+        $query = Attendance::where('student_id', $studentId)
             ->with(['subject', 'faculty'])
             ->orderBy('created_at', 'desc');
 
@@ -68,7 +69,7 @@ class AttendanceController extends Controller
             ->map(function ($record) {
                 return [
                     'id' => $record->id,
-                    'date' => $record->created_at->format('Y-m-d'),
+                    'date' => $record->attendance_date?->format('Y-m-d'),
                     'subject' => $record->subject->name ?? 'Unknown Subject',
                     'class' => 'N/A',
                     'status' => $record->status,
@@ -86,16 +87,16 @@ class AttendanceController extends Controller
 
     public function getStatistics(Request $request)
     {
-        $student = auth()->user();
+        $studentId = $this->ownStudentId($request);
 
-        $totalClasses = Attendance::where('student_id', $student->id)->count();
-        $presentCount = Attendance::where('student_id', $student->id)
+        $totalClasses = Attendance::where('student_id', $studentId)->count();
+        $presentCount = Attendance::where('student_id', $studentId)
             ->where('status', 'present')
             ->count();
-        $absentCount = Attendance::where('student_id', $student->id)
+        $absentCount = Attendance::where('student_id', $studentId)
             ->where('status', 'absent')
             ->count();
-        $lateCount = Attendance::where('student_id', $student->id)
+        $lateCount = Attendance::where('student_id', $studentId)
             ->where('status', 'late')
             ->count();
 
@@ -113,5 +114,14 @@ class AttendanceController extends Controller
             ],
             'message' => 'Attendance statistics retrieved',
         ]);
+    }
+
+    /**
+     * attendance.student_id points at students, not users: resolve the signed-in user's
+     * students row. Null (no records) for an account that isn't a student.
+     */
+    private function ownStudentId(Request $request): ?int
+    {
+        return Student::where('user_id', $request->user()->id)->value('id');
     }
 }

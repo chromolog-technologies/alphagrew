@@ -72,9 +72,9 @@ class DesignationController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:designations,name',
-            'slug' => 'nullable|string|max:255|unique:designations,slug',
-            'department_id' => 'nullable|integer|exists:departments,id',
+            'name' => ['required', 'string', 'max:255', TenantRule::unique('designations', 'name')],
+            'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('designations', 'slug')],
+            'department_id' => ['nullable', 'integer', TenantRule::exists('departments', 'id')],
             'description' => 'nullable|string|max:1000',
             'status' => 'nullable|in:active,inactive',
             'permissions' => 'nullable|array',
@@ -134,7 +134,7 @@ class DesignationController extends Controller
                 'max:255',
                 TenantRule::unique('designations', 'slug')->ignore($designation->id),
             ],
-            'department_id' => 'nullable|integer|exists:departments,id',
+            'department_id' => ['nullable', 'integer', TenantRule::exists('departments', 'id')],
             'description' => 'nullable|string|max:1000',
             'status' => 'nullable|in:active,inactive',
             'permissions' => 'nullable|array',

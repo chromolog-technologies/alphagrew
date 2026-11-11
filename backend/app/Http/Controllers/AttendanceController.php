@@ -2,71 +2,77 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\Attendance;
+use App\Models\ClassModel;
 use App\Models\Student;
 use App\Models\Subject;
-use App\Models\ClassModel;
-use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
+use App\Support\Campus\CampusPermission;
 use App\Support\Tenancy\TenantRule;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Who sees which attendance records:
+ * - students: only their own;
+ * - staff: only records they marked, unless they may approve attendance (HOD);
+ * - admins: every record in the institution (the tenant scope still applies).
+ */
 class AttendanceController extends Controller
 {
+    private const MAX_PER_PAGE = 100;
+
     /**
      * Get attendance records with filters
      */
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.view', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+
+        $filters = $request->validate([
+            'subject_id' => 'sometimes|integer',
+            'student_id' => 'sometimes|integer',
+            'from_date' => 'sometimes|date',
+            'to_date' => 'sometimes|date',
+            'status' => 'sometimes|in:present,absent,leave,other',
+            'per_page' => 'sometimes|integer|min:1|max:'.self::MAX_PER_PAGE,
+        ]);
 
         $query = Attendance::query()
             ->with(['student', 'subject', 'faculty']);
 
-        // Faculty can only see their own subjects' attendance
-        if ($user->hasRole('faculty', 'sanctum')) {
-            $query->where('faculty_id', $user->id);
-        }
-
-        // Students can only see their own attendance
-        if ($user->hasRole('student', 'sanctum')) {
-            $student = Student::where('user_id', $user->id)->first();
-            if ($student) {
-                $query->where('student_id', $student->id);
-            } else {
+        if ($user->roleEnum() === UserRole::Student) {
+            $studentId = $this->ownStudentId($user);
+            if ($studentId === null) {
                 return response()->json(['attendance' => []]);
             }
+            $query->where('student_id', $studentId);
+        } elseif (isset($filters['student_id'])) {
+            $query->where('student_id', $filters['student_id']);
         }
 
-        // Apply filters
-        if ($request->has('subject_id')) {
-            $query->where('subject_id', $request->subject_id);
+        $this->limitToOwnMarking($query, $user);
+
+        if (isset($filters['subject_id'])) {
+            $query->where('subject_id', $filters['subject_id']);
         }
 
-        if ($request->has('student_id')) {
-            if ($user->hasPermissionTo('attendance.view', 'sanctum')) {
-                $query->where('student_id', $request->student_id);
-            }
+        if (isset($filters['from_date'])) {
+            $query->whereDate('attendance_date', '>=', $filters['from_date']);
         }
 
-        if ($request->has('from_date')) {
-            $query->whereDate('attendance_date', '>=', $request->from_date);
+        if (isset($filters['to_date'])) {
+            $query->whereDate('attendance_date', '<=', $filters['to_date']);
         }
 
-        if ($request->has('to_date')) {
-            $query->whereDate('attendance_date', '<=', $request->to_date);
-        }
-
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
         }
 
         $attendance = $query->orderBy('attendance_date', 'desc')
-            ->paginate($request->get('per_page', 50));
+            ->paginate((int) ($filters['per_page'] ?? 50));
 
         return response()->json([
             'attendance' => $attendance->items(),
@@ -80,64 +86,65 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Mark attendance for students
+     * Mark attendance for students on the subject's roster.
      */
     public function markAttendance(Request $request)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.mark', 'sanctum')) {
-            return response()->json(['message' => 'You cannot mark attendance'], 403);
-        }
 
         $validated = $request->validate([
-            'subject_id' => 'required|exists:subjects,id',
-            'attendance_data' => 'required|array',
-            'attendance_data.*.student_id' => 'required|exists:students,id',
+            'subject_id' => ['required', 'integer', TenantRule::exists('subjects', 'id')],
+            'attendance_data' => 'required|array|min:1',
+            'attendance_data.*.student_id' => ['required', 'integer', 'distinct', TenantRule::exists('students', 'id')],
             'attendance_data.*.status' => 'required|in:present,absent,leave,other',
             'attendance_date' => 'required|date',
-            'remarks' => 'nullable|string',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         $subject = Subject::findOrFail($validated['subject_id']);
+        $roster = $this->rosterQuery($subject)->pluck('students.id')->flip();
         $errors = [];
         $created = [];
 
-        foreach ($validated['attendance_data'] as $record) {
-            try {
-                // Check if attendance already exists for this date
-                $existing = Attendance::where('student_id', $record['student_id'])
+        DB::transaction(function () use ($validated, $user, $roster, &$errors, &$created): void {
+            foreach ($validated['attendance_data'] as $record) {
+                $studentId = (int) $record['student_id'];
+
+                if (! $roster->has($studentId)) {
+                    $errors[] = ['student_id' => $studentId, 'error' => 'The student is not enrolled for this subject.'];
+
+                    continue;
+                }
+
+                $existing = Attendance::where('student_id', $studentId)
                     ->where('subject_id', $validated['subject_id'])
                     ->whereDate('attendance_date', $validated['attendance_date'])
                     ->first();
 
                 if ($existing) {
-                    // Update existing record
+                    if ($this->marksOnlyOwn($user) && $existing->faculty_id !== $user->id) {
+                        $errors[] = ['student_id' => $studentId, 'error' => 'Attendance was already marked by another staff member.'];
+
+                        continue;
+                    }
+
                     $existing->update([
                         'status' => $record['status'],
                         'remarks' => $validated['remarks'] ?? $existing->remarks,
                     ]);
                     $created[] = $existing;
                 } else {
-                    // Create new record
-                    $attendance = Attendance::create([
-                        'student_id' => $record['student_id'],
+                    $created[] = Attendance::create([
+                        'student_id' => $studentId,
                         'subject_id' => $validated['subject_id'],
                         'faculty_id' => $user->id,
                         'attendance_date' => $validated['attendance_date'],
                         'status' => $record['status'],
                         'remarks' => $validated['remarks'] ?? null,
                     ]);
-                    $created[] = $attendance;
                 }
-            } catch (\Exception $e) {
-                $errors[] = [
-                    'student_id' => $record['student_id'],
-                    'error' => $e->getMessage(),
-                ];
             }
-        }
+        });
 
         return response()->json([
             'message' => 'Attendance marked successfully',
@@ -153,12 +160,6 @@ class AttendanceController extends Controller
      */
     public function subjects(Request $request)
     {
-        $user = $request->user();
-
-        if (! $user->hasPermissionTo('attendance.mark', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $subjects = Subject::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -170,30 +171,11 @@ class AttendanceController extends Controller
     /**
      * Get students for a specific subject (for marking attendance)
      */
-    public function getStudentsForSubject(Request $request, $subjectId)
+    public function getStudentsForSubject(Request $request, int $subjectId)
     {
-        $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.mark', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
-
         $subject = Subject::findOrFail($subjectId);
 
-        // Classes have no subject_id. A subject belongs to a course and a semester number;
-        // the roster is the students in that course's classes for the same semester.
-        $classIds = ClassModel::query()
-            ->where('course_id', $subject->course_id)
-            ->whereHas('semester', function (Builder $query) use ($subject) {
-                $query->where('semester_number', $subject->semester_number);
-            })
-            ->pluck('id');
-
-        $students = Student::query()
-            ->whereHas('classes', function (Builder $query) use ($classIds) {
-                $query->whereIn('classes.id', $classIds);
-            })
+        $students = $this->rosterQuery($subject)
             ->with('user')
             ->orderBy('registration_number')
             ->get()
@@ -219,28 +201,24 @@ class AttendanceController extends Controller
     /**
      * Get attendance report for a student
      */
-    public function getStudentReport(Request $request, $studentId)
+    public function getStudentReport(Request $request, int $studentId)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.view', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
 
-        $student = Student::findOrFail($studentId);
+        $student = Student::with('user')->findOrFail($studentId);
 
-        // Students can only view their own report
-        if ($user->hasRole('student', 'sanctum') && Student::where('user_id', $user->id)->first()?->id !== $studentId) {
+        if ($user->roleEnum() === UserRole::Student && $this->ownStudentId($user) !== $student->id) {
             return response()->json(['message' => 'You can only view your own attendance'], 403);
         }
 
-        $query = Attendance::where('student_id', $studentId)
+        $query = Attendance::where('student_id', $student->id)
             ->with(['subject', 'faculty']);
+
+        $this->limitToOwnMarking($query, $user);
 
         // Apply semester filter if provided
         if ($request->has('semester_id')) {
-            $subjectIds = Subject::where('semester_number', $request->semester_id)
+            $subjectIds = Subject::where('semester_number', (int) $request->query('semester_id'))
                 ->pluck('id');
             $query->whereIn('subject_id', $subjectIds);
         }
@@ -273,9 +251,9 @@ class AttendanceController extends Controller
         return response()->json([
             'student' => [
                 'id' => $student->id,
-                'name' => $student->user->name,
+                'name' => $student->user?->name ?? $student->name,
                 'roll_number' => $student->registration_number,
-                'email' => $student->user->email,
+                'email' => $student->user?->email ?? $student->email,
             ],
             'overall' => [
                 'total_classes' => $totalClasses,
@@ -293,26 +271,31 @@ class AttendanceController extends Controller
     /**
      * Get attendance report for a subject
      */
-    public function getSubjectReport(Request $request, $subjectId)
+    public function getSubjectReport(Request $request, int $subjectId)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.view', 'sanctum')) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
+
+        $filters = $request->validate([
+            'from_date' => 'sometimes|date',
+            'to_date' => 'sometimes|date',
+        ]);
 
         $subject = Subject::findOrFail($subjectId);
 
-        $query = Attendance::where('subject_id', $subjectId)
-            ->with(['student', 'faculty']);
+        $query = Attendance::where('subject_id', $subject->id)
+            ->with(['student.user', 'faculty']);
 
-        // Filter by date range if provided
-        if ($request->has('from_date')) {
-            $query->whereDate('attendance_date', '>=', $request->from_date);
+        if ($user->roleEnum() === UserRole::Student) {
+            $query->where('student_id', $this->ownStudentId($user) ?? 0);
         }
-        if ($request->has('to_date')) {
-            $query->whereDate('attendance_date', '<=', $request->to_date);
+
+        $this->limitToOwnMarking($query, $user);
+
+        if (isset($filters['from_date'])) {
+            $query->whereDate('attendance_date', '>=', $filters['from_date']);
+        }
+        if (isset($filters['to_date'])) {
+            $query->whereDate('attendance_date', '<=', $filters['to_date']);
         }
 
         $attendance = $query->get();
@@ -322,9 +305,10 @@ class AttendanceController extends Controller
             $total = $records->count();
             $present = $records->where('status', 'present')->count();
             $percentage = $total > 0 ? round(($present / $total) * 100, 2) : 0;
+            $student = $records->first()->student;
 
             return [
-                'student' => $records->first()->student->user->name,
+                'student' => $student?->user?->name ?? $student?->name,
                 'total_classes' => $total,
                 'present' => $present,
                 'absent' => $records->where('status', 'absent')->count(),
@@ -347,25 +331,19 @@ class AttendanceController extends Controller
     /**
      * Update single attendance record
      */
-    public function update(Request $request, $attendanceId)
+    public function update(Request $request, int $attendanceId)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.edit', 'sanctum')) {
-            return response()->json(['message' => 'You cannot edit attendance'], 403);
-        }
 
         $attendance = Attendance::findOrFail($attendanceId);
 
-        // Faculty can only edit their own marked attendance
-        if ($user->hasRole('faculty', 'sanctum') && $attendance->faculty_id !== $user->id) {
+        if ($this->marksOnlyOwn($user) && $attendance->faculty_id !== $user->id) {
             return response()->json(['message' => 'You can only edit attendance you marked'], 403);
         }
 
         $validated = $request->validate([
             'status' => 'required|in:present,absent,leave,other',
-            'remarks' => 'nullable|string',
+            'remarks' => 'nullable|string|max:1000',
         ]);
 
         $attendance->update($validated);
@@ -379,16 +357,16 @@ class AttendanceController extends Controller
     /**
      * Delete attendance record
      */
-    public function delete(Request $request, $attendanceId)
+    public function delete(Request $request, int $attendanceId)
     {
         $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.delete', 'sanctum')) {
-            return response()->json(['message' => 'You cannot delete attendance'], 403);
-        }
 
         $attendance = Attendance::findOrFail($attendanceId);
+
+        if ($this->marksOnlyOwn($user) && $attendance->faculty_id !== $user->id) {
+            return response()->json(['message' => 'You can only delete attendance you marked'], 403);
+        }
+
         $attendance->delete();
 
         return response()->json(['message' => 'Attendance deleted successfully']);
@@ -399,16 +377,9 @@ class AttendanceController extends Controller
      */
     public function approveAttendance(Request $request)
     {
-        $user = $request->user();
-        
-        // Check permission
-        if (!$user->hasPermissionTo('attendance.approve', 'sanctum')) {
-            return response()->json(['message' => 'You cannot approve attendance'], 403);
-        }
-
         $validated = $request->validate([
             'attendance_ids' => 'required|array|min:1',
-            'attendance_ids.*' => TenantRule::exists('attendance', 'id'),
+            'attendance_ids.*' => ['integer', TenantRule::exists('attendance', 'id')],
         ]);
 
         Attendance::whereIn('id', $validated['attendance_ids'])
@@ -418,5 +389,43 @@ class AttendanceController extends Controller
             'message' => 'Attendance approved successfully',
             'count' => count($validated['attendance_ids']),
         ]);
+    }
+
+    /**
+     * Classes have no subject_id. A subject belongs to a course and a semester number;
+     * the roster is the students in that course's classes for the same semester.
+     */
+    private function rosterQuery(Subject $subject): Builder
+    {
+        $classIds = ClassModel::query()
+            ->where('course_id', $subject->course_id)
+            ->whereHas('semester', function (Builder $query) use ($subject) {
+                $query->where('semester_number', $subject->semester_number);
+            })
+            ->pluck('id');
+
+        return Student::query()
+            ->whereHas('classes', function (Builder $query) use ($classIds) {
+                $query->whereIn('classes.id', $classIds);
+            });
+    }
+
+    /** Staff without the approve permission work only with records they marked. */
+    private function marksOnlyOwn(User $user): bool
+    {
+        return $user->roleEnum() === UserRole::Staff
+            && ! $user->hasPermissionTo(CampusPermission::ATTENDANCE_APPROVE, 'sanctum');
+    }
+
+    private function limitToOwnMarking(Builder $query, User $user): void
+    {
+        if ($this->marksOnlyOwn($user)) {
+            $query->where('faculty_id', $user->id);
+        }
+    }
+
+    private function ownStudentId(User $user): ?int
+    {
+        return Student::where('user_id', $user->id)->value('id');
     }
 }

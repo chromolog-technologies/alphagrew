@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Timetable;
 use App\Models\ClassModel;
+use App\Models\Student;
+use App\Models\User;
 
 class TimetableController extends Controller
 {
@@ -16,10 +18,7 @@ class TimetableController extends Controller
 
     public function index(Request $request)
     {
-        $student = auth()->user();
-
-        // Get student's class
-        $studentClass = ClassModel::find($student->class_id);
+        $studentClass = $this->currentClass($request->user());
 
         if (!$studentClass) {
             return response()->json([
@@ -29,24 +28,24 @@ class TimetableController extends Controller
         }
 
         // Get timetable for student's class
-        $timetable = Timetable::where('class_id', $studentClass->id)
+        $timetable = Timetable::activeFor($studentClass->id)
             ->with(['class', 'subject', 'faculty'])
-            ->orderBy('day')
+            ->orderBy('day_of_week')
             ->orderBy('start_time')
             ->get();
 
-        $formattedTimetable = $timetable->map(function ($slot) {
+        $formattedTimetable = $timetable->map(function ($slot) use ($studentClass) {
             return [
                 'id' => $slot->id,
-                'course_code' => $slot->subject->code ?? 'N/A',
-                'course_name' => $slot->subject->name,
+                'course_code' => $slot->subject?->code ?? 'N/A',
+                'course_name' => $slot->subject?->name,
                 'faculty' => $slot->faculty->name ?? 'TBA',
-                'day' => $slot->day,
+                'day' => $slot->day_of_week,
                 'start_time' => $this->formatTime($slot->start_time),
                 'end_time' => $this->formatTime($slot->end_time),
-                'room' => $slot->room ?? 'TBA',
+                'room' => $slot->room_number ?? 'TBA',
                 'building' => $slot->building ?? 'A',
-                'semester' => $studentClass->semester ?? 'N/A',
+                'semester' => $studentClass->semester?->name ?? 'N/A',
             ];
         });
 
@@ -86,10 +85,9 @@ class TimetableController extends Controller
 
     public function getByDay(Request $request)
     {
-        $student = auth()->user();
         $day = $request->query('day', 'Monday');
 
-        $studentClass = ClassModel::find($student->class_id);
+        $studentClass = $this->currentClass($request->user());
 
         if (!$studentClass) {
             return response()->json([
@@ -98,8 +96,8 @@ class TimetableController extends Controller
             ], 404);
         }
 
-        $timetable = Timetable::where('class_id', $studentClass->id)
-            ->where('day', $day)
+        $timetable = Timetable::activeFor($studentClass->id)
+            ->where('day_of_week', $day)
             ->with(['subject', 'faculty'])
             ->orderBy('start_time')
             ->get();
@@ -107,15 +105,15 @@ class TimetableController extends Controller
         $slots = $timetable->map(function ($slot) use ($studentClass) {
             return [
                 'id' => $slot->id,
-                'course_code' => $slot->subject->code,
-                'course_name' => $slot->subject->name,
+                'course_code' => $slot->subject?->code,
+                'course_name' => $slot->subject?->name,
                 'faculty' => $slot->faculty->name ?? 'TBA',
                 'time' => $this->formatTime($slot->start_time) . ' - ' . $this->formatTime($slot->end_time),
                 'start_time' => $this->formatTime($slot->start_time),
                 'end_time' => $this->formatTime($slot->end_time),
-                'room' => $slot->room,
+                'room' => $slot->room_number,
                 'building' => $slot->building,
-                'semester' => $studentClass->semester,
+                'semester' => $studentClass->semester?->name,
             ];
         });
 
@@ -128,6 +126,26 @@ class TimetableController extends Controller
             ],
             'message' => "Timetable for $day retrieved",
         ]);
+    }
+
+    /**
+     * The class the signed-in student is assigned to today (class_student), latest first.
+     * Users have no class; a student account reaches its classes through its students row.
+     */
+    private function currentClass(User $user): ?ClassModel
+    {
+        $student = Student::where('user_id', $user->id)->first();
+        $today = now()->toDateString();
+
+        return $student?->classes()
+            ->with('semester')
+            ->where('class_student.assigned_from', '<=', $today)
+            ->where(function ($query) use ($today) {
+                $query->whereNull('class_student.assigned_to')
+                    ->orWhere('class_student.assigned_to', '>=', $today);
+            })
+            ->orderByDesc('class_student.assigned_from')
+            ->first();
     }
 
     private function formatTime($time)
