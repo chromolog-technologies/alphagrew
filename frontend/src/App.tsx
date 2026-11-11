@@ -1,4 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+// Self-hosted app fonts; imported here so only the signed-in app downloads them.
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
 import {
   applyToCompanyWithCampusApi,
   createAnnouncementWithCampusApi,
@@ -21,7 +24,6 @@ import {
   isMfaChallenge,
   loginWithCampusApi,
   logoutFromCampusApi,
-  registerWithCampusApi,
   resetCampusDemo,
   updateCampusProfile,
   updateAnnouncementWithCampusApi,
@@ -39,221 +41,57 @@ import {
   type StudentRecordResponse,
 } from './api/campusApi';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { resendVerificationEmail } from './api/accountApi';
 import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
-import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
+import { createCampusDemoData, getDepartmentAccent } from './campusDemoData';
 import { OWNER } from './api/ownerApi';
-import { CampusLogin, OwnerLogin, type DemoAccount, type SignUpPayload } from './components/auth';
+import { CampusLogin, OwnerLogin } from './components/auth';
 import { PageLoading } from './components/shared/RouteStatus';
 
 // Loaded after sign-in, so the sign-in page doesn't download the whole workspace.
 const CampusWorkspace = lazy(() => import('./components/layouts/CampusWorkspace'));
 const OwnerWorkspace = lazy(() => import('./components/owner/OwnerWorkspace'));
 import {
-  campusDefaultDesignations,
-  campusDefaultMasters,
   campusMasterCategoryLabels,
   campusRolePermissions,
-  campusStaffAssignablePermissions,
   createDefaultCampusStudentResume,
-  getCampusMasterLabel,
   isInstitutionStaffRole,
   isPlatformRole,
-  normalizeCampusMasterValue,
-  normalizeCampusRole,
   normalizeCampusStudentResume,
   normalizeStaffPermissions,
   type CampusData,
   type CampusMasterCategory,
   type CampusPermission,
-  type CampusSession,
   type CampusStudentResume,
   type TenantError,
 } from './campusTypes';
-
-const AUTH_KEY = 'chromolog-campus-auth';
-const LEGACY_AUTH_TOKEN_KEY = 'auth_token';
-const DATA_KEY = 'chromolog-campus-data';
-
-type StoredAuth = {
-  token?: string;
-  user: CampusSession;
-};
-
-/** Accounts created by backend/database/seeders/CampusDemoSeeder.php. */
-const apiDemoAccounts: DemoAccount[] = [
-  { email: 'admin@demo.com', role: 'institution_admin', label: 'Institution Admin' },
-  { email: 'placement@demo.com', role: 'placement_officer', label: 'Placement Officer' },
-  { email: 'staff@demo.com', role: 'staff', label: 'Staff' },
-  { email: 'student@demo.com', role: 'student', label: 'Student' },
-];
-
-const SESSION_EXPIRED_NOTICE = 'Your session has expired. Sign in again to continue.';
-
-function slugifyDesignation(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
-function slugifyMasterCode(label: string) {
-  return label
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function upsertById<T extends { id: number }>(items: T[], record: T): T[] {
-  return items.some((item) => item.id === record.id)
-    ? items.map((item) => (item.id === record.id ? record : item))
-    : [...items, record];
-}
-
-function extractAssignablePermissions(permissions: CampusPermission[]) {
-  return normalizeStaffPermissions(permissions).filter((permission) => campusStaffAssignablePermissions.includes(permission));
-}
-
-function applyBrandAccents(dataset: CampusData): CampusData {
-  const hasPersistedMasters = Array.isArray((dataset as Partial<CampusData>).masters);
-  const masters = (hasPersistedMasters ? dataset.masters : campusDefaultMasters)
-    .map((master) => ({
-      ...master,
-      description: master.description ?? '',
-    }))
-    .sort((left, right) => left.category.localeCompare(right.category) || left.sortOrder - right.sortOrder || left.label.localeCompare(right.label));
-  const hasPersistedDesignations = Array.isArray((dataset as Partial<CampusData>).designations);
-  const baseDesignations = (hasPersistedDesignations ? dataset.designations : campusDefaultDesignations).map((designation) => ({
-    ...designation,
-    description: designation.description ?? '',
-    permissions: normalizeStaffPermissions(designation.permissions),
-  }));
-  const designationById = new Map(baseDesignations.map((designation) => [designation.id, designation]));
-  const designationByName = new Map(baseDesignations.map((designation) => [designation.name.trim().toLowerCase(), designation]));
-  const normalizedUsers = dataset.users.map((account) => {
-    if (account.role !== 'staff') {
-      const roleDefaults = campusRolePermissions[account.role as keyof typeof campusRolePermissions] ?? [];
-      const mergedRolePermissions = Array.from(
-        new Set([...(account.permissions ?? []), ...roleDefaults]),
-      ) as CampusPermission[];
-
-      return {
-        ...account,
-        permissions: mergedRolePermissions,
-      };
-    }
-
-    const designation =
-      (account.designationId ? designationById.get(account.designationId) : undefined) ??
-      designationByName.get((account.designationName ?? account.title).trim().toLowerCase());
-
-    return {
-      ...account,
-      title: designation?.name ?? account.title,
-      designationId: designation?.id ?? account.designationId,
-      designationName: designation?.name ?? account.designationName ?? account.title,
-      permissions: normalizeStaffPermissions(account.permissions ?? designation?.permissions ?? []),
-    };
-  });
-  const designations = baseDesignations.map((designation) => ({
-    ...designation,
-    staffCount: normalizedUsers.filter(
-      (account) =>
-        isInstitutionStaffRole(account.role) &&
-        (account.designationId === designation.id ||
-          (account.designationName ?? account.title).trim().toLowerCase() === designation.name.trim().toLowerCase()),
-    ).length,
-  }));
-
-  return {
-    ...dataset,
-    masters,
-    users: normalizedUsers,
-    designations,
-    departments: dataset.departments.map((department) => ({
-      ...department,
-      accent:
-        department.code in departmentAccentByCode
-          ? getDepartmentAccent(department.code)
-          : department.accent || getDepartmentAccent(),
-    })),
-    students: dataset.students.map((student) => ({
-      ...student,
-      year: normalizeCampusMasterValue('student_year', student.year, masters) || 'year_1',
-      gender: normalizeCampusMasterValue('student_gender', student.gender ?? 'prefer_not_to_say', masters) || 'prefer_not_to_say',
-      status: normalizeCampusMasterValue('student_status', student.status, masters) || 'active',
-      feeStatus: normalizeCampusMasterValue('payment_status', student.feeStatus, masters) || 'pending',
-      resume: normalizeCampusStudentResume(student.resume, student),
-    })),
-    companies: dataset.companies.map((company) => ({
-      ...company,
-      status: normalizeCampusMasterValue('company_drive_status', company.status, masters) || 'upcoming',
-      type: normalizeCampusMasterValue('company_drive_type', company.type, masters) || 'placement',
-    })),
-    announcements: dataset.announcements.map((announcement) => ({
-      ...announcement,
-      audience: normalizeCampusMasterValue('announcement_audience', announcement.audience, masters) || 'all',
-      priority: normalizeCampusMasterValue('announcement_priority', announcement.priority, masters) || 'medium',
-    })),
-  };
-}
-
-function loadDemoData() {
-  const stored = localStorage.getItem(DATA_KEY);
-  if (!stored) {
-    return applyBrandAccents(createCampusDemoData());
-  }
-
-  try {
-    const parsed = JSON.parse(stored) as CampusData;
-
-    return applyBrandAccents({
-      ...parsed,
-      users: parsed.users.map((account) => ({ ...account, role: normalizeCampusRole(account.role) })),
-    });
-  } catch {
-    return applyBrandAccents(createCampusDemoData());
-  }
-}
-
-function loadStoredAuth() {
-  const stored = localStorage.getItem(AUTH_KEY);
-  if (!stored) {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(stored) as StoredAuth;
-
-    return { ...parsed, user: { ...parsed.user, role: normalizeCampusRole(parsed.user.role) } };
-  } catch {
-    return null;
-  }
-}
-
-function toSessionUser(account: CampusData['users'][number]): CampusSession {
-  const { password: _password, permissions, ...session } = account;
-
-  return {
-    ...session,
-    permissions: permissions ?? campusRolePermissions[account.role],
-  };
-}
+import {
+  AUTH_KEY,
+  LEGACY_AUTH_TOKEN_KEY,
+  DATA_KEY,
+  type StoredAuth,
+  SESSION_EXPIRED_NOTICE,
+  slugifyDesignation,
+  slugifyMasterCode,
+  upsertById,
+  extractAssignablePermissions,
+  applyBrandAccents,
+  loadInitialData,
+  loadStoredAuth,
+  toSessionUser,
+} from './app/campusSession';
+import { AccountNotice, VerifyEmailReminder } from './app/AccountNotices';
 
 export default function App() {
   const apiConfigured = isCampusApiConfigured();
   const location = useLocation();
   const navigate = useNavigate();
-  const [data, setData] = useState<CampusData>(loadDemoData);
+  const [data, setData] = useState<CampusData>(() => loadInitialData(apiConfigured));
   const [auth, setAuth] = useState<StoredAuth | null>(loadStoredAuth);
   const [error, setError] = useState('');
   const [loginErrorCode, setLoginErrorCode] = useState<string | undefined>(undefined);
   // Informational message on the login screen (expired session, recruiter or inactive institution).
   const [loginNotice, setLoginNotice] = useState('');
   const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(null);
-  const [authView, setAuthView] = useState<'login' | 'signup'>('login');
   const [tenantError, setTenantError] = useState<TenantError | null>(null);
   const prevPathnameRef = useRef(location.pathname);
 
@@ -273,7 +111,6 @@ export default function App() {
   const reportApiError = (apiError: unknown, fallbackMessage: string) => {
     if (isApiError(apiError) && apiError.status === 401) {
       setAuth(null);
-      setAuthView('login');
       setLoginNotice(SESSION_EXPIRED_NOTICE);
       setError('');
       setLoginErrorCode(undefined);
@@ -291,8 +128,10 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Real records are never written to browser storage (shared lab computers, DPDP).
+    if (apiConfigured) return;
     localStorage.setItem(DATA_KEY, JSON.stringify(data));
-  }, [data]);
+  }, [apiConfigured, data]);
 
   useEffect(() => {
     if (auth) {
@@ -484,20 +323,6 @@ export default function App() {
       setLoginErrorCode(isApiError(apiError) ? apiError.code : undefined);
       setError(apiError instanceof Error ? apiError.message : 'Two-factor verification failed.');
     }
-  };
-
-  // Student self-registration. Field errors (422) are thrown back to the form so it can place them.
-  const handleRegister = async (payload: SignUpPayload) => {
-    if (!apiConfigured) {
-      throw new Error('Sign-up needs the Laravel API. Set VITE_API_BASE_URL, or use a demo account.');
-    }
-
-    const response = await registerWithCampusApi(payload);
-    setData(applyBrandAccents(response.data));
-    setAuth({ token: response.token, user: response.user });
-    setError('');
-    setLoginNotice('');
-    setTenantError(null);
   };
 
   const requireToken = () => {
@@ -1814,6 +1639,10 @@ export default function App() {
     }
 
     setAuth(null);
+    if (apiConfigured) {
+      // Drop the signed-in user's campus records from memory too.
+      setData(applyBrandAccents(createCampusDemoData()));
+    }
     setMfaChallengeToken(null);
     setError('');
     setLoginErrorCode(undefined);
@@ -1952,52 +1781,3 @@ export default function App() {
 }
 
 /** A dismissible status message, e.g. after following an email verification link. */
-function AccountNotice({ message, onDismiss }: { message: string; onDismiss: () => void }) {
-  if (!message) return null;
-
-  return (
-    <div role="status" className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-lg">
-      <span className="flex-1">{message}</span>
-      <button type="button" onClick={onDismiss} className="font-semibold text-blue-600 hover:text-blue-700">
-        Dismiss
-      </button>
-    </div>
-  );
-}
-
-/** Shown until the signed-in user verifies their email address; applying to drives needs it. */
-function VerifyEmailReminder({ email }: { email: string }) {
-  const [message, setMessage] = useState('');
-  const [hidden, setHidden] = useState(false);
-  const [sending, setSending] = useState(false);
-
-  if (hidden) return null;
-
-  const resend = async () => {
-    setSending(true);
-    try {
-      setMessage((await resendVerificationEmail()).message);
-    } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : 'Could not send the email. Try again later.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <div role="status" className="fixed bottom-4 left-4 z-50 max-w-sm rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-lg">
-      <p className="font-semibold">Verify your email address</p>
-      <p className="mt-1">
-        {message || `We sent a link to ${email}. You need a verified address to apply to placement drives.`}
-      </p>
-      <div className="mt-3 flex gap-3">
-        <button type="button" disabled={sending} onClick={() => void resend()} className="font-semibold text-amber-900 underline disabled:opacity-60">
-          {sending ? 'Sending…' : 'Resend link'}
-        </button>
-        <button type="button" onClick={() => setHidden(true)} className="font-semibold text-amber-800">
-          Later
-        </button>
-      </div>
-    </div>
-  );
-}

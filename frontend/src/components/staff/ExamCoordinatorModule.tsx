@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Calendar, Clock, MapPin, FileText } from 'lucide-react';
 import { fetchExams, createExam, assignExamInvigilators, assignExamClassrooms } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
-import { PrototypeNotice } from '../shared';
 
 interface ExamSchedule {
   id: number;
@@ -132,7 +131,6 @@ export const ExamCoordinatorModule: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Exam Coordination</h2>
         <p className="mt-1 text-sm text-slate-600">Manage exam schedules, halls, and result publishing</p>

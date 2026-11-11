@@ -155,14 +155,12 @@ Alphagrew defines six distinct roles. The frontend must guide each role through 
 
 ## 4. Key Architectural Disconnects & Gaps
 
-### 4.1. Authentication & Token Management Fragmentation
-* `apiClient.ts` reads `localStorage.getItem('chromolog-campus-auth')` and parses `{ token: string }`.
-* Legacy components (`AttendanceMarking.tsx`, `StudentAttendanceView.tsx`, `HODStaffManagement.tsx`) call `localStorage.getItem('auth_token')`.
-* `App.tsx` manually syncs `auth_token` on line 268 to bridge this gap.
-* **Solution**: Standardize on `apiClient.ts` as the single transport layer with an automated request interceptor.
+### 4.1. Authentication & Token Management (resolved 11 November 2026)
+* Every request goes through `src/api/core.ts` (`apiFetch`): one base URL, one token reader (`getStoredToken`: the `chromolog-campus-auth` session first, then the legacy `auth_token` key), one `ApiError`, sign-out on 401 and sample-data reporting. `http.ts`, `campusApi.ts` (`request()`) and `apiClient.ts` (`apiCall()`) are thin wrappers that keep their call signatures.
+* `App.tsx` still writes `auth_token` for screens that read it through `utils/auth.ts`; both now resolve through `getStoredToken`.
 
 ### 4.2. Error Handling & Form Validation
-* `request()` in `campusApi.ts` and `apiCall()` in `apiClient.ts` now throw `ApiError` with `status` and `errors`.
+* Every client throws the same `ApiError` (`src/api/apiError.ts`) with `status`, `errors` / `fieldErrors`, `firstFieldErrors`, `fieldError()` and `code`.
 * However, forms across `CoursesModule`, `SubjectsModule`, `DepartmentsModule`, and student creation forms still catch generic errors (`error.message`) and fail to render inline 422 field errors under specific inputs.
 * **Solution**: Integrate an `inlineFieldError(error, fieldName)` helper across all form dialogs.
 

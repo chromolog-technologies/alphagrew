@@ -1,4 +1,3 @@
-export { default as StudentDashboard } from './StudentDashboard';
 export { StudentAssignmentsMaterials } from './StudentAssignmentsMaterials';
 export { StudentAttendanceView } from './StudentAttendanceView';
 export { StudentMarksView } from './StudentMarksView';

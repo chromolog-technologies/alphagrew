@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Loader, AlertCircle, TrendingUp, Users } from 'lucide-react';
 import { getStoredAuthToken } from '../../utils/auth';
+import { apiFetch } from '../../api/core';
 
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
 interface AttendanceSummary {
   total_classes: number;
@@ -68,9 +67,9 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
       let params: any = {};
 
       if (reportType === 'student' && studentId) {
-        url = `${API_BASE_URL}/attendance/student/${studentId}/report`;
+        url = `/attendance/student/${studentId}/report`;
       } else if (reportType === 'subject' && subjectId) {
-        url = `${API_BASE_URL}/attendance/subject/${subjectId}/report`;
+        url = `/attendance/subject/${subjectId}/report`;
         if (fromDate) params.from_date = fromDate;
         if (toDate) params.to_date = toDate;
       } else {
@@ -85,20 +84,7 @@ export const AttendanceReport: React.FC<AttendanceReportProps> = ({
         finalUrl = `${url}?${queryParams}`;
       }
 
-      const response = await fetch(finalUrl, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to load report');
-      }
-
-      const data = await response.json();
+      const data = await apiFetch<any>(finalUrl, { token, fallbackMessage: 'Failed to load report' });
       setReport(data);
     } catch (err: any) {
       setError(err.message || 'Failed to load report');

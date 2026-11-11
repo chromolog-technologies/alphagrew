@@ -1,48 +1,26 @@
 /**
- * Generic API Client for ALphaGrew
- * This client handles API requests with authentication tokenautomatically retrieved from localStorage
+ * Module APIs for the admin setup screens (courses, subjects, semesters, exams...). Requests go
+ * through core.ts like every other client; this file only keeps the call signatures.
  */
 
-import { ApiError, apiErrorFromResponse } from './apiError';
-import { notifySessionExpired } from './campusApi';
+import { ApiError } from './apiError';
+import { apiFetch, getStoredToken, isApiConfigured } from './core';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
-
-interface RequestOptions extends Omit<RequestInit, 'headers'> {
-  headers?: Record<string, string>;
-}
+export { getStoredToken };
 
 /**
- * Get the stored authentication token from localStorage
- */
-export function getStoredToken(): string | null {
-  try {
-    const legacy = localStorage.getItem('auth_token');
-    if (legacy) return legacy;
-    const stored = localStorage.getItem('chromolog-campus-auth');
-    if (!stored) return null;
-    const auth = JSON.parse(stored);
-    return auth.token || null;
-  } catch {
-    return null;
-  }
-}
-
-
-/**
- * Make an authenticated API request
+ * Authenticated request with the stored token.
  * @param path - The API endpoint path (e.g., '/courses'), relative to VITE_API_BASE_URL
- * @param method - HTTP method (GET, POST, PUT, DELETE)
- * @param data - Request body data (for POST/PUT requests)
- * @returns Promise with the response data
+ * @param method - HTTP method
+ * @param data - Request body (sent for POST, PUT and PATCH)
  */
 export async function apiCall(
   path: string,
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET',
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
   data?: any
 ): Promise<any> {
-  if (!apiBaseUrl) {
-    throw new Error('API is not configured. Please set VITE_API_BASE_URL.');
+  if (!isApiConfigured()) {
+    throw new ApiError('API is not configured. Please set VITE_API_BASE_URL.', 0);
   }
 
   const token = getStoredToken();
@@ -50,33 +28,11 @@ export async function apiCall(
     throw new ApiError('Your session has expired. Please log in again.', 401);
   }
 
-  const url = `${apiBaseUrl}${path}`;
-  const options: RequestOptions = {
+  return apiFetch(path, {
     method,
-    headers: {
-      // Without it Laravel answers a validation error with a redirect instead of a 422.
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-  };
-
-  if (data && (method === 'POST' || method === 'PUT')) {
-    options.body = JSON.stringify(data);
-  }
-
-  const response = await fetch(url, options);
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json') ? await response.json() : null;
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      notifySessionExpired();
-    }
-    throw apiErrorFromResponse(response.status, payload, `API request failed with status ${response.status}`);
-  }
-
-  return payload;
+    token,
+    body: data !== undefined && method !== 'GET' && method !== 'DELETE' ? data : undefined,
+  });
 }
 
 /**

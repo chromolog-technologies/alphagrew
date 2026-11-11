@@ -289,6 +289,16 @@ These codes are validated on input and returned on output.
 
 Admins can add more options per category through `/masters`.
 
+
+### Response headers worth reading
+
+| Header | Meaning |
+|---|---|
+| `X-Data-Source: sample` | The endpoint still returns hardcoded sample data (`sample-data` middleware). The web app shows a "Prototype screen" notice on any screen that receives one. |
+| `Deprecation: true` and `Link: <...>; rel="successor-version"` | An older endpoint kept for the offline demo screens (`deprecated` middleware). The `Link` names the endpoint to use instead: `/companies` and `/staff/placement/drives|applications` → `/placement/jobs`; `/student/marks` → `/student/results/all`; `/staff/marks/*` → `/mark-entries`. |
+
+Browsers on another origin can read these, and `Content-Disposition` for exports, because `config/cors.php` exposes them.
+
 ## 6. Errors
 
 | Status | When | Body |

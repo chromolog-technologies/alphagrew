@@ -85,6 +85,10 @@ return [
     // verification) point here.
     'frontend_url' => rtrim((string) env('FRONTEND_URL', env('APP_URL', 'http://localhost')), '/'),
 
+    // The sign-in page. The React app's base URL is the public marketing site, so
+    // links that should open sign-in (approval email, after email verification) use this.
+    'frontend_login_url' => rtrim((string) env('FRONTEND_URL', env('APP_URL', 'http://localhost')), '/').'/login',
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

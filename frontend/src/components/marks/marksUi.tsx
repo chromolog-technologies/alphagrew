@@ -1,6 +1,14 @@
 import React from 'react';
 import { AlertCircle, CheckCircle2, Info } from 'lucide-react';
-import type { MarkEntryStatus, Semester } from '../../api/marksApi';
+/** Lifecycle of a mark entry, as returned by /mark-entries. */
+export type MarkEntryStatus = 'new' | 'draft' | 'submitted' | 'verified' | 'approved' | 'locked';
+
+export interface Semester {
+  id: number;
+  name: string;
+  semester_number: number;
+  academic_year?: { id: number; name: string } | null;
+}
 
 const statusStyles: Record<MarkEntryStatus, string> = {
   new: 'bg-slate-100 text-slate-600',

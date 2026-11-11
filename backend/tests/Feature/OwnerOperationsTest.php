@@ -326,6 +326,26 @@ class OwnerOperationsTest extends TestCase
             ->assertJsonPath('data.publicationStatus', 'published');
     }
 
+    public function test_tickets_can_only_be_assigned_to_platform_staff(): void
+    {
+        $ticket = $this->as('support@test.dev')->postJson('/api/v1/owner/support/tickets', [
+            'institutionId' => Institution::defaultId(),
+            'subject' => 'Login issue',
+            'description' => 'A student cannot sign in.',
+            'category' => 'technical',
+            'priority' => 'medium',
+        ])->assertCreated()->json('data');
+
+        $campusAdmin = User::query()->withoutGlobalScopes()->where('email', 'admin@demo.com')->firstOrFail();
+        $this->as('support@test.dev')->patchJson("/api/v1/owner/support/tickets/{$ticket['id']}", ['assignedTo' => $campusAdmin->id])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assignedTo');
+
+        $tech = User::query()->withoutGlobalScopes()->where('email', 'tech@test.dev')->firstOrFail();
+        $this->as('support@test.dev')->patchJson("/api/v1/owner/support/tickets/{$ticket['id']}", ['assignedTo' => $tech->id])
+            ->assertOk();
+    }
+
     private function platformUser(string $email, UserRole $role, ?string $roleSlug): User
     {
         $roleId = $roleSlug ? PlatformRole::query()->where('slug', $roleSlug)->value('id') : null;

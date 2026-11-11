@@ -1,5 +1,6 @@
 /**
- * Error thrown by every API helper. Keeps the HTTP status and Laravel's 422 field errors
+ * The one error type thrown by every API helper (core.ts, http.ts, campusApi.ts, apiClient.ts).
+ * Keeps the HTTP status, Laravel's 422 field errors and the optional machine-readable code,
  * so screens can tell "not in your institution" (404), "no access" (403), "signed out" (401)
  * and invalid input (422) apart.
  */
@@ -14,6 +15,16 @@ export class ApiError extends Error {
     this.status = status;
     this.errors = errors;
     this.code = code;
+  }
+
+  /** Laravel's per-field messages (same as `errors`). */
+  get fieldErrors(): Record<string, string[]> {
+    return this.errors;
+  }
+
+  /** First message per field, for showing next to inputs. */
+  get firstFieldErrors(): Record<string, string> {
+    return Object.fromEntries(Object.entries(this.errors).map(([field, messages]) => [field, messages[0] ?? '']));
   }
 
   /** First validation message for a field, e.g. fieldError('institutionCode'). */

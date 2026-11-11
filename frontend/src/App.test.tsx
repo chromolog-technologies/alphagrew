@@ -395,3 +395,21 @@ describe('Owner Console Release 2 (SaaS commercial & AI credits)', () => {
     expect(await screen.findByRole('tab', { name: 'Credit wallets & ledger' }, { timeout: 5000 })).toBeInTheDocument();
   }, 15000);
 });
+
+describe('browser storage of campus records (live API mode)', () => {
+  it('never keeps the campus dataset in localStorage and removes an old copy', async () => {
+    localStorage.setItem('chromolog-campus-data', JSON.stringify({ students: [{ id: 1, name: 'Old copy' }] }));
+    const staffUser = { id: 7, name: 'Admin', email: 'admin@demo.com', role: 'institution_admin', permissions: [] };
+    localStorage.setItem('chromolog-campus-auth', JSON.stringify({ token: '1|tok', user: staffUser }));
+    const bootstrap = vi.fn(async () =>
+      jsonResponse(200, { user: staffUser, data: { ...emptyDataset, students: [{ id: 99, name: 'Real Student' }] } }),
+    );
+    vi.stubGlobal('fetch', bootstrap);
+
+    renderAt('/app/dashboard');
+
+    await vi.waitFor(() => expect(bootstrap).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(localStorage.getItem('chromolog-campus-data')).toBeNull();
+  });
+});

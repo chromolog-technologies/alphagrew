@@ -130,16 +130,14 @@ class DepartmentController extends Controller
      */
     public function getHodOptions(): JsonResponse
     {
-        $hodOptions = User::where(function ($query) {
-            $query->where('role', 'hod')
-                ->orWhere('role', 'staff');
-        })
-            ->select('id', 'first_name', 'last_name', 'email', 'department_code')
+        // Heads of department are staff members; there is no separate "hod" role.
+        $hodOptions = User::where('role', 'staff')
+            ->select('id', 'name', 'first_name', 'last_name', 'email', 'department_code')
             ->get()
             ->map(function ($user) {
                 return [
                     'id' => $user->id,
-                    'name' => "{$user->first_name} {$user->last_name}",
+                    'name' => trim("{$user->first_name} {$user->last_name}") ?: $user->name,
                     'email' => $user->email,
                     'department' => $user->department_code,
                 ];

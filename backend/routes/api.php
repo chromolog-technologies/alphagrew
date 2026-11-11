@@ -369,7 +369,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/students', [StudentController::class, 'index'])
             ->middleware('permission:'.CampusPermission::STUDENTS_VIEW.',sanctum');
         Route::put('/students/me/resume', [StudentResumeController::class, 'update'])
-            ->middleware('permission:'.CampusPermission::PROFILE_VIEW.',sanctum');
+            ->middleware('permission:'.CampusPermission::PROFILE_EDIT.',sanctum');
         Route::post('/students', [StudentController::class, 'store'])
             ->middleware('permission:'.CampusPermission::STUDENTS_CREATE.',sanctum');
         Route::put('/students/{student}', [StudentController::class, 'update'])
@@ -415,17 +415,19 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('permission:'.CampusPermission::DASHBOARDS_SHARE.',sanctum');
         });
 
-        Route::get('/companies', [CompanyController::class, 'index'])
-            ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
-        Route::post('/companies', [CompanyController::class, 'store'])
-            ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        Route::put('/companies/{company}', [CompanyController::class, 'update'])
-            ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])
-            ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
-        // Applying needs a verified email address (PRD §6): recruiters and officers contact it.
-        Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
-            ->middleware(['permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum', 'verified']);
+        Route::middleware('deprecated:placement/jobs')->group(function (): void {
+            Route::get('/companies', [CompanyController::class, 'index'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+            Route::post('/companies', [CompanyController::class, 'store'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+            Route::put('/companies/{company}', [CompanyController::class, 'update'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+            Route::delete('/companies/{company}', [CompanyController::class, 'destroy'])
+                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+            // Applying needs a verified email address (PRD §6): recruiters and officers contact it.
+            Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
+                ->middleware(['permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum', 'verified']);
+        });
 
         // Placement on the job-posting model (PRD v1.1 §6, §10): jobs with eligibility rules,
         // the application pipeline, rounds, offers and placement policies.
@@ -793,11 +795,13 @@ Route::prefix('v1')->group(function (): void {
             });
 
             // Student Marks
-            Route::prefix('marks')->group(function (): void {
-                Route::get('/', [MarksController::class, 'index'])
-                    ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-                Route::get('/statistics', [MarksController::class, 'getStatistics'])
-                    ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+            Route::middleware('deprecated:student/results/all')->group(function (): void {
+                Route::prefix('marks')->group(function (): void {
+                    Route::get('/', [MarksController::class, 'index'])
+                        ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+                    Route::get('/statistics', [MarksController::class, 'getStatistics'])
+                        ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+                });
             });
 
             // Student Timetable
@@ -840,19 +844,21 @@ Route::prefix('v1')->group(function (): void {
             });
 
             // Marks Entry Routes
-            Route::prefix('marks')->group(function (): void {
-                Route::get('/students', [StaffMarksController::class, 'getStudents'])
-                    ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
-                Route::post('/submit', [StaffMarksController::class, 'submitMarks'])
-                    ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
-                Route::get('/exams', [StaffMarksController::class, 'getExams'])
-                    ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-                Route::get('/statistics', [StaffMarksController::class, 'getStatistics'])
-                    ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
-                Route::get('/template', [StaffMarksController::class, 'downloadTemplate'])
-                    ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
-                Route::post('/upload', [StaffMarksController::class, 'uploadMarks'])
-                    ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
+            Route::middleware('deprecated:mark-entries')->group(function (): void {
+                Route::prefix('marks')->group(function (): void {
+                    Route::get('/students', [StaffMarksController::class, 'getStudents'])
+                        ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
+                    Route::post('/submit', [StaffMarksController::class, 'submitMarks'])
+                        ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
+                    Route::get('/exams', [StaffMarksController::class, 'getExams'])
+                        ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+                    Route::get('/statistics', [StaffMarksController::class, 'getStatistics'])
+                        ->middleware('permission:'.CampusPermission::MARKS_VIEW.',sanctum');
+                    Route::get('/template', [StaffMarksController::class, 'downloadTemplate'])
+                        ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
+                    Route::post('/upload', [StaffMarksController::class, 'uploadMarks'])
+                        ->middleware('permission:'.CampusPermission::MARKS_CREATE.',sanctum');
+                });
             });
 
             // Staff Management Routes (HOD)
@@ -938,13 +944,17 @@ Route::prefix('v1')->group(function (): void {
         // The applications list shows other students' details, so it needs placement.manage.
         Route::prefix('staff/placement')->group(function (): void {
             Route::get('/drives', [PlacementController::class, 'getDrives'])
-                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
+                ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum')
+                ->middleware('deprecated:placement/jobs');
             Route::get('/applications', [PlacementController::class, 'getApplications'])
-                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum')
+                ->middleware('deprecated:placement/jobs');
             Route::post('/drives', [PlacementController::class, 'createDrive'])
-                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum');
+                ->middleware('permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum')
+                ->middleware('deprecated:placement/jobs');
             Route::put('/drives/{driveId}', [PlacementController::class, 'updateDrive'])
-                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum');
+                ->middleware('permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum')
+                ->middleware('deprecated:placement/jobs');
             Route::get('/statistics', [PlacementController::class, 'getStatistics'])
                 ->middleware('permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum');
             Route::get('/results-by-batch', [PlacementController::class, 'getResultsByBatch'])

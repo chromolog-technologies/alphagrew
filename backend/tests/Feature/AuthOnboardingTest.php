@@ -119,7 +119,7 @@ class AuthOnboardingTest extends TestCase
             'id' => $user->id,
             'hash' => sha1($user->email),
         ]);
-        $this->get($verifyUrl)->assertRedirect(config('app.frontend_url').'/?verified=1');
+        $this->get($verifyUrl)->assertRedirect(config('app.frontend_login_url').'?verified=1');
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
 
         // A tampered link is refused by the signature check.

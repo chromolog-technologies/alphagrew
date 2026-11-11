@@ -1,7 +1,8 @@
 @import "tailwindcss";
+@import "./marketing/marketing.css";
 
 /* ========================================================
-   Design tokens: light admin theme with an indigo primary.
+   Design tokens: light admin theme with the brand blue primary (#246bfc).
    Use them as Tailwind classes: bg-background, bg-card, text-muted-foreground,
    border-border, bg-primary, text-success, bg-sidebar, shadow-card, text-2xs …
    ======================================================== */
@@ -15,22 +16,22 @@
   --card-foreground: #111827;
   --border: #e5e7eb;
   --input: #e5e7eb;
-  --ring: #6366f1;
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
+  --ring: #246bfc;
+  --primary: #246bfc;
+  --primary-hover: #1557e0;
   --primary-foreground: #ffffff;
   --accent: #f3f4f6;
   --destructive: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
-  --info: #3b82f6;
-  --chart-1: #6366f1;
+  --info: #0369a1;
+  --chart-1: #246bfc;
   --chart-2: #8b5cf6;
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #ec4899;
   --chart-6: #ef4444;
-  --chart-7: #3b82f6;
+  --chart-7: #0f8a7e;
   --sidebar: #ffffff;
   --sidebar-foreground: #374151;
   --sidebar-accent: #f3f4f6;
@@ -48,14 +49,14 @@
   --brand-ink: var(--foreground);
   --brand-muted: var(--muted-foreground);
 
-  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--background);
   color: var(--foreground);
 }
 
 @theme inline {
-  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Geist Variable", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -90,24 +91,36 @@
   --shadow-dropdown: 0 8px 24px -6px #00000024, 0 2px 6px -2px #0000000f;
 }
 
-/* The app's accent was Tailwind blue; it now follows the indigo primary everywhere. */
+/* One brand blue for the app and the marketing site (ALPHA GREW Figma palette). Tailwind's
+   blue and indigo scales both map to it, so older blue-* / indigo-* classes match the brand. */
 @theme {
-  --color-blue-50: #eef2ff;
-  --color-blue-100: #e0e7ff;
-  --color-blue-200: #c7d2fe;
-  --color-blue-300: #a5b4fc;
-  --color-blue-400: #818cf8;
-  --color-blue-500: #6366f1;
-  --color-blue-600: #6366f1;
-  --color-blue-700: #4f46e5;
-  --color-blue-800: #4338ca;
-  --color-blue-900: #3730a3;
-  --color-blue-950: #312e81;
+  --color-blue-50: #eef5ff;
+  --color-blue-100: #dce9ff;
+  --color-blue-200: #bcd4ff;
+  --color-blue-300: #8db2fd;
+  --color-blue-400: #5c90fd;
+  --color-blue-500: #3b7bfd;
+  --color-blue-600: #246bfc;
+  --color-blue-700: #1557e0;
+  --color-blue-800: #1046b5;
+  --color-blue-900: #0b3a8f;
+  --color-blue-950: #06234b;
+  --color-indigo-50: #eef5ff;
+  --color-indigo-100: #dce9ff;
+  --color-indigo-200: #bcd4ff;
+  --color-indigo-300: #8db2fd;
+  --color-indigo-400: #5c90fd;
+  --color-indigo-500: #3b7bfd;
+  --color-indigo-600: #246bfc;
+  --color-indigo-700: #1557e0;
+  --color-indigo-800: #1046b5;
+  --color-indigo-900: #0b3a8f;
+  --color-indigo-950: #06234b;
 }
 
 /* Gradient fills for headline KPI cards. */
 @utility gradient-primary {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  background: linear-gradient(135deg, #246bfc 0%, #1557e0 100%);
 }
 @utility gradient-success {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -119,7 +132,7 @@
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 @utility gradient-info {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #3b7bfd 0%, #246bfc 100%);
 }
 @utility gradient-purple {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
@@ -183,7 +196,7 @@ body {
 }
 
 ::selection {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(36, 107, 252, 0.15);
   color: var(--primary);
 }
 
@@ -298,9 +311,10 @@ textarea {
 /* ========================================================
    Global Form Elements: HeroUI Clean CRM Inputs
    ======================================================== */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-select,
-textarea {
+/* Not applied inside the public marketing site, which has its own field styles. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.mk-site *),
+select:not(.mk-site *),
+textarea:not(.mk-site *) {
   border-radius: 12px;
   border: 1px solid var(--border);
   background-color: var(--background);
@@ -308,13 +322,13 @@ textarea {
   transition: all 0.15s ease;
 }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):focus,
-select:focus,
-textarea:focus {
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.mk-site *):focus,
+select:not(.mk-site *):focus,
+textarea:not(.mk-site *):focus {
   background-color: #ffffff;
   border-color: var(--primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 0 0 3px rgba(36, 107, 252, 0.15);
 }
 
 /* ========================================================
@@ -326,7 +340,7 @@ table {
   border-spacing: 0;
 }
 
-thead th {
+thead th:not(.mk-site *) {
   background-color: var(--background);
   color: #71717a;
   font-size: 0.72rem;
@@ -337,7 +351,7 @@ thead th {
   border-bottom: 1px solid var(--border);
 }
 
-tbody td {
+tbody td:not(.mk-site *) {
   padding: 0.85rem 1rem;
   font-size: 0.875rem;
   color: #27272a;
@@ -345,11 +359,11 @@ tbody td {
   transition: background-color 0.15s ease;
 }
 
-tbody tr:hover td {
+tbody tr:hover td:not(.mk-site *) {
   background-color: var(--background);
 }
 
-tbody tr:last-child td {
+tbody tr:last-child td:not(.mk-site *) {
   border-bottom: none;
 }
 
@@ -364,7 +378,7 @@ a.bg-slate-900 {
   color: #ffffff !important;
   border-radius: 10px !important;
   font-weight: 600 !important;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
+  box-shadow: 0 2px 4px rgba(36, 107, 252, 0.2) !important;
   transition: all 0.18s ease-in-out !important;
 }
 
@@ -373,7 +387,7 @@ button.bg-slate-900:hover,
 a.bg-slate-950:hover,
 a.bg-slate-900:hover {
   background-color: var(--primary-hover) !important;
-  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3) !important;
+  box-shadow: 0 4px 10px rgba(36, 107, 252, 0.3) !important;
   transform: translateY(-1px);
 }
 

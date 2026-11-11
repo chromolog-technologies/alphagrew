@@ -7,5 +7,4 @@ export { DepartmentOverview } from './DepartmentOverview';
 export { ExamCoordinatorModule } from './ExamCoordinatorModule';
 export { HODReportsAnalytics } from './HODReportsAnalytics';
 export { HODStaffManagement } from './HODStaffManagement';
-export { MarksEntry } from './MarksEntry';
 export { PlacementOfficerModule } from './PlacementOfficerModule';

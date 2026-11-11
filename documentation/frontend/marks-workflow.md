@@ -61,15 +61,13 @@ mark schemes ┴─► exam ─► draft ──submit──► submitted ──v
 
 ## M4. Frontend
 
+**Updated 11 November 2026.** The four-step `MarksWorkflowModule` (with `MarksSetupPanel`, `MarksEntryPanel`, `MarksReviewPanel`, `ResultPublishingPanel`, `StudentResultsView` and `api/marksApi.ts`) was never mounted and has been removed. The live screens are:
+
 | Screen | File | Shown to |
 |---|---|---|
-| Workflow shell: 4-step stepper, shared semester choice | `components/marks/MarksWorkflowModule.tsx` | Marks tab, every role except student |
-| 1 Set up: grade rules table, "Use default rules", mark schemes per semester with an add form (total computed) | `MarksSetupPanel.tsx` | `marks.view`; editing with `marks.create` |
-| 2 Enter marks: semester → exam → class sheet with internal / external / extra / absent, per-row limit checks, Save draft, Submit for review | `MarksEntryPanel.tsx` | `marks.create` |
-| 3 Review: counts, status filter, Verify / Approve / Send back with a reason, pagination | `MarksReviewPanel.tsx` | `marks.view`; actions with `marks.approve` |
-| 4 Publish: readiness bar by status, Publish (only when every entry is approved), Unlock with a reason, publishing log | `ResultPublishingPanel.tsx` | `marks.view`; actions with `marks.publish` |
-| My results: cumulative GPA, published semesters, per-subject marks | `StudentResultsView.tsx` | Marks tab for students |
-| API client and types | `api/marksApi.ts` | — |
+| Marks tab: grade rules, mark schemes, review and result publishing | `components/admin/MarksModule.tsx` (calls `campusApi.ts`) | Marks tab, staff and admins |
+| Enter marks: exam → class sheet, save draft, submit | `components/marks/TeacherMarkEntry.tsx` (calls `markEntryApi.ts`) | Staff with `marks.create`, for their allocated subjects |
+| Shared status chips, cards and form classes | `components/marks/marksUi.tsx` | — |
 
 Design rules followed: status chips carry a word, not only a colour (Draft, Submitted, Verified, Approved, Published); destructive actions confirm first; publish and unlock state what students will see; every action button is at least 44px high; offline demo mode shows a notice instead of fake data.
 

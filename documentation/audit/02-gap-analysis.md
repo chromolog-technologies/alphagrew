@@ -8,6 +8,16 @@
 
 Legend: ✅ Complete · 🟡 Partial · 🔴 Missing · ⚠️ Broken / inconsistent. Each gap has an ID (e.g. `AUTH-2`) used by `04-implementation-plan.md`.
 
+> **Status note, 11 November 2026.** This analysis describes the 22 October snapshot. Since then, several gaps have closed and the table below is out of date for them:
+> - **Auth (AUTH-2, AUTH-4, AUTH-6, AUTH-7):** password reset, email verification, session list and revoke, an append-only audit log with a viewer, and rate limits on login, registration, uploads, AI and exports are built.
+> - **Tenancy (TEN-3):** the placement applications leak and the unscoped attendance queries are fixed (`eef2406`).
+> - **Placement and eligibility (modules 5 and 6):** jobs with eligibility rules (CGPA, backlogs, attendance, department, batch, school scores, skills, profile), the application pipeline, rounds, results, offers, placement policy enforcement and debarment are built (`documentation/api/11-placement-workflow-and-notifications.md`).
+> - **Notifications (module 12):** in-app and email notifications with per-user preferences are built; SMS is not.
+> - **Super admin / SaaS (module 15):** the Owner Console (institutions, plans, subscriptions, billing, AI credits, support, CRM, audit, two-step verification) is built.
+> - **Non-functional (module 16):** CI runs on PHP 8.2 and 8.5 and Node 22 and 24, the API image is production-ready (Apache with OPcache, queue worker and scheduler), CORS is restricted to the frontend origin, the frontend sends a Content Security Policy, and the public site and app are code-split.
+>
+> Still missing: recruiter portal, job matching, assessments engine, bulk import, document verification, APIs for subject allocations and exam types, downloadable reports, and real data behind the 45 sample-data endpoints. See `documentation/api/08-known-issues.md` for the current defect list.
+
 ## 1. Completion by module
 
 | # | Module | Status | Est. completion | Main gaps |

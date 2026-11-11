@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { LOGIN_BASE_PATH } from '../../routes';
 import {
   acceptInvitation,
   ApiError,
@@ -35,7 +36,7 @@ function AuthShell({ title, subtitle, children }: { title: string; subtitle?: st
           </div>
         </div>
         {children}
-        <Link to="/" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+        <Link to={LOGIN_BASE_PATH} className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
           <ArrowLeft size={14} aria-hidden="true" /> Back to sign in
         </Link>
       </div>
@@ -286,7 +287,7 @@ export function AcceptInvitationPage({ onSignedIn }: { onSignedIn: (response: Au
     event.preventDefault();
     void run(async () => {
       const response = await acceptInvitation(token, { name, password, password_confirmation: confirmation });
-      navigate('/', { replace: true });
+      navigate(LOGIN_BASE_PATH, { replace: true });
       onSignedIn(response);
     });
   };

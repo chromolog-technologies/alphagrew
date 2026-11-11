@@ -251,7 +251,7 @@ export function kpiValue(result: QueryResult): number | null {
 }
 
 /** Chart series colours (brand blues first, then distinguishable accents). */
-export const SERIES_COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#06b6d4', '#ef4444'];
+export const SERIES_COLORS = ['#246bfc', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#06b6d4', '#ef4444'];
 
 // ---------------------------------------------------------------------------------------
 // Builder

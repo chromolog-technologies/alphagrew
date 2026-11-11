@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'sample-data' => MarkSampleData::class,
+            'deprecated' => \App\Http\Middleware\MarkDeprecated::class,
             'tenant' => SetTenant::class,
             'owner' => \App\Http\Middleware\EnsureOwnerPermission::class,
         ]);
