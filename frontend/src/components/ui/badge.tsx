@@ -6,13 +6,13 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const badgeVariants: Record<NonNullable<BadgeProps['variant']>, string> = {
-  default: 'border-transparent bg-blue-600 text-white shadow-2xs hover:bg-blue-700',
-  secondary: 'border-transparent bg-slate-100 text-slate-800 hover:bg-slate-200',
-  destructive: 'border-transparent bg-red-100 text-red-800 hover:bg-red-200',
-  outline: 'text-slate-800 border-slate-300',
-  success: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-  info: 'border-sky-200 bg-sky-50 text-sky-800',
+  default: 'border-transparent bg-primary/10 text-primary',
+  secondary: 'border-transparent bg-muted text-muted-foreground',
+  destructive: 'border-transparent bg-destructive/10 text-destructive',
+  outline: 'border-border text-foreground',
+  success: 'border-transparent bg-success/10 text-success',
+  warning: 'border-transparent bg-warning/10 text-warning',
+  info: 'border-transparent bg-info/10 text-info',
 };
 
 export const Badge: React.FC<BadgeProps> = ({ className, variant = 'default', ...props }) => {

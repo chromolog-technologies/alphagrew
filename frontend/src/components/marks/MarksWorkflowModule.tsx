@@ -58,8 +58,8 @@ export const MarksWorkflowModule: React.FC<MarksWorkflowModuleProps> = ({ permis
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-[#0a2342]">Marks and results</h2>
-        <p className="mt-1 text-sm text-[#4d6d8f]">
+        <h2 className="text-2xl font-bold text-foreground">Marks and results</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Entries move from draft to submitted, verified, approved and published. A reviewer can send an entry back to draft.
         </p>
       </div>
@@ -75,19 +75,19 @@ export const MarksWorkflowModule: React.FC<MarksWorkflowModuleProps> = ({ permis
                   onClick={() => setActive(step.id)}
                   aria-current={selected ? 'step' : undefined}
                   className={`flex h-full w-full items-start gap-3 rounded-[16px] border p-3 text-left transition ${
-                    selected ? 'border-2 border-[#0b4d88] bg-[#f2f8fe]' : 'border-[#d5e4f2] bg-white hover:bg-[#f8fbff]'
+                    selected ? 'border-2 border-primary bg-primary/5' : 'border-border bg-white hover:bg-muted/50'
                   }`}
                 >
                   <span
                     className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      selected ? 'bg-[#0b4d88] text-white' : 'bg-[#e6f1fb] text-[#0b4d88]'
+                      selected ? 'bg-primary text-white' : 'bg-primary/10 text-primary'
                     }`}
                   >
                     {index + 1}
                   </span>
                   <span>
-                    <span className="block text-sm font-semibold text-[#0a2342]">{step.label}</span>
-                    <span className="block text-xs text-[#4d6d8f]">{step.detail}</span>
+                    <span className="block text-sm font-semibold text-foreground">{step.label}</span>
+                    <span className="block text-xs text-muted-foreground">{step.detail}</span>
                   </span>
                 </button>
               </li>

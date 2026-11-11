@@ -52,7 +52,7 @@ export const StudentResultsView: React.FC<{ apiConfigured: boolean }> = ({ apiCo
               ).map(([label, value]) => (
                 <div key={label} className="rounded-[14px] bg-slate-50 px-4 py-3">
                   <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
-                  <dd className="mt-1 text-2xl font-bold tabular-nums text-[#0a2342]">{value}</dd>
+                  <dd className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</dd>
                 </div>
               ))}
             </dl>
@@ -71,7 +71,7 @@ export const StudentResultsView: React.FC<{ apiConfigured: boolean }> = ({ apiCo
                 <tbody>
                   {results.semesters.map((semester) => (
                     <tr key={semester.semester_id} className="border-t border-slate-100 tabular-nums">
-                      <td className="px-3 py-2.5 font-semibold text-[#0a2342]">{semester.semester_name}</td>
+                      <td className="px-3 py-2.5 font-semibold text-foreground">{semester.semester_name}</td>
                       <td className="px-3 py-2.5 text-right">{Number(semester.percentage).toFixed(1)}%</td>
                       <td className="px-3 py-2.5 text-right">{Number(semester.gpa).toFixed(2)}</td>
                       <td className="px-3 py-2.5">{semester.overall_grade ?? '—'}</td>
@@ -84,7 +84,7 @@ export const StudentResultsView: React.FC<{ apiConfigured: boolean }> = ({ apiCo
                         <button
                           type="button"
                           onClick={() => openSemester(semester.semester_id)}
-                          className="h-10 rounded-[10px] border border-slate-200 px-3 text-sm font-semibold text-[#123a66] hover:bg-slate-50"
+                          className="h-10 rounded-[10px] border border-slate-200 px-3 text-sm font-semibold text-foreground hover:bg-slate-50"
                         >
                           View marks
                         </button>
@@ -116,7 +116,7 @@ export const StudentResultsView: React.FC<{ apiConfigured: boolean }> = ({ apiCo
                 {detail.marks.map((mark) => (
                   <tr key={mark.subject_id} className="border-t border-slate-100 tabular-nums">
                     <td className="px-3 py-2.5">
-                      <span className="font-semibold text-[#0a2342]">{mark.subject_name}</span>{' '}
+                      <span className="font-semibold text-foreground">{mark.subject_name}</span>{' '}
                       <span className="text-xs text-slate-500">{mark.subject_code}</span>
                     </td>
                     <td className="px-3 py-2.5 text-right">{mark.is_absent ? 'Absent' : mark.internal_marks ?? '—'}</td>

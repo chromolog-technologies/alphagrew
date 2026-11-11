@@ -204,7 +204,7 @@ export const TeacherMarkEntry: React.FC = () => {
       description="Save drafts as you go. When the whole class is entered, submit it for department review."
       action={
         <div className="flex min-w-[280px] flex-col gap-1.5">
-          <label htmlFor="mark-entry-exam" className="text-sm font-semibold text-[#123a66]">Exam</label>
+          <label htmlFor="mark-entry-exam" className="text-sm font-semibold text-foreground">Exam</label>
           <select
             id="mark-entry-exam"
             value={examId ?? ''}
@@ -236,8 +236,8 @@ export const TeacherMarkEntry: React.FC = () => {
           <EmptyState>No students are enrolled for this subject.</EmptyState>
         ) : (
           <>
-            <p className="text-sm text-[#4d6d8f]">
-              <span className="font-semibold text-[#0a2342]">{roster.data.subject.code} {roster.data.subject.name}</span>: internal out of{' '}
+            <p className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">{roster.data.subject.code} {roster.data.subject.name}</span>: internal out of{' '}
               {scheme.internalMax} (pass {scheme.internalPass}), external out of {scheme.externalMax} (pass {scheme.externalPass}), total
               pass mark {scheme.totalPass} of {scheme.totalMax}
               {scheme.extraMarksAllowed ? `. Up to ${scheme.extraMarksAllowed} extra marks allowed` : ''}.
@@ -272,7 +272,7 @@ export const TeacherMarkEntry: React.FC = () => {
                     return (
                       <tr key={student.id} className={`border-t border-slate-100 align-top ${changed ? 'bg-[#fffbeb]' : ''}`}>
                         <td className="px-3 py-2.5">
-                          <p className="font-semibold text-[#0a2342]">{student.name}</p>
+                          <p className="font-semibold text-foreground">{student.name}</p>
                           <p className="font-mono text-xs text-slate-500">{student.registrationNumber}</p>
                           {problem ? <p className="mt-1 text-xs text-red-700" role="alert">{problem}</p> : null}
                         </td>
@@ -300,7 +300,7 @@ export const TeacherMarkEntry: React.FC = () => {
                             checked={input.absent}
                             disabled={!canEdit || busy}
                             onChange={(event) => update(student.id, { absent: event.target.checked })}
-                            className="mt-3 h-5 w-5 accent-[#0b4d88]"
+                            className="mt-3 h-5 w-5 accent-primary"
                           />
                         </td>
                         <td className="px-3 py-2.5 pt-4 text-right tabular-nums">
@@ -325,18 +325,18 @@ export const TeacherMarkEntry: React.FC = () => {
               </Notice>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-[#4d6d8f]">
+                <p className="text-sm text-muted-foreground">
                   {summary.changed > 0 ? `${summary.changed} unsaved ${summary.changed === 1 ? 'change' : 'changes'} · ` : ''}
                   {summary.drafts} saved as draft · {summary.incomplete} not entered yet. Grades are worked out when you save.
                 </p>
 
                 {summary.drafts > 0 && summary.changed === 0 && summary.incomplete === 0 ? (
-                  <label className="flex items-start gap-2 text-sm text-[#123a66]">
+                  <label className="flex items-start gap-2 text-sm text-foreground">
                     <input
                       type="checkbox"
                       checked={confirmed}
                       onChange={(event) => setConfirmed(event.target.checked)}
-                      className="mt-0.5 h-4 w-4 accent-[#0b4d88]"
+                      className="mt-0.5 h-4 w-4 accent-primary"
                     />
                     I confirm these marks are complete and correct. After submitting I can't change them unless a reviewer sends them back.
                   </label>

@@ -150,7 +150,7 @@ export const MarksSetupPanel: React.FC<MarksSetupPanelProps> = ({ semesters, sem
               <tbody>
                 {rules.map((rule) => (
                   <tr key={rule.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2.5 font-semibold text-[#0a2342]">{rule.grade}</td>
+                    <td className="px-3 py-2.5 font-semibold text-foreground">{rule.grade}</td>
                     <td className="px-3 py-2.5 tabular-nums">
                       {rule.min_score}–{rule.max_score}
                     </td>
@@ -203,7 +203,7 @@ export const MarksSetupPanel: React.FC<MarksSetupPanelProps> = ({ semesters, sem
                   <tbody>
                     {schemes.map((scheme) => (
                       <tr key={scheme.id} className="border-t border-slate-100 tabular-nums">
-                        <td className="px-3 py-2.5 font-semibold text-[#0a2342]">{subjectName(scheme)}</td>
+                        <td className="px-3 py-2.5 font-semibold text-foreground">{subjectName(scheme)}</td>
                         <td className="px-3 py-2.5 text-right">{scheme.internal_marks}</td>
                         <td className="px-3 py-2.5 text-right">{scheme.external_marks}</td>
                         <td className="px-3 py-2.5 text-right">{scheme.total_marks}</td>
@@ -230,7 +230,7 @@ export const MarksSetupPanel: React.FC<MarksSetupPanelProps> = ({ semesters, sem
               ) : (
                 <form onSubmit={createScheme} className="grid gap-3 rounded-[16px] bg-slate-50 p-4 sm:grid-cols-6">
                   <div className="flex flex-col gap-1.5 sm:col-span-2">
-                    <label htmlFor="scheme-subject" className="text-sm font-semibold text-[#123a66]">Subject</label>
+                    <label htmlFor="scheme-subject" className="text-sm font-semibold text-foreground">Subject</label>
                     <select
                       id="scheme-subject"
                       required
@@ -256,7 +256,7 @@ export const MarksSetupPanel: React.FC<MarksSetupPanelProps> = ({ semesters, sem
                     ] as const
                   ).map(([field, label]) => (
                     <div key={field} className="flex flex-col gap-1.5">
-                      <label htmlFor={`scheme-${field}`} className="text-sm font-semibold text-[#123a66]">{label}</label>
+                      <label htmlFor={`scheme-${field}`} className="text-sm font-semibold text-foreground">{label}</label>
                       <input
                         id={`scheme-${field}`}
                         type="number"
@@ -269,7 +269,7 @@ export const MarksSetupPanel: React.FC<MarksSetupPanelProps> = ({ semesters, sem
                     </div>
                   ))}
                   <div className="flex flex-col justify-end gap-1.5">
-                    <span className="text-sm text-[#4d6d8f]">Total {internal + external}</span>
+                    <span className="text-sm text-muted-foreground">Total {internal + external}</span>
                     <button type="submit" disabled={busy} className={primaryButton}>
                       Add scheme
                     </button>

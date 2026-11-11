@@ -1,35 +1,169 @@
 @import "tailwindcss";
 
+/* ========================================================
+   Design tokens: light admin theme with an indigo primary.
+   Use them as Tailwind classes: bg-background, bg-card, text-muted-foreground,
+   border-border, bg-primary, text-success, bg-sidebar, shadow-card, text-2xs …
+   ======================================================== */
 :root {
   color-scheme: light;
-  --heroui-background: #f8fafc;
-  --heroui-foreground: #09090b;
-  --heroui-primary: #006FEE;
-  --heroui-primary-hover: #005bc4;
-  --heroui-primary-foreground: #ffffff;
-  --heroui-secondary: #7828c8;
-  --heroui-success: #17c964;
-  --heroui-warning: #f5a524;
-  --heroui-danger: #f31260;
-  --heroui-content1: #ffffff;
-  --heroui-content2: #f4f4f5;
-  --heroui-content3: #e4e4e7;
-  --heroui-content4: #d4d4d8;
-  --heroui-border: #e4e4e7;
-  --heroui-radius: 14px;
+  --background: #f9fafb;
+  --foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #6366f1;
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-foreground: #ffffff;
+  --accent: #f3f4f6;
+  --destructive: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --chart-1: #6366f1;
+  --chart-2: #8b5cf6;
+  --chart-3: #10b981;
+  --chart-4: #f59e0b;
+  --chart-5: #ec4899;
+  --chart-6: #ef4444;
+  --chart-7: #3b82f6;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #374151;
+  --sidebar-accent: #f3f4f6;
+  --sidebar-border: #e5e7eb;
 
-  /* Legacy brand variables for compatibility */
-  --brand-blue: #006fee;
-  --brand-blue-strong: #005bc4;
-  --brand-cyan: #38bdf8;
-  --brand-green: #10b981;
-  --brand-green-strong: #059669;
-  --brand-ink: #09090b;
-  --brand-muted: #71717a;
+  /* Older names still read by some components */
+  --heroui-background: var(--background);
+  --heroui-foreground: var(--foreground);
+  --heroui-primary: var(--primary);
+  --heroui-primary-hover: var(--primary-hover);
+  --heroui-primary-foreground: var(--primary-foreground);
+  --heroui-border: var(--border);
+  --brand-blue: var(--primary);
+  --brand-blue-strong: var(--primary-hover);
+  --brand-ink: var(--foreground);
+  --brand-muted: var(--muted-foreground);
 
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background: var(--heroui-background);
-  color: var(--heroui-foreground);
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+@theme inline {
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --shadow-card: 0 1px 3px 0 #0000000d, 0 1px 2px -1px #0000000d;
+  --shadow-dropdown: 0 8px 24px -6px #00000024, 0 2px 6px -2px #0000000f;
+}
+
+/* The app's accent was Tailwind blue; it now follows the indigo primary everywhere. */
+@theme {
+  --color-blue-50: #eef2ff;
+  --color-blue-100: #e0e7ff;
+  --color-blue-200: #c7d2fe;
+  --color-blue-300: #a5b4fc;
+  --color-blue-400: #818cf8;
+  --color-blue-500: #6366f1;
+  --color-blue-600: #6366f1;
+  --color-blue-700: #4f46e5;
+  --color-blue-800: #4338ca;
+  --color-blue-900: #3730a3;
+  --color-blue-950: #312e81;
+}
+
+/* Gradient fills for headline KPI cards. */
+@utility gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+@utility gradient-success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+@utility gradient-warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+@utility gradient-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+@utility gradient-info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+@utility gradient-purple {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+@utility gradient-pink {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+}
+@utility gradient-ocean {
+  background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+}
+
+/* Cards and list items fade up in sequence. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility stagger {
+  & > * {
+    animation: rise-in 0.35s ease-out both;
+  }
+  & > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  & > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  & > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  & > :nth-child(n + 5) {
+    animation-delay: 240ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * {
+    animation: none;
+  }
 }
 
 * {
@@ -43,14 +177,14 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f8fafc;
-  color: #09090b;
+  background: var(--background);
+  color: var(--foreground);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(0, 111, 238, 0.15);
-  color: #006fee;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary);
 }
 
 button,
@@ -88,7 +222,7 @@ textarea {
 .heroui-card {
   background: #ffffff;
   border: 1px solid rgba(228, 228, 231, 0.85);
-  border-radius: 16px;
+  border-radius: 12px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
   transition: all 0.2s ease-in-out;
 }
@@ -100,8 +234,8 @@ textarea {
 
 .heroui-kpi {
   background: #ffffff;
-  border: 1px solid #e4e4e7;
-  border-radius: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   padding: 1.25rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -139,7 +273,7 @@ textarea {
 .trend-chip-neutral {
   background-color: #f4f4f5;
   color: #71717a;
-  border: 1px solid #e4e4e7;
+  border: 1px solid var(--border);
 }
 
 /* HeroUI CRM Navbar blur */
@@ -153,11 +287,11 @@ textarea {
 /* HeroUI CRM Sidebar styling */
 .heroui-sidebar {
   background: #ffffff;
-  border-right: 1px solid #e4e4e7;
+  border-right: 1px solid var(--border);
 }
 
 .heroui-sidebar-dark {
-  background: #09090b;
+  background: var(--foreground);
   border-right: 1px solid #27272a;
 }
 
@@ -168,9 +302,9 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 select,
 textarea {
   border-radius: 12px;
-  border: 1px solid #e4e4e7;
-  background-color: #fafafa;
-  color: #09090b;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
   transition: all 0.15s ease;
 }
 
@@ -178,9 +312,9 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="
 select:focus,
 textarea:focus {
   background-color: #ffffff;
-  border-color: #006fee;
+  border-color: var(--primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 111, 238, 0.15);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
 /* ========================================================
@@ -193,14 +327,14 @@ table {
 }
 
 thead th {
-  background-color: #fafafa;
+  background-color: var(--background);
   color: #71717a;
   font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e4e4e7;
+  border-bottom: 1px solid var(--border);
 }
 
 tbody td {
@@ -212,7 +346,7 @@ tbody td {
 }
 
 tbody tr:hover td {
-  background-color: #fafafa;
+  background-color: var(--background);
 }
 
 tbody tr:last-child td {
@@ -226,11 +360,11 @@ button.bg-slate-950,
 button.bg-slate-900,
 a.bg-slate-950,
 a.bg-slate-900 {
-  background-color: #006FEE !important;
+  background-color: var(--primary) !important;
   color: #ffffff !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   font-weight: 600 !important;
-  box-shadow: 0 2px 4px rgba(0, 111, 238, 0.2) !important;
+  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.2) !important;
   transition: all 0.18s ease-in-out !important;
 }
 
@@ -238,14 +372,14 @@ button.bg-slate-950:hover,
 button.bg-slate-900:hover,
 a.bg-slate-950:hover,
 a.bg-slate-900:hover {
-  background-color: #005bc4 !important;
-  box-shadow: 0 4px 10px rgba(0, 111, 238, 0.3) !important;
+  background-color: var(--primary-hover) !important;
+  box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3) !important;
   transform: translateY(-1px);
 }
 
 button.border-slate-200 {
-  border-color: #e4e4e7 !important;
-  border-radius: 12px !important;
+  border-color: var(--border) !important;
+  border-radius: 10px !important;
   transition: all 0.15s ease;
 }
 

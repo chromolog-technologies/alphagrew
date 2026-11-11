@@ -4,11 +4,11 @@ import type { MarkEntryStatus, Semester } from '../../api/marksApi';
 
 const statusStyles: Record<MarkEntryStatus, string> = {
   new: 'bg-slate-100 text-slate-600',
-  draft: 'bg-[#eef4fa] text-[#123a66]',
+  draft: 'bg-muted text-foreground',
   submitted: 'bg-[#fff4e5] text-[#8a4b00]',
-  verified: 'bg-[#e6f1fb] text-[#0b4d88]',
+  verified: 'bg-primary/10 text-primary',
   approved: 'bg-[#ecfdf3] text-[#05603a]',
-  locked: 'bg-[#0a2342] text-white',
+  locked: 'bg-foreground text-white',
 };
 
 export const statusLabels: Record<MarkEntryStatus, string> = {
@@ -32,11 +32,11 @@ export const Card: React.FC<{ title: string; description?: string; action?: Reac
   action,
   children,
 }) => (
-  <section className="rounded-[20px] border border-[#d5e4f2] bg-white p-5 sm:p-6">
+  <section className="rounded-[20px] border border-border bg-white p-5 sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h3 className="text-lg font-bold text-[#0a2342]">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-[#4d6d8f]">{description}</p> : null}
+        <h3 className="text-lg font-bold text-foreground">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {action}
     </div>
@@ -47,7 +47,7 @@ export const Card: React.FC<{ title: string; description?: string; action?: Reac
 type NoticeTone = 'info' | 'error' | 'success';
 
 const noticeStyles: Record<NoticeTone, string> = {
-  info: 'border-[#c7def3] bg-[#eef6ff] text-[#123a66]',
+  info: 'border-[#c7def3] bg-[#eef6ff] text-foreground',
   error: 'border-red-200 bg-red-50 text-red-700',
   success: 'border-[#b7e4c7] bg-[#ecfdf3] text-[#05603a]',
 };
@@ -73,7 +73,7 @@ export const SemesterSelect: React.FC<{
   onChange: (semesterId: number | '') => void;
 }> = ({ id, semesters, value, onChange }) => (
   <div className="flex min-w-[220px] flex-col gap-1.5">
-    <label htmlFor={id} className="text-sm font-semibold text-[#123a66]">
+    <label htmlFor={id} className="text-sm font-semibold text-foreground">
       Semester
     </label>
     <select
@@ -100,10 +100,10 @@ export const inputClass =
   'h-11 w-full rounded-[12px] border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500';
 
 export const primaryButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-[#0b4d88] px-4 text-sm font-semibold text-white transition hover:bg-[#08467a] disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50';
 
 export const secondaryButton =
-  'inline-flex h-11 items-center justify-center gap-2 rounded-[12px] border border-slate-200 bg-white px-4 text-sm font-semibold text-[#123a66] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
+  'inline-flex h-11 items-center justify-center gap-2 rounded-[12px] border border-slate-200 bg-white px-4 text-sm font-semibold text-foreground transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50';
 
 export const dangerButton =
   'inline-flex h-11 items-center justify-center gap-2 rounded-[12px] border border-red-200 bg-white px-4 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50';

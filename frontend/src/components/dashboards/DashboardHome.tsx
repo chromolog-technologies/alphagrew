@@ -4,7 +4,14 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  BarChart3,
+  CalendarCheck,
+  CalendarDays,
   ChevronsDownUp,
+  ClipboardCheck,
+  GraduationCap,
+  Users,
+  type LucideIcon,
   ChevronsUpDown,
   Copy,
   Home,
@@ -49,6 +56,17 @@ import { WidgetBuilderSheet } from './WidgetBuilderSheet';
 import { WidgetView } from './WidgetView';
 
 const ROW_HEIGHT = 76;
+
+/** Number widgets become headline cards, coloured in turn. */
+const KPI_GRADIENTS = ['gradient-primary', 'gradient-success', 'gradient-warning', 'gradient-info', 'gradient-purple', 'gradient-ocean'];
+
+const SOURCE_ICONS: Record<string, LucideIcon> = {
+  students: Users,
+  attendance: CalendarCheck,
+  marks: ClipboardCheck,
+  semester_results: GraduationCap,
+  exams: CalendarDays,
+};
 
 interface DashboardHomeProps {
   canBuild: boolean;
@@ -98,6 +116,17 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
   // Compacting for display closes gaps, e.g. where the server left out widgets the viewer can't use.
   const savedWidgets = useMemo(() => compact(current?.widgets ?? []), [current]);
   const widgets = editing ? working : savedWidgets;
+  // Number widgets in reading order (top to bottom, left to right), for their card colours.
+  const kpiOrder = useMemo(
+    () =>
+      new Map(
+        widgets
+          .filter((widget) => widget.type === 'kpi')
+          .sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x)
+          .map((widget, index) => [widget.id, index]),
+      ),
+    [widgets],
+  );
   const data = useWidgetData(widgets);
   const dirty = editing && JSON.stringify(working) !== JSON.stringify(current?.widgets ?? []);
   const scope = Object.values(data.data ?? {}).find((result) => 'scope' in result);
@@ -172,16 +201,16 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs lg:flex-row lg:items-start lg:justify-between">
+      <header className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-xl font-black text-slate-950">{current.name}</h1>
+            <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{current.name}</h1>
             {current.isTemplate ? <Badge variant="info">Built-in template</Badge> : null}
             {!current.isTemplate && !current.isOwner ? <Badge variant="secondary">Shared by {current.owner?.name ?? 'an admin'}</Badge> : null}
             {current.isHome ? <Badge variant="success">Your home</Badge> : null}
             {scope && 'scope' in scope ? <Badge variant="outline">Showing: {scope.scope.label}</Badge> : null}
           </div>
-          {current.description ? <p className="mt-1 text-sm text-slate-500">{current.description}</p> : null}
+          {current.description ? <p className="mt-0.5 text-sm text-muted-foreground">{current.description}</p> : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -268,37 +297,66 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
       ) : null}
 
       {editing ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Use the arrows on each widget to move it, the size buttons to resize it, and the pencil to change what it shows. Changes are saved when you click “Save changes”.
         </p>
       ) : null}
 
       {widgets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="font-semibold text-slate-900">This dashboard has no widgets yet.</p>
-          <p className="mt-1 text-sm text-slate-500">{current.isOwner && canBuild ? 'Click Edit, then Add widget to start.' : 'Nothing to show here.'}</p>
+        <div className="rounded-xl border border-dashed border-border bg-card p-10 text-center">
+          <p className="font-semibold text-foreground">This dashboard has no widgets yet.</p>
+          <p className="mt-1 text-sm text-muted-foreground">{current.isOwner && canBuild ? 'Click Edit, then Add widget to start.' : 'Nothing to show here.'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-12" style={{ gridAutoRows: `${ROW_HEIGHT}px` }}>
-          {widgets.map((widget) => (
-            <article
-              key={widget.id}
-              className="flex min-w-0 flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs lg:[grid-column:var(--col)] lg:[grid-row:var(--row)]"
-              style={{
-                '--col': `${widget.layout.x + 1} / span ${widget.layout.w}`,
-                '--row': `${widget.layout.y + 1} / span ${widget.layout.h}`,
-                gridRow: `span ${widget.layout.h}`,
-              } as React.CSSProperties}
-            >
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <h2 className="truncate text-sm font-bold text-slate-800" title={widget.title}>{widget.title}</h2>
-                {editing ? <WidgetToolbar widget={widget} onMove={move} onEdit={() => setBuilderWidget(widget)} onDuplicate={() => duplicateWidget(widget)} onRemove={() => setWorking((items) => compact(items.filter((item) => item.id !== widget.id)))} /> : null}
-              </div>
-              <div className="min-h-0 flex-1">
-                <WidgetView widget={widget} result={data.data?.[widget.id]} loading={data.isLoading} />
-              </div>
-            </article>
-          ))}
+          {widgets.map((widget) => {
+            const isKpi = widget.type === 'kpi';
+            // While editing, number widgets stay plain so the toolbar stays readable.
+            const gradient = isKpi && !editing ? KPI_GRADIENTS[(kpiOrder.get(widget.id) ?? 0) % KPI_GRADIENTS.length] : null;
+            const Icon = SOURCE_ICONS[widget.spec.source] ?? BarChart3;
+
+            return (
+              <article
+                key={widget.id}
+                className={`relative flex min-w-0 flex-col overflow-hidden rounded-xl p-5 lg:[grid-column:var(--col)] lg:[grid-row:var(--row)] ${
+                  gradient ? `${gradient} text-white shadow-card` : 'border border-border bg-card shadow-card'
+                }`}
+                style={{
+                  '--col': `${widget.layout.x + 1} / span ${widget.layout.w}`,
+                  '--row': `${widget.layout.y + 1} / span ${widget.layout.h}`,
+                  gridRow: `span ${widget.layout.h}`,
+                } as React.CSSProperties}
+              >
+                {gradient ? (
+                  <>
+                    <span aria-hidden="true" className="pointer-events-none absolute -right-3 -top-3 h-20 w-20 rounded-full bg-white/10" />
+                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-4 -right-4 h-24 w-24 rounded-full bg-white/5" />
+                  </>
+                ) : null}
+
+                <div className={`relative flex items-start justify-between gap-2 ${isKpi ? 'mb-2' : 'mb-3'}`}>
+                  <h2
+                    className={`truncate ${
+                      gradient ? 'text-xs font-medium text-white/80' : isKpi ? 'text-xs font-medium text-muted-foreground' : 'text-sm font-semibold text-foreground'
+                    }`}
+                    title={widget.title}
+                  >
+                    {widget.title}
+                  </h2>
+                  {editing ? (
+                    <WidgetToolbar widget={widget} onMove={move} onEdit={() => setBuilderWidget(widget)} onDuplicate={() => duplicateWidget(widget)} onRemove={() => setWorking((items) => compact(items.filter((item) => item.id !== widget.id)))} />
+                  ) : isKpi ? (
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${gradient ? 'bg-white/15 text-white' : 'bg-primary/10 text-primary'}`}>
+                      <Icon size={16} aria-hidden="true" />
+                    </span>
+                  ) : null}
+                </div>
+                <div className="relative min-h-0 flex-1">
+                  <WidgetView widget={widget} result={data.data?.[widget.id]} loading={data.isLoading} onGradient={gradient !== null} />
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 
@@ -419,7 +477,7 @@ function WidgetToolbar({ widget, onMove, onEdit, onDuplicate, onRemove }: {
           aria-label={`${label}: ${widget.title}`}
           title={label}
           onClick={onClick ?? (() => action && onMove(widget.id, action))}
-          className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
         >
           <Icon size={13} />
         </button>

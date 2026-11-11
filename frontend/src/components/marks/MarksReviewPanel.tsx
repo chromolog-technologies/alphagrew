@@ -82,7 +82,7 @@ export const MarksReviewPanel: React.FC<MarksReviewPanelProps> = ({ canReview })
             ).map(([label, value]) => (
               <div key={label} className="rounded-[14px] bg-slate-50 px-4 py-3">
                 <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{label}</dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums text-[#0a2342]">{value}</dd>
+                <dd className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</dd>
               </div>
             ))}
           </dl>
@@ -100,7 +100,7 @@ export const MarksReviewPanel: React.FC<MarksReviewPanelProps> = ({ canReview })
                 setPage(1);
               }}
               className={`h-10 rounded-full px-4 text-sm font-semibold transition ${
-                filter === option ? 'bg-[#0b4d88] text-white' : 'border border-slate-200 bg-white text-[#123a66] hover:bg-slate-50'
+                filter === option ? 'bg-primary text-white' : 'border border-slate-200 bg-white text-foreground hover:bg-slate-50'
               }`}
             >
               {option === 'all' ? 'All' : statusLabels[option]}
@@ -135,7 +135,7 @@ export const MarksReviewPanel: React.FC<MarksReviewPanelProps> = ({ canReview })
                     <React.Fragment key={entry.id}>
                       <tr className="border-t border-slate-100">
                         <td className="px-3 py-3">
-                          <p className="font-semibold text-[#0a2342]">{entry.student?.name ?? `Student ${entry.id}`}</p>
+                          <p className="font-semibold text-foreground">{entry.student?.name ?? `Student ${entry.id}`}</p>
                           <p className="font-mono text-xs text-slate-500">{entry.student?.registration_number}</p>
                         </td>
                         <td className="px-3 py-3">
@@ -189,7 +189,7 @@ export const MarksReviewPanel: React.FC<MarksReviewPanelProps> = ({ canReview })
                               className="flex flex-wrap items-end gap-2"
                             >
                               <div className="flex min-w-[280px] flex-1 flex-col gap-1.5">
-                                <label htmlFor={`reject-${entry.id}`} className="text-sm font-semibold text-[#123a66]">
+                                <label htmlFor={`reject-${entry.id}`} className="text-sm font-semibold text-foreground">
                                   Reason for sending back (saved as the entry's remarks)
                                 </label>
                                 <input
@@ -225,7 +225,7 @@ export const MarksReviewPanel: React.FC<MarksReviewPanelProps> = ({ canReview })
               <ChevronLeft size={16} aria-hidden="true" />
               Previous
             </button>
-            <span className="text-sm text-[#4d6d8f]">
+            <span className="text-sm text-muted-foreground">
               Page {queue.entries.current_page} of {queue.entries.last_page}
             </span>
             <button type="button" disabled={page >= queue.entries.last_page} onClick={() => setPage(page + 1)} className={secondaryButton}>

@@ -165,7 +165,7 @@ export const MarksEntryPanel: React.FC<MarksEntryPanelProps> = ({ semesters, sem
         <div className="flex flex-wrap items-end gap-3">
           <SemesterSelect id="entry-semester" semesters={semesters} value={semesterId} onChange={onSemesterChange} />
           <div className="flex min-w-[220px] flex-col gap-1.5">
-            <label htmlFor="entry-exam" className="text-sm font-semibold text-[#123a66]">Exam</label>
+            <label htmlFor="entry-exam" className="text-sm font-semibold text-foreground">Exam</label>
             <select
               id="entry-exam"
               value={examId}
@@ -197,7 +197,7 @@ export const MarksEntryPanel: React.FC<MarksEntryPanelProps> = ({ semesters, sem
           error ? null : <EmptyState>Choose an exam to load its students.</EmptyState>
         ) : (
           <>
-            <p className="text-sm text-[#4d6d8f]">
+            <p className="text-sm text-muted-foreground">
               {sheet.exam.subject?.name ?? 'Subject'}: internal out of {scheme.internal_marks}, external out of{' '}
               {scheme.external_marks}
               {scheme.extra_marks_allowed ? `, up to ${scheme.extra_marks_allowed} extra` : ''}. Pass mark {scheme.pass_mark}.
@@ -223,7 +223,7 @@ export const MarksEntryPanel: React.FC<MarksEntryPanelProps> = ({ semesters, sem
                     return (
                       <tr key={student.id} className="border-t border-slate-100 align-top">
                         <td className="px-3 py-2.5">
-                          <p className="font-semibold text-[#0a2342]">{student.name}</p>
+                          <p className="font-semibold text-foreground">{student.name}</p>
                           <p className="font-mono text-xs text-slate-500">{student.registration_number}</p>
                           {rowError ? <p className="mt-1 text-xs text-red-700">{rowError}</p> : null}
                         </td>
@@ -249,7 +249,7 @@ export const MarksEntryPanel: React.FC<MarksEntryPanelProps> = ({ semesters, sem
                             checked={draft.absent}
                             disabled={!editable}
                             onChange={(event) => updateDraft(student.id, { absent: event.target.checked })}
-                            className="mt-3 h-5 w-5 accent-[#0b4d88]"
+                            className="mt-3 h-5 w-5 accent-primary"
                           />
                         </td>
                         <td className="px-3 py-2.5 pt-4 text-right tabular-nums">
@@ -267,7 +267,7 @@ export const MarksEntryPanel: React.FC<MarksEntryPanelProps> = ({ semesters, sem
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm text-[#4d6d8f]">
+              <p className="text-sm text-muted-foreground">
                 {editableStudents.length} editable · {draftCount} saved as draft · totals and grades update after saving
               </p>
               <div className="flex flex-wrap gap-2">
