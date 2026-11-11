@@ -8,6 +8,8 @@ use App\Models\ExportJob;
 use App\Models\Institution;
 use App\Models\PlatformRole;
 use App\Models\User;
+use App\Services\Owner\PlanService;
+use App\Services\Owner\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -82,11 +84,35 @@ class OwnerOversightAndReportsTest extends TestCase
         $expectedKeys = ['institution', 'user', 'subscription', 'revenue', 'ai_usage', 'placement', 'assessment', 'resume', 'interview', 'support', 'system'];
         $this->assertSame($expectedKeys, array_column($catalog, 'key'));
 
+        $owner = User::query()->where('email', 'owner@test.dev')->firstOrFail();
+        $institution = Institution::query()->firstOrFail();
+        $plan = app(PlanService::class)->create([
+            'code' => 'RPT-YEARLY',
+            'name' => 'Report Yearly Plan',
+            'status' => 'active',
+            'billingCycle' => 'yearly',
+            'price' => 12000,
+            'currency' => 'INR',
+        ], $owner);
+        app(SubscriptionService::class)->assign([
+            'institutionId' => $institution->id,
+            'planId' => $plan->id,
+            'status' => 'active',
+            'billingCycle' => 'yearly',
+            'amount' => 12000,
+            'generateInvoice' => false,
+        ], $owner);
+
         foreach ($expectedKeys as $key) {
             $res = $this->as('owner@test.dev')->getJson("/api/v1/owner/reports/preview?reportKey={$key}")->assertOk();
             $this->assertSame($key, $res->json('data.key'));
             $this->assertNotEmpty($res->json('data.columns'));
             $this->assertIsArray($res->json('data.rows'));
+
+            if ($key === 'subscription') {
+                $this->assertNotEmpty($res->json('data.rows'));
+                $this->assertSame(1000, (int) $res->json('data.summary.mrr'));
+            }
         }
     }
 

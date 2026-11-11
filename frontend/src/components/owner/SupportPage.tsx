@@ -238,7 +238,7 @@ function CreateTicketDialog({ onClose }: { onClose: () => void }) {
             <textarea
               required
               rows={3}
-              className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -363,7 +363,7 @@ function TicketDetailDialog({ id, canManage, onClose }: { id: number; canManage:
                   required
                   rows={2}
                   placeholder="Write reply or private internal note..."
-                  className="flex min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  className="flex min-h-16 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                 />

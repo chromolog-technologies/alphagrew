@@ -131,7 +131,7 @@ class ReportBuilder
             ])->all(),
             'summary' => [
                 'subscriptions' => $rows->count(),
-                'mrr' => round($rows->whereIn('status', ['active', 'past_due'])->sum(fn (Subscription $s) => $s->monthlyEquivalent()), 2),
+                'mrr' => round($rows->where('status', 'active')->sum(fn (Subscription $s) => $s->monthlyRecurringValue()), 2),
             ],
         ];
     }
