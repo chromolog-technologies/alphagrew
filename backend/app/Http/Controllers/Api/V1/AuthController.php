@@ -25,6 +25,13 @@ class AuthController extends Controller
     {
         $user = $attemptLogin->execute($request->validated('email'), $request->validated('password'));
 
+        // Platform staff with two-step verification finish signing in at /auth/mfa/verify.
+        if ($user->isPlatformUser() && $user->mfa_enabled_at !== null) {
+            return response()->json(['mfaRequired' => true, 'challengeToken' => \App\Http\Controllers\Api\V1\Auth\MfaController::challengeFor($user)]);
+        }
+
+        AttemptLoginAction::succeeded($user);
+
         // Keep Spatie permissions aligned with the role and designation.
         $user->syncPermissions($this->campusData->permissionsFor($user));
 

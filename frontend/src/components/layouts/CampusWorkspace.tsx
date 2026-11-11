@@ -458,6 +458,7 @@ type CardTone = 'navy' | 'sky' | 'teal' | 'amber' | 'indigo' | 'emerald';
 // Header role chip colours from documentation/frontend/roles-tenancy-design.md (D5).
 const roleChipTone: Record<CampusRole, string> = {
   super_admin: 'bg-foreground text-white',
+  platform_staff: 'bg-foreground text-white',
   institution_admin: 'bg-primary/10 text-primary',
   placement_officer: 'bg-[#fff4e5] text-[#8a4b00]',
   staff: 'bg-muted text-foreground',
@@ -535,6 +536,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
 
 const navByRole: Record<CampusRole, NavItem[]> = {
   super_admin: baseNavByRole.admin,
+  platform_staff: [],
   institution_admin: baseNavByRole.admin,
   placement_officer: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
@@ -1880,6 +1882,7 @@ export default function CampusWorkspace({
     .slice(0, 4);
   const roleSubtitle: Record<CampusRole, string> = {
     super_admin: 'Platform overview',
+    platform_staff: 'Platform overview',
     institution_admin: 'Campus overview',
     placement_officer: 'Placement overview',
     staff: 'Department overview',

@@ -24,11 +24,15 @@ return Application::configure(basePath: dirname(__DIR__))
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'sample-data' => MarkSampleData::class,
             'tenant' => SetTenant::class,
+            'owner' => \App\Http\Middleware\EnsureOwnerPermission::class,
         ]);
 
         // The tenant must be known before route-model binding runs, or {student}, {company} etc.
         // would resolve records of other institutions. SetTenant still runs after authentication.
         $middleware->prependToPriorityList(SubstituteBindings::class, SetTenant::class);
+
+        // Platform maintenance mode (owner console setting) for every API request.
+        $middleware->appendToGroup('api', \App\Http\Middleware\MaintenanceMode::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

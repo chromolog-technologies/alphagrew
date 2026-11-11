@@ -97,6 +97,35 @@ export const http = {
   },
 };
 
+/** Downloads a file response (CSV export) and saves it under the server's file name. */
+export async function downloadFile(path: string, query?: Query, fallbackName = 'export.csv'): Promise<void> {
+  if (!apiBaseUrl) {
+    throw new ApiError('Campus API is not configured.', 0);
+  }
+
+  const token = storedToken();
+  const response = await fetch(`${apiBaseUrl}${withQuery(path, query)}`, {
+    headers: { Accept: 'text/csv, application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+
+  if (!response.ok) {
+    const payload = (response.headers.get('content-type') ?? '').includes('application/json') ? await response.json() : null;
+    if (response.status === 401 && token) notifySessionExpired();
+    throw new ApiError(
+      typeof payload?.message === 'string' ? payload.message : response.status === 429 ? 'Too many exports. Wait a minute and try again.' : `Download failed (${response.status}).`,
+      response.status,
+    );
+  }
+
+  const name = /filename="?([^";]+)"?/i.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Laravel resource collection page. */
 export interface Paginated<T> {
   data: T[];

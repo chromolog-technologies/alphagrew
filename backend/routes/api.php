@@ -32,6 +32,13 @@ use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\CampusSiteController;
 use App\Http\Controllers\Api\V1\InstitutionSettingsController;
 use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Auth\MfaController;
+use App\Http\Controllers\Api\V1\Owner\OwnerDashboardController;
+use App\Http\Controllers\Api\V1\Owner\OwnerInstitutionController;
+use App\Http\Controllers\Api\V1\Owner\OwnerPlatformController;
+use App\Http\Controllers\Api\V1\Owner\OwnerRoleController;
+use App\Http\Controllers\Api\V1\Owner\OwnerUserController;
+use App\Support\Owner\OwnerPermission as OP;
 use App\Http\Controllers\Api\V1\Placement\PlacementJobController;
 use App\Http\Controllers\Api\V1\Placement\StudentJobController;
 use App\Http\Controllers\Api\V1\InvitationController;
@@ -78,6 +85,7 @@ Route::model('registration', User::class);
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/auth/mfa/verify', [MfaController::class, 'verify'])->middleware('throttle:login');
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
     Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:password-reset');
     Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset');
@@ -446,6 +454,51 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/rounds/{round}/results', [PlacementJobController::class, 'recordResults'])->whereNumber('round')->middleware($placementRounds);
             Route::post('/students/{student}/debar', [PlacementJobController::class, 'debar'])->whereNumber('student')->middleware($placementManage);
             Route::delete('/students/{student}/debar', [PlacementJobController::class, 'lift'])->whereNumber('student')->middleware($placementManage);
+        });
+
+        // Two-step verification for platform staff (Owner Dashboard SRS IAM-004).
+        Route::get('/auth/mfa', [MfaController::class, 'show']);
+        Route::post('/auth/mfa/setup', [MfaController::class, 'setup']);
+        Route::post('/auth/mfa/confirm', [MfaController::class, 'confirm'])->middleware('throttle:login');
+        Route::post('/auth/mfa/disable', [MfaController::class, 'disable'])->middleware('throttle:login');
+
+        // Owner console (Owner Dashboard SRS R1). `owner:` checks platform permissions, never Gate.
+        Route::prefix('owner')->group(function (): void {
+            Route::get('/dashboard/summary', [OwnerDashboardController::class, 'summary'])->middleware('owner:'.OP::DASHBOARD_VIEW);
+            Route::get('/dashboard/trends', [OwnerDashboardController::class, 'trends'])->middleware('owner:'.OP::DASHBOARD_VIEW);
+            Route::get('/dashboard/alerts', [OwnerDashboardController::class, 'alerts'])->middleware('owner:'.OP::DASHBOARD_VIEW);
+            Route::get('/dashboard/activity', [OwnerDashboardController::class, 'activity'])->middleware('owner:'.OP::DASHBOARD_VIEW);
+
+            Route::get('/institutions', [OwnerInstitutionController::class, 'index'])->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+            Route::get('/institutions/export', [OwnerInstitutionController::class, 'export'])->middleware(['owner:'.OP::INSTITUTIONS_EXPORT, 'throttle:exports']);
+            Route::post('/institutions', [OwnerInstitutionController::class, 'store'])->middleware('owner:'.OP::INSTITUTIONS_CREATE);
+            Route::get('/institutions/{institution}', [OwnerInstitutionController::class, 'show'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+            Route::patch('/institutions/{institution}', [OwnerInstitutionController::class, 'update'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_EDIT);
+            Route::post('/institutions/{institution}/verify', [OwnerInstitutionController::class, 'verify'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VERIFY);
+            Route::post('/institutions/{institution}/status', [OwnerInstitutionController::class, 'changeStatus'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_SUSPEND);
+            Route::get('/institutions/{institution}/history', [OwnerInstitutionController::class, 'history'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+
+            Route::get('/users', [OwnerUserController::class, 'index'])->middleware('owner:'.OP::USERS_VIEW);
+            Route::post('/users/invitations', [OwnerUserController::class, 'invite'])->middleware('owner:'.OP::USERS_INVITE);
+            Route::get('/users/{user}', [OwnerUserController::class, 'show'])->whereNumber('user')->middleware('owner:'.OP::USERS_VIEW);
+            Route::patch('/users/{user}', [OwnerUserController::class, 'update'])->whereNumber('user')->middleware('owner:'.OP::ROLES_MANAGE);
+            Route::post('/users/{user}/status', [OwnerUserController::class, 'changeStatus'])->whereNumber('user')->middleware('owner:'.OP::USERS_SUSPEND);
+            Route::post('/users/{user}/password-reset', [OwnerUserController::class, 'sendPasswordReset'])->whereNumber('user')->middleware('owner:'.OP::USERS_SESSIONS);
+            Route::delete('/users/{user}/sessions', [OwnerUserController::class, 'revokeSessions'])->whereNumber('user')->middleware('owner:'.OP::USERS_SESSIONS);
+
+            Route::get('/permissions', [OwnerRoleController::class, 'permissions'])->middleware('owner:'.OP::ROLES_VIEW);
+            Route::get('/roles', [OwnerRoleController::class, 'index'])->middleware('owner:'.OP::ROLES_VIEW);
+            Route::post('/roles', [OwnerRoleController::class, 'store'])->middleware('owner:'.OP::ROLES_MANAGE);
+            Route::patch('/roles/{role}', [OwnerRoleController::class, 'update'])->whereNumber('role')->middleware('owner:'.OP::ROLES_MANAGE);
+            Route::delete('/roles/{role}', [OwnerRoleController::class, 'destroy'])->whereNumber('role')->middleware('owner:'.OP::ROLES_MANAGE);
+
+            Route::get('/settings', [OwnerPlatformController::class, 'settings'])->middleware('owner:'.OP::SETTINGS_VIEW);
+            Route::put('/settings', [OwnerPlatformController::class, 'updateSettings'])->middleware('owner:'.OP::SETTINGS_MANAGE);
+            Route::get('/audit-logs', [OwnerPlatformController::class, 'auditLogs'])->middleware('owner:'.OP::AUDIT_VIEW);
+            Route::get('/login-history', [OwnerPlatformController::class, 'loginHistory'])->middleware('owner:'.OP::SECURITY_VIEW);
+            Route::get('/sessions', [OwnerPlatformController::class, 'sessions'])->middleware('owner:'.OP::SECURITY_VIEW);
+            Route::delete('/sessions/{session}', [OwnerPlatformController::class, 'revokeSession'])->whereNumber('session')->middleware('owner:'.OP::USERS_SESSIONS);
+            Route::get('/system/health', [OwnerPlatformController::class, 'health'])->middleware('owner:'.OP::SYSTEM_VIEW);
         });
 
         // In-app notifications and preferences, for every role.

@@ -92,3 +92,13 @@ Artisan::command('placement:expire-offers', function (OfferActions $offers, Tena
 })->purpose('Expire placement offers past their respond-by date');
 
 Schedule::command('placement:expire-offers')->hourly();
+
+// Owner console: institution suspensions/reactivations scheduled for later (SRS FR-IN-006).
+Artisan::command('owner:apply-scheduled-status-changes', function (\App\Services\Owner\InstitutionLifecycle $lifecycle) {
+    $this->info('Applied '.$lifecycle->applyDue().' scheduled institution status changes.');
+})->purpose('Apply institution lifecycle changes whose effective time has come');
+
+Schedule::command('owner:apply-scheduled-status-changes')->everyFifteenMinutes();
+
+// Heartbeat for the owner console's system health page.
+Schedule::call(fn () => \Illuminate\Support\Facades\Cache::put(\App\Services\Owner\SystemHealth::HEARTBEAT_KEY, time(), 3600))->everyMinute()->name('owner-heartbeat');

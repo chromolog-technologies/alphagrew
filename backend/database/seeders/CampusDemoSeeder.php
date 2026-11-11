@@ -238,6 +238,7 @@ class CampusDemoSeeder extends Seeder
         if (! app()->runningUnitTests()) {
             $this->call(AcademicDemoSeeder::class);
             $this->call(PlacementDemoSeeder::class);
+            $this->call(OwnerDemoSeeder::class);
         }
     }
 }

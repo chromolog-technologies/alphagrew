@@ -81,6 +81,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api', fn (Request $request): Limit => Limit::perMinute(120)->by($perUser($request)));
 
         RateLimiter::for('uploads', fn (Request $request): Limit => Limit::perMinute(10)->by($perUser($request)));
+        // Exports are expensive and copy data out of the platform (Owner Dashboard SRS §10.1).
+        RateLimiter::for('exports', fn (Request $request): Limit => Limit::perMinute(5)->by($perUser($request)));
 
         RateLimiter::for('ai', fn (Request $request): Limit => Limit::perMinute((int) config('ai.rate_limits.ai'))->by($perUser($request)));
 

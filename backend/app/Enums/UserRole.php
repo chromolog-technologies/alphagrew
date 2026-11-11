@@ -16,6 +16,8 @@ enum UserRole: string
     case Staff = 'staff';
     case Student = 'student';
     case Recruiter = 'recruiter';
+    /** Chromolog platform staff (Owner Dashboard); permissions come from their platform role. */
+    case PlatformStaff = 'platform_staff';
 
     /** @return list<string> */
     public static function values(): array
@@ -32,6 +34,7 @@ enum UserRole: string
             self::Staff => 'Staff',
             self::Student => 'Student',
             self::Recruiter => 'Recruiter',
+            self::PlatformStaff => 'Platform Staff',
         };
     }
 
@@ -50,10 +53,16 @@ enum UserRole: string
         return $this === self::Staff || $this === self::PlacementOfficer;
     }
 
-    /** Super Admin and Recruiter sit outside any institution. */
+    /** Platform users and recruiters sit outside any institution. */
     public function requiresInstitution(): bool
     {
-        return $this !== self::SuperAdmin && $this !== self::Recruiter;
+        return ! $this->isPlatform() && $this !== self::Recruiter;
+    }
+
+    /** Chromolog's own operators: the owner console, never institution data screens. */
+    public function isPlatform(): bool
+    {
+        return $this === self::SuperAdmin || $this === self::PlatformStaff;
     }
 
     /** Whether the web app has a portal for this role today. */
