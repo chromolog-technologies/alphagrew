@@ -7,13 +7,20 @@ import { Suspense, useMemo, useState, type ComponentType } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Activity,
+  BarChart3,
   Bot,
+  Briefcase,
   Building2,
   CreditCard,
+  DatabaseBackup,
+  Eye,
   KeyRound,
   Layers,
   LayoutDashboard,
+  LifeBuoy,
+  Link2,
   LogOut,
+  Megaphone,
   Menu,
   Repeat,
   ScrollText,
@@ -35,6 +42,13 @@ const UsersPage = lazyNamed(() => import('./UsersPage'), 'UsersPage');
 const PlansPage = lazyNamed(() => import('./PlansPage'), 'PlansPage');
 const SubscriptionsPage = lazyNamed(() => import('./SubscriptionsPage'), 'SubscriptionsPage');
 const BillingPage = lazyNamed(() => import('./BillingPage'), 'BillingPage');
+const OversightPage = lazyNamed(() => import('./OversightPage'), 'OversightPage');
+const ReportsPage = lazyNamed(() => import('./ReportsPage'), 'ReportsPage');
+const OnboardingCrmPage = lazyNamed(() => import('./OnboardingCrmPage'), 'OnboardingCrmPage');
+const SupportPage = lazyNamed(() => import('./SupportPage'), 'SupportPage');
+const CommunicationsPage = lazyNamed(() => import('./CommunicationsPage'), 'CommunicationsPage');
+const IntegrationsPage = lazyNamed(() => import('./IntegrationsPage'), 'IntegrationsPage');
+const DataBackupsPage = lazyNamed(() => import('./DataBackupsPage'), 'DataBackupsPage');
 const AiCreditsPage = lazyNamed(() => import('./AiCreditsPage'), 'AiCreditsPage');
 const SettingsPage = lazyNamed(() => import('./SettingsPage'), 'SettingsPage');
 const SecurityPage = lazyNamed(() => import('./SecurityPage'), 'SecurityPage');
@@ -77,9 +91,31 @@ const GROUPS: { label: string; sections: Section[] }[] = [
     ],
   },
   {
+    label: 'Product Oversight',
+    sections: [
+      { id: 'oversight', label: 'Module oversight', icon: Eye, anyOf: [OWNER.oversightView], page: OversightPage },
+      { id: 'reports', label: 'Reports & analytics', icon: BarChart3, anyOf: [OWNER.reportsView], page: ReportsPage },
+    ],
+  },
+  {
+    label: 'Customer Success',
+    sections: [
+      { id: 'crm-onboarding', label: 'CRM & onboarding', icon: Briefcase, anyOf: [OWNER.crmView, OWNER.onboardingView], page: OnboardingCrmPage },
+      { id: 'support', label: 'Support & SLA', icon: LifeBuoy, anyOf: [OWNER.supportView], page: SupportPage },
+      { id: 'communications', label: 'Announcements & CMS', icon: Megaphone, anyOf: [OWNER.communicationsView], page: CommunicationsPage },
+    ],
+  },
+  {
     label: 'AI & Intelligence',
     sections: [
       { id: 'ai', label: 'AI & credits', icon: Bot, anyOf: [OWNER.aiView], page: AiCreditsPage },
+    ],
+  },
+  {
+    label: 'Infrastructure & Data',
+    sections: [
+      { id: 'integrations', label: 'Integrations & APIs', icon: Link2, anyOf: [OWNER.integrationsView], page: IntegrationsPage },
+      { id: 'data-backups', label: 'Data & backups', icon: DatabaseBackup, anyOf: [OWNER.dataView], page: DataBackupsPage },
     ],
   },
   {

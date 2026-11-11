@@ -33,6 +33,7 @@ class Institution extends Model
         'official_email',
         'contact_phone',
         'website',
+        'logo_path',
         'country',
         'state',
         'district',
@@ -85,6 +86,11 @@ class Institution extends Model
     public function aiCreditWallet(): HasOne
     {
         return $this->hasOne(AiCreditWallet::class);
+    }
+
+    public function institutionSettings(): HasMany
+    {
+        return $this->hasMany(InstitutionSetting::class);
     }
 
     public function isActive(): bool

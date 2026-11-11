@@ -1,10 +1,16 @@
-/** Cross-tenant audit log, login history, and active session review (SRS FR-SEC). */
+/** Cross-tenant audit log, login history, security events, and active session review (SRS FR-SEC). */
 import { useState } from 'react';
 import {
   Badge,
   Button,
   Card,
   CardContent,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Select,
   Table,
@@ -18,32 +24,83 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui';
-import { ownerApi, OWNER, useAuditLogs, useLoginHistory, useOwnerMutation, useSessions } from '../../api/ownerApi';
+import {
+  ownerApi,
+  OWNER,
+  useAuditLogs,
+  useInstitutions,
+  useLoginHistory,
+  useOwnerMutation,
+  useSecurityEvents,
+  useSessions,
+  type AuditEntry,
+  type SecurityEvent,
+} from '../../api/ownerApi';
 import { actionLabel, EmptyState, ErrorState, formatDateTime, LoadingRows, PageHeader, Pagination } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
 
 export function SecurityPage({ can }: OwnerPageProps) {
   const canAudit = can(OWNER.auditView);
   const canSecurity = can(OWNER.securityView);
+  const canSessions = can(OWNER.usersSessions);
   const [activeTab, setActiveTab] = useState(canAudit ? 'audit' : 'logins');
   const [auditPage, setAuditPage] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
+  const [auditInstId, setAuditInstId] = useState('');
+  const [auditFrom, setAuditFrom] = useState('');
+  const [auditTo, setAuditTo] = useState('');
+  const [diffEntry, setDiffEntry] = useState<AuditEntry | null>(null);
+
   const [loginPage, setLoginPage] = useState(1);
   const [outcome, setOutcome] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginInstId, setLoginInstId] = useState('');
+  const [loginFrom, setLoginFrom] = useState('');
+  const [loginTo, setLoginTo] = useState('');
 
-  const audits = useAuditLogs({ action: actionFilter, page: auditPage, perPage: 25 });
-  const logins = useLoginHistory({ outcome, page: loginPage, perPage: 25 });
+  const [eventPage, setEventPage] = useState(1);
+  const [eventSeverity, setEventSeverity] = useState('');
+  const [eventStatus, setEventStatus] = useState('');
+
+  const institutions = useInstitutions({ perPage: 100 });
+  const audits = useAuditLogs({
+    action: actionFilter || undefined,
+    institutionId: auditInstId || undefined,
+    from: auditFrom || undefined,
+    to: auditTo || undefined,
+    page: auditPage,
+    perPage: 25,
+  });
+  const logins = useLoginHistory({
+    outcome: outcome || undefined,
+    email: loginEmail || undefined,
+    institutionId: loginInstId || undefined,
+    from: loginFrom || undefined,
+    to: loginTo || undefined,
+    page: loginPage,
+    perPage: 25,
+  });
+  const securityEvents = useSecurityEvents({
+    severity: eventSeverity || undefined,
+    status: eventStatus || undefined,
+    page: eventPage,
+    perPage: 25,
+  });
   const sessions = useSessions();
   const revoke = useOwnerMutation((id: number) => ownerApi.revokeSession(id));
+  const updateSecEvent = useOwnerMutation(({ id, status }: { id: number; status: SecurityEvent['status'] }) =>
+    ownerApi.updateSecurityEvent(id, status),
+  );
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Audit & security" description="Cross-tenant administrative audit trail, sign-in attempts, and active sessions." />
+      <PageHeader title="Audit & security" description="Cross-tenant audit trail, JSON change diffs, security events, sign-in attempts, and active sessions." />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           {canAudit ? <TabsTrigger value="audit">Audit log</TabsTrigger> : null}
           {canSecurity ? <TabsTrigger value="logins">Login history</TabsTrigger> : null}
+          {canSecurity ? <TabsTrigger value="events">Security events</TabsTrigger> : null}
           {canSecurity ? <TabsTrigger value="sessions">Active sessions</TabsTrigger> : null}
         </TabsList>
 
@@ -51,15 +108,27 @@ export function SecurityPage({ can }: OwnerPageProps) {
           <TabsContent value="audit" className="space-y-4">
             <Card>
               <CardContent className="space-y-4 p-4">
-                <Input
-                  placeholder="Filter by action (e.g. auth., owner.)"
-                  value={actionFilter}
-                  onChange={(e) => {
-                    setActionFilter(e.target.value);
-                    setAuditPage(1);
-                  }}
-                  className="max-w-xs"
-                />
+                <div className="grid gap-2 md:grid-cols-4">
+                  <Input
+                    aria-label="Filter audit action"
+                    placeholder="Filter action (e.g. auth., owner.)"
+                    value={actionFilter}
+                    onChange={(e) => {
+                      setActionFilter(e.target.value);
+                      setAuditPage(1);
+                    }}
+                  />
+                  <Select aria-label="Audit institution" value={auditInstId} onChange={(e) => (setAuditInstId(e.target.value), setAuditPage(1))}>
+                    <option value="">All institutions</option>
+                    {institutions.data?.data.map((i) => (
+                      <option key={i.id} value={String(i.id)}>
+                        {i.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input aria-label="Audit from" type="date" value={auditFrom} onChange={(e) => (setAuditFrom(e.target.value), setAuditPage(1))} />
+                  <Input aria-label="Audit to" type="date" value={auditTo} onChange={(e) => (setAuditTo(e.target.value), setAuditPage(1))} />
+                </div>
                 {audits.isPending ? <LoadingRows rows={5} /> : null}
                 {audits.isError ? <ErrorState error={audits.error} onRetry={() => void audits.refetch()} /> : null}
                 {audits.data && audits.data.data.length === 0 ? (
@@ -74,6 +143,7 @@ export function SecurityPage({ can }: OwnerPageProps) {
                           <TableHead>Institution</TableHead>
                           <TableHead>IP</TableHead>
                           <TableHead>When</TableHead>
+                          <TableHead className="text-right">Details</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -84,6 +154,15 @@ export function SecurityPage({ can }: OwnerPageProps) {
                             <TableCell>{entry.institution ?? 'Platform'}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{entry.ip ?? '—'}</TableCell>
                             <TableCell className="text-xs text-muted-foreground">{formatDateTime(entry.at)}</TableCell>
+                            <TableCell className="text-right">
+                              {entry.old || entry.new ? (
+                                <Button size="sm" variant="ghost" onClick={() => setDiffEntry(entry)}>
+                                  View diff
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -100,21 +179,39 @@ export function SecurityPage({ can }: OwnerPageProps) {
           <TabsContent value="logins" className="space-y-4">
             <Card>
               <CardContent className="space-y-4 p-4">
-                <Select
-                  value={outcome}
-                  onChange={(e) => {
-                    setOutcome(e.target.value);
-                    setLoginPage(1);
-                  }}
-                  className="max-w-xs"
-                >
-                  <option value="">All outcomes</option>
-                  <option value="success">Success</option>
-                  <option value="failed">Failed</option>
-                  <option value="refused">Refused</option>
-                  <option value="locked">Locked</option>
-                  <option value="mfa_failed">MFA failed</option>
-                </Select>
+                <div className="grid gap-2 md:grid-cols-5">
+                  <Input
+                    aria-label="Login email filter"
+                    placeholder="Email contains..."
+                    value={loginEmail}
+                    onChange={(e) => (setLoginEmail(e.target.value), setLoginPage(1))}
+                  />
+                  <Select
+                    aria-label="Login outcome filter"
+                    value={outcome}
+                    onChange={(e) => {
+                      setOutcome(e.target.value);
+                      setLoginPage(1);
+                    }}
+                  >
+                    <option value="">All outcomes</option>
+                    <option value="success">Success</option>
+                    <option value="failed">Failed</option>
+                    <option value="refused">Refused</option>
+                    <option value="locked">Locked</option>
+                    <option value="mfa_failed">MFA failed</option>
+                  </Select>
+                  <Select aria-label="Login institution filter" value={loginInstId} onChange={(e) => (setLoginInstId(e.target.value), setLoginPage(1))}>
+                    <option value="">All institutions</option>
+                    {institutions.data?.data.map((i) => (
+                      <option key={i.id} value={String(i.id)}>
+                        {i.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Input aria-label="Login from" type="date" value={loginFrom} onChange={(e) => (setLoginFrom(e.target.value), setLoginPage(1))} />
+                  <Input aria-label="Login to" type="date" value={loginTo} onChange={(e) => (setLoginTo(e.target.value), setLoginPage(1))} />
+                </div>
                 {logins.isPending ? <LoadingRows rows={5} /> : null}
                 {logins.isError ? <ErrorState error={logins.error} onRetry={() => void logins.refetch()} /> : null}
                 {logins.data && logins.data.data.length === 0 ? (
@@ -156,6 +253,85 @@ export function SecurityPage({ can }: OwnerPageProps) {
         ) : null}
 
         {canSecurity ? (
+          <TabsContent value="events" className="space-y-4">
+            <Card>
+              <CardContent className="space-y-4 p-4">
+                <div className="flex flex-wrap gap-2">
+                  <Select className="w-44" aria-label="Event severity" value={eventSeverity} onChange={(e) => (setEventSeverity(e.target.value), setEventPage(1))}>
+                    <option value="">All severities</option>
+                    <option value="info">Info</option>
+                    <option value="warning">Warning</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                  </Select>
+                  <Select className="w-44" aria-label="Event status" value={eventStatus} onChange={(e) => (setEventStatus(e.target.value), setEventPage(1))}>
+                    <option value="">All statuses</option>
+                    <option value="open">Open</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="resolved">Resolved</option>
+                  </Select>
+                </div>
+                {securityEvents.isPending ? <LoadingRows rows={4} /> : null}
+                {securityEvents.isError ? <ErrorState error={securityEvents.error} /> : null}
+                {securityEvents.data && securityEvents.data.data.length === 0 ? (
+                  <EmptyState title="No security events" description="No anomalous sign-ins or lockout alerts detected." />
+                ) : securityEvents.data ? (
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Severity</TableHead>
+                          <TableHead>Event</TableHead>
+                          <TableHead>Target</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>When</TableHead>
+                          <TableHead className="text-right">Workflow</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {securityEvents.data.data.map((ev) => (
+                          <TableRow key={ev.id}>
+                            <TableCell>
+                              <Badge variant={ev.severity === 'critical' || ev.severity === 'high' ? 'destructive' : ev.severity === 'warning' ? 'warning' : 'info'}>
+                                {ev.severity}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="block font-medium text-xs">{ev.eventType.replace(/_/g, ' ')}</span>
+                              <span className="block text-xs text-muted-foreground">{ev.summary}</span>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {ev.email ?? ev.institution ?? 'Platform'} {ev.ip ? `· ${ev.ip}` : ''}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={ev.status === 'resolved' ? 'success' : ev.status === 'acknowledged' ? 'info' : 'warning'}>{ev.status}</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{formatDateTime(ev.at)}</TableCell>
+                            <TableCell className="space-x-1 text-right">
+                              {ev.status === 'open' ? (
+                                <Button size="sm" variant="outline" onClick={() => void updateSecEvent.mutateAsync({ id: ev.id, status: 'acknowledged' })}>
+                                  Acknowledge
+                                </Button>
+                              ) : null}
+                              {ev.status !== 'resolved' ? (
+                                <Button size="sm" onClick={() => void updateSecEvent.mutateAsync({ id: ev.id, status: 'resolved' })}>
+                                  Resolve
+                                </Button>
+                              ) : null}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <Pagination meta={securityEvents.data.meta} onPage={setEventPage} />
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        ) : null}
+
+        {canSecurity ? (
           <TabsContent value="sessions" className="space-y-4">
             <Card>
               <CardContent className="p-4">
@@ -182,7 +358,7 @@ export function SecurityPage({ can }: OwnerPageProps) {
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{formatDateTime(session.lastUsedAt)}</TableCell>
                           <TableCell className="text-right">
-                            {!session.current ? (
+                            {!session.current && canSessions ? (
                               <Button size="sm" variant="outline" disabled={revoke.isPending} onClick={() => void revoke.mutateAsync(session.id)}>
                                 Revoke
                               </Button>
@@ -198,6 +374,38 @@ export function SecurityPage({ can }: OwnerPageProps) {
           </TabsContent>
         ) : null}
       </Tabs>
+
+      {diffEntry ? (
+        <Dialog open onOpenChange={(o) => !o && setDiffEntry(null)}>
+          <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto" onClose={() => setDiffEntry(null)}>
+            <DialogHeader>
+              <DialogTitle>{actionLabel(diffEntry.action)}</DialogTitle>
+              <DialogDescription>
+                {diffEntry.actor?.email ?? 'System'} · {formatDateTime(diffEntry.at)} · {diffEntry.ip ?? '—'}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 md:grid-cols-2 text-xs">
+              <div>
+                <p className="mb-1 font-semibold">Previous values</p>
+                <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-muted/40 p-2.5">
+                  {JSON.stringify(diffEntry.old ?? {}, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <p className="mb-1 font-semibold">New values</p>
+                <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-muted/40 p-2.5">
+                  {JSON.stringify(diffEntry.new ?? {}, null, 2)}
+                </pre>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDiffEntry(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

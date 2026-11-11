@@ -1,7 +1,8 @@
 /** Owner overview (SRS FR-OV): platform KPIs, growth and AI usage trends, alerts and recent activity. */
-import { AlertTriangle, Bot, Building2, Coins, CreditCard, Info, RefreshCw, Repeat, ShieldAlert, Users } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Activity, AlertTriangle, Bot, Building2, Coins, CreditCard, Info, RefreshCw, Repeat, ShieldAlert, Users } from 'lucide-react';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '@/components/ui';
 import { institutionStatusLabels, useOwnerActivity, useOwnerAlerts, useOwnerSummary, useOwnerTrends, type InstitutionStatus } from '../../api/ownerApi';
 import { actionLabel, EmptyState, ErrorState, formatDateTime, formatMoney, KpiCard, LoadingRows, PageHeader } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
@@ -10,8 +11,38 @@ const number = new Intl.NumberFormat();
 const usd = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' });
 const monthLabel = (month: string) => new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, { month: 'short' });
 
+type PeriodPreset = 'today' | '7d' | '30d' | 'mtd' | 'qtd' | 'ytd' | 'custom';
+
+function computePeriodRange(preset: PeriodPreset, customFrom: string, customTo: string): { from?: string; to?: string } {
+  const now = new Date();
+  const toIso = (d: Date) => d.toISOString().slice(0, 10);
+  if (preset === 'today') return { from: toIso(now), to: toIso(now) };
+  if (preset === '7d') return { from: toIso(new Date(now.getTime() - 7 * 86_400_000)), to: toIso(now) };
+  if (preset === '30d') return { from: toIso(new Date(now.getTime() - 30 * 86_400_000)), to: toIso(now) };
+  if (preset === 'mtd') return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, to: toIso(now) };
+  if (preset === 'qtd') {
+    const qStartMonth = Math.floor(now.getMonth() / 3) * 3;
+    return { from: toIso(new Date(now.getFullYear(), qStartMonth, 1)), to: toIso(now) };
+  }
+  if (preset === 'ytd') return { from: `${now.getFullYear()}-01-01`, to: toIso(now) };
+  return { from: customFrom || undefined, to: customTo || undefined };
+}
+
 export function OwnerOverview({ go }: OwnerPageProps) {
-  const summary = useOwnerSummary();
+  const [preset, setPreset] = useState<PeriodPreset>('30d');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+
+  const summaryQuery = useMemo(
+    () => ({
+      ...computePeriodRange(preset, customFrom, customTo),
+      status: statusFilter || undefined,
+    }),
+    [preset, customFrom, customTo, statusFilter],
+  );
+
+  const summary = useOwnerSummary(summaryQuery);
   const trends = useOwnerTrends();
   const alerts = useOwnerAlerts();
   const activity = useOwnerActivity();
@@ -28,9 +59,10 @@ export function OwnerOverview({ go }: OwnerPageProps) {
     <div className="space-y-5">
       <PageHeader
         title="Platform overview"
-        description="Institutions, people and AI usage across every tenant for the last 30 days."
+        description="Institutions, people, commercial revenue, AI telemetry and health across every tenant."
         actions={
           <>
+            {data?.defaultCurrency ? <Badge variant="secondary">{data.defaultCurrency}</Badge> : null}
             {data ? <span className="text-xs text-muted-foreground">Updated {formatDateTime(data.generatedAt)}</span> : null}
             <Button variant="outline" size="sm" onClick={refresh} disabled={summary.isFetching}>
               <RefreshCw size={14} className={summary.isFetching ? 'animate-spin' : ''} /> Refresh
@@ -38,6 +70,41 @@ export function OwnerOverview({ go }: OwnerPageProps) {
           </>
         }
       />
+
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 p-3">
+          <span className="text-xs font-medium text-muted-foreground">Period:</span>
+          {([
+            ['today', 'Today'],
+            ['7d', '7d'],
+            ['30d', '30d'],
+            ['mtd', 'MTD'],
+            ['qtd', 'QTD'],
+            ['ytd', 'YTD'],
+            ['custom', 'Custom'],
+          ] as [PeriodPreset, string][]).map(([key, label]) => (
+            <Button key={key} size="sm" variant={preset === key ? 'default' : 'outline'} onClick={() => setPreset(key)}>
+              {label}
+            </Button>
+          ))}
+          {preset === 'custom' ? (
+            <>
+              <Input aria-label="Custom from date" type="date" className="h-8 w-36" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+              <Input aria-label="Custom to date" type="date" className="h-8 w-36" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+            </>
+          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            <Select aria-label="Filter institutions by status" className="h-8 w-44" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+              <option value="">All institution statuses</option>
+              {Object.entries(institutionStatusLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       {summary.isError ? <ErrorState error={summary.error} onRetry={() => void summary.refetch()} /> : null}
       {summary.isPending ? <LoadingRows rows={3} /> : null}
@@ -82,7 +149,7 @@ export function OwnerOverview({ go }: OwnerPageProps) {
               <KpiCard
                 label="Subscriptions"
                 value={number.format(data.commercial.subscriptions.active)}
-                hint={`${data.commercial.subscriptions.trial} trial · ${data.commercial.subscriptions.pastDue} past due`}
+                hint={`${data.commercial.subscriptions.trial} trial · ${data.commercial.subscriptions.pastDue} past due · ${data.commercial.subscriptions.trialConversionRate ?? 0}% conv · ${data.commercial.subscriptions.churnRate ?? 0}% churn`}
                 icon={<Repeat size={18} />}
               />
               <KpiCard
@@ -122,6 +189,63 @@ export function OwnerOverview({ go }: OwnerPageProps) {
               </span>
             </CardContent>
           </Card>
+
+          <div className="grid gap-5 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm">Users by role</CardTitle>
+                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => go('users')}>
+                  View users
+                </Button>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {Object.entries(data.users.byRole ?? {}).map(([roleKey, count]) => (
+                  <div key={roleKey} className="rounded-lg border border-border px-3 py-2">
+                    <span className="block text-2xs capitalize text-muted-foreground">{roleKey.replace(/_/g, ' ')}</span>
+                    <span className="block text-lg font-semibold">{number.format(count)}</span>
+                  </div>
+                ))}
+                <div className="rounded-lg border border-dashed border-border px-3 py-2">
+                  <span className="block text-2xs text-muted-foreground">Student directory records</span>
+                  <span className="block text-lg font-semibold">{number.format(data.users.studentRecords ?? 0)}</span>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Activity size={15} /> System &amp; security posture
+                </CardTitle>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => go('security')}>
+                    Security
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => go('system')}>
+                    Health
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={(data.system.status ?? 'ok') === 'ok' ? 'success' : data.system.status === 'warning' ? 'warning' : 'destructive'} className="uppercase">
+                    {data.system.status ?? 'ok'}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Open incidents: <strong>{data.system.openIncidents ?? 0}</strong> · Open security events:{' '}
+                    <strong>{data.system.openSecurityEvents ?? 0}</strong>
+                  </span>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(data.system.checks ?? []).slice(0, 4).map((check) => (
+                    <div key={check.key} className="flex items-center justify-between rounded-md border border-border px-2.5 py-1.5 text-xs">
+                      <span className="truncate font-medium">{check.label}</span>
+                      <Badge variant={check.status === 'ok' ? 'success' : check.status === 'warning' ? 'warning' : 'destructive'}>{check.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </>
       ) : null}
 

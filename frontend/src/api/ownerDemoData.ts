@@ -16,6 +16,7 @@ import type {
   InstitutionDetail,
   InstitutionHistory,
   InstitutionProfileInput,
+  InstitutionSettingsResponse,
   InstitutionStatus,
   Invoice,
   InvoiceItem,
@@ -32,9 +33,11 @@ import type {
   PlatformUserSummary,
   Refund,
   RevenueSummary,
+  SecurityEvent,
   SessionEntry,
   Subscription,
   SystemHealthSnapshot,
+  SystemIncident,
   TaxProfile,
   TrendPoint,
   VerificationStatus,
@@ -189,17 +192,63 @@ const users: PlatformUserDetail[] = [
 
 let settings: PlatformSettings = {
   platformName: 'Alpha Grew',
+  brandTagline: 'Unified Campus & Career Intelligence Platform',
+  brandPrimaryColor: '#4f46e5',
   supportEmail: 'support@alphagrew.example',
+  supportPhone: '+91-80-4000-2200',
   defaultTimezone: 'Asia/Kolkata',
+  defaultLanguage: 'en',
   currency: 'INR',
   dateFormat: 'DD MMM YYYY',
   defaultTrialDays: 30,
   maxUploadMb: 10,
   passwordMinLength: 8,
+  sessionTimeoutMinutes: 120,
   mfaRequiredForPlatformStaff: false,
+  billingDefaultTaxCode: 'GST18',
   maintenanceEnabled: false,
   maintenanceMessage: 'Scheduled maintenance is in progress. Please check back shortly.',
+  maintenanceBypassIps: ['127.0.0.1'],
 };
+
+const demoInstitutionOverrides: Record<number, Record<string, unknown>> = {
+  1: { defaultLanguage: 'en', maxUploadMb: 20 },
+};
+
+const demoSecurityEvents: SecurityEvent[] = [
+  {
+    id: 1,
+    severity: 'warning',
+    eventType: 'brute_force_detected',
+    institution: 'Riverside Institute of Technology',
+    email: 'admin@riverside.edu',
+    ip: '198.51.100.44',
+    summary: '5 consecutive failed login attempts within 4 minutes.',
+    metadata: { attempts: 5 },
+    status: 'open',
+    resolvedBy: null,
+    resolvedAt: null,
+    at: new Date(Date.now() - 2_400_000).toISOString(),
+  },
+];
+
+const demoIncidents: SystemIncident[] = [
+  {
+    id: 1,
+    title: 'Delayed AI interview transcription webhook',
+    severity: 'medium',
+    status: 'mitigated',
+    component: 'ai_gateway',
+    summary: 'Elevated latency on Anthropic fallback route during peak placement hour.',
+    impact: 'Mock interview feedback delayed by ~8 seconds.',
+    assignee: { id: 900, name: 'Platform Owner' },
+    creator: 'Platform Owner',
+    acknowledgedAt: new Date(Date.now() - 7_200_000).toISOString(),
+    resolvedAt: null,
+    resolutionNote: 'Switched traffic weight to primary endpoint.',
+    createdAt: new Date(Date.now() - 10_800_000).toISOString(),
+  },
+];
 
 const auditEntries: AuditEntry[] = [
   {
@@ -424,8 +473,10 @@ const demoAiLogs: AiUsageLogEntry[] = [
 ];
 
 export const ownerDemoApi = {
-  summary: async (): Promise<OwnerSummary> => ({
+  summary: async (query: Query = {}): Promise<OwnerSummary> => ({
     period: { from: new Date(Date.now() - 30 * 86_400_000).toISOString(), to: new Date().toISOString() },
+    filterStatus: query.status ? String(query.status) : null,
+    defaultCurrency: settings.currency,
     institutions: {
       total: institutions.length,
       byStatus: {
@@ -509,8 +560,12 @@ export const ownerDemoApi = {
   institutions: async (query: Query) => {
     const term = String(query.search ?? '').toLowerCase();
     const status = String(query.status ?? '');
+    const instType = String(query.institutionType ?? '');
     const filtered = institutions.filter(
-      (item) => (!term || item.name.toLowerCase().includes(term) || item.code.toLowerCase().includes(term)) && (!status || item.status === status),
+      (item) =>
+        (!term || item.name.toLowerCase().includes(term) || item.code.toLowerCase().includes(term)) &&
+        (!status || item.status === status) &&
+        (!instType || item.type === instType),
     );
     return paginate(filtered, query);
   },
@@ -589,16 +644,46 @@ export const ownerDemoApi = {
     return { data: target, scheduled: false };
   },
 
+  uploadInstitutionLogo: async (id: number): Promise<InstitutionDetail> => {
+    const target = await ownerDemoApi.institution(id);
+    return { ...target };
+  },
+
+  deleteInstitutionLogo: async (id: number): Promise<InstitutionDetail> => {
+    const target = await ownerDemoApi.institution(id);
+    return { ...target };
+  },
+
+  institutionSettings: async (id: number): Promise<InstitutionSettingsResponse> => ({
+    overrides: { ...(demoInstitutionOverrides[id] ?? {}) },
+    allowedKeys: ['defaultTimezone', 'defaultLanguage', 'currency', 'dateFormat', 'maxUploadMb', 'sessionTimeoutMinutes'],
+    defaults: {
+      defaultTimezone: settings.defaultTimezone,
+      defaultLanguage: settings.defaultLanguage ?? 'en',
+      currency: settings.currency,
+      dateFormat: settings.dateFormat,
+      maxUploadMb: settings.maxUploadMb,
+      sessionTimeoutMinutes: settings.sessionTimeoutMinutes ?? 120,
+    },
+  }),
+
+  saveInstitutionSettings: async (id: number, input: Record<string, unknown>): Promise<InstitutionSettingsResponse> => {
+    demoInstitutionOverrides[id] = { ...(demoInstitutionOverrides[id] ?? {}), ...input };
+    return ownerDemoApi.institutionSettings(id);
+  },
+
   users: async (query: Query) => {
     const term = String(query.search ?? '').toLowerCase();
     const role = String(query.role ?? '');
     const status = String(query.status ?? '');
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
     const platformOnly = Boolean(query.platformOnly);
     const filtered = users.filter(
       (person) =>
         (!term || person.name.toLowerCase().includes(term) || person.email.toLowerCase().includes(term)) &&
         (!role || person.role === role) &&
         (!status || person.status === status) &&
+        (!institutionId || person.institutionId === institutionId) &&
         (!platformOnly || person.isPlatform),
     );
     return paginate<PlatformUserSummary>(filtered, query);
@@ -668,8 +753,30 @@ export const ownerDemoApi = {
 
   loginHistory: async (query: Query) => {
     const outcome = String(query.outcome ?? '');
-    const page = paginate(loginEntries.filter((e) => !outcome || e.outcome === outcome), query);
+    const email = String(query.email ?? '').toLowerCase();
+    const filtered = loginEntries.filter((e) => (!outcome || e.outcome === outcome) && (!email || e.email.toLowerCase().includes(email)));
+    const page = paginate(filtered, query);
     return { ...page, summary: { success: loginEntries.filter((e) => e.outcome === 'success').length } };
+  },
+
+  securityEvents: async (query: Query = {}) => {
+    const severity = String(query.severity ?? '');
+    const status = String(query.status ?? '');
+    return paginate(
+      demoSecurityEvents.filter((e) => (!severity || e.severity === severity) && (!status || e.status === status)),
+      query,
+    );
+  },
+
+  updateSecurityEvent: async (id: number, status: SecurityEvent['status']) => {
+    const found = demoSecurityEvents.find((e) => e.id === id);
+    if (!found) throw new ApiError('Security event not found.', 404);
+    found.status = status;
+    if (status === 'resolved') {
+      found.resolvedBy = 'Platform Owner';
+      found.resolvedAt = new Date().toISOString();
+    }
+    return { id: found.id, status: found.status };
   },
 
   sessions: async () => [...activeSessions],
@@ -689,11 +796,52 @@ export const ownerDemoApi = {
     ],
   }),
 
+  incidents: async (query: Query = {}): Promise<SystemIncident[]> => {
+    const status = String(query.status ?? '');
+    return demoIncidents.filter((i) => !status || i.status === status);
+  },
+
+  createIncident: async (input: { title: string; severity: SystemIncident['severity']; component: string; summary: string; impact?: string }) => {
+    const created: SystemIncident = {
+      id: Math.max(0, ...demoIncidents.map((i) => i.id)) + 1,
+      title: input.title,
+      severity: input.severity,
+      status: 'open',
+      component: input.component,
+      summary: input.summary,
+      impact: input.impact ?? null,
+      assignee: { id: 900, name: 'Platform Owner' },
+      creator: 'Platform Owner',
+      acknowledgedAt: null,
+      resolvedAt: null,
+      resolutionNote: null,
+      createdAt: new Date().toISOString(),
+    };
+    demoIncidents.unshift(created);
+    return { id: created.id, status: created.status };
+  },
+
+  updateIncident: async (id: number, input: { status?: SystemIncident['status']; severity?: SystemIncident['severity']; resolutionNote?: string }) => {
+    const found = demoIncidents.find((i) => i.id === id);
+    if (!found) throw new ApiError('Incident not found.', 404);
+    if (input.status) found.status = input.status;
+    if (input.severity) found.severity = input.severity;
+    if (input.resolutionNote !== undefined) found.resolutionNote = input.resolutionNote;
+    if (input.status === 'resolved') found.resolvedAt = new Date().toISOString();
+    return { id: found.id, status: found.status };
+  },
+
   mfaStatus: async (): Promise<MfaStatus> => ({ enabled: false, enabledAt: null, required: settings.mfaRequiredForPlatformStaff, available: false }),
 
   plans: async (query: Query = {}): Promise<Plan[]> => {
     const status = String(query.status ?? '');
     return demoPlans.filter((p) => !status || p.status === status);
+  },
+
+  plan: async (id: number): Promise<Plan> => {
+    const found = demoPlans.find((p) => p.id === id);
+    if (!found) throw new ApiError('Plan not found.', 404);
+    return { ...found, versions: found.currentVersion ? [found.currentVersion] : [] };
   },
 
   createPlan: async (input: PlanInput): Promise<Plan> => {
@@ -797,7 +945,17 @@ export const ownerDemoApi = {
 
   subscriptions: async (query: Query = {}) => {
     const status = String(query.status ?? '');
-    return paginate(demoSubscriptions.filter((s) => !status || s.status === status), query);
+    const planId = query.planId ? Number(query.planId) : null;
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    return paginate(
+      demoSubscriptions.filter(
+        (s) =>
+          (!status || s.status === status) &&
+          (!planId || s.plan?.id === planId) &&
+          (!institutionId || s.institution?.id === institutionId),
+      ),
+      query,
+    );
   },
 
   subscription: async (id: number) => {
@@ -884,7 +1042,27 @@ export const ownerDemoApi = {
 
   invoices: async (query: Query = {}) => {
     const status = String(query.status ?? '');
-    return paginate(demoInvoices.filter((i) => !status || i.status === status), query);
+    const search = String(query.search ?? '').toLowerCase();
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    return paginate(
+      demoInvoices.filter(
+        (i) =>
+          (!status || i.status === status) &&
+          (!institutionId || i.institution?.id === institutionId) &&
+          (!search || i.invoiceNumber.toLowerCase().includes(search) || (i.institution?.name ?? '').toLowerCase().includes(search)),
+      ),
+      query,
+    );
+  },
+
+  invoice: async (id: number): Promise<Invoice> => {
+    const inv = demoInvoices.find((i) => i.id === id);
+    if (!inv) throw new ApiError('Invoice not found.', 404);
+    return {
+      ...inv,
+      payments: demoPayments.filter((p) => p.invoiceId === id),
+      refunds: demoRefunds.filter((r) => r.invoiceId === id),
+    };
   },
 
   createInvoice: async (input: { institutionId: number; currency?: string; items: InvoiceItem[] }): Promise<Invoice> => {
@@ -925,7 +1103,14 @@ export const ownerDemoApi = {
     inv.balance = 0;
     return { ...inv };
   },
-  payments: async (query: Query = {}) => paginate(demoPayments, query),
+  payments: async (query: Query = {}) => {
+    const status = String(query.status ?? '');
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    return paginate(
+      demoPayments.filter((p) => (!status || p.status === status) && (!institutionId || p.institution?.id === institutionId)),
+      query,
+    );
+  },
   recordPayment: async (input: { invoiceId: number; amount?: number; gateway?: string; method?: string }) => {
     const inv = demoInvoices.find((i) => i.id === input.invoiceId)!;
     const amt = input.amount ?? inv.balance;
@@ -1022,6 +1207,12 @@ export const ownerDemoApi = {
     demoTaxProfiles.push(row);
     return row;
   },
+  updateTaxProfile: async (id: number, input: { isActive?: boolean; isDefault?: boolean }) => {
+    const row = demoTaxProfiles.find((t) => t.id === id);
+    if (!row) throw new ApiError('Tax profile not found.', 404);
+    Object.assign(row, input);
+    return { ...row };
+  },
   coupons: async () => [...demoCoupons],
   createCoupon: async (input: { code: string; name: string; discountType: 'percent' | 'fixed'; discountValue: number; currency?: string; maxRedemptions?: number | null }) => {
     const row: Coupon = {
@@ -1040,11 +1231,36 @@ export const ownerDemoApi = {
     demoCoupons.push(row);
     return row;
   },
+  updateCoupon: async (id: number, input: { isActive?: boolean; maxRedemptions?: number | null }) => {
+    const row = demoCoupons.find((c) => c.id === id);
+    if (!row) throw new ApiError('Coupon not found.', 404);
+    Object.assign(row, input);
+    return { ...row };
+  },
 
-  aiUsage: async (query: Query = {}) => ({
-    ...paginate(demoAiLogs, query),
-    summary: { calls: demoAiLogs.length, failures: 0, tokens: 1010, estimatedCostUsd: 0.0071, creditsCharged: 2 },
-  }),
+  aiUsage: async (query: Query = {}) => {
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const feature = String(query.feature ?? '');
+    const provider = String(query.provider ?? '');
+    const model = String(query.model ?? '').toLowerCase();
+    const filtered = demoAiLogs.filter(
+      (l) =>
+        (!institutionId || l.institution?.id === institutionId) &&
+        (!feature || l.feature === feature) &&
+        (!provider || l.provider === provider) &&
+        (!model || l.model.toLowerCase().includes(model)),
+    );
+    return {
+      ...paginate(filtered, query),
+      summary: {
+        calls: filtered.length,
+        failures: filtered.filter((l) => l.status !== 'success').length,
+        tokens: filtered.reduce((s, l) => s + l.promptTokens + l.completionTokens, 0),
+        estimatedCostUsd: Number(filtered.reduce((s, l) => s + l.estimatedCostUsd, 0).toFixed(4)),
+        creditsCharged: filtered.reduce((s, l) => s + l.creditsCharged, 0),
+      },
+    };
+  },
   aiCredits: async (_query: Query = {}) => ({
     data: [...demoWallets],
     summary: {
@@ -1078,7 +1294,18 @@ export const ownerDemoApi = {
     rateCards: [...demoRateCards],
     services: ['resume_parse', 'resume_analysis', 'interview_plan', 'interview_turn', 'interview_turn_analysis', 'interview_evaluation'],
   }),
-  saveAiRateCard: async (input: { serviceKey: string; provider: string; model: string; creditsPerRequest: number; creditsPer1kTokens?: number }) => {
+  saveAiRateCard: async (input: {
+    serviceKey: string;
+    provider: string;
+    model: string;
+    creditsPerRequest: number;
+    creditsPer1kTokens?: number;
+    usdPer1kInputTokens?: number;
+    usdPer1kOutputTokens?: number;
+    rateLimitPerMinute?: number | null;
+    warningThresholdPercent?: number;
+    chargeOnFailure?: boolean;
+  }) => {
     const rc: AiRateCard = {
       id: demoRateCards.length + 1,
       serviceKey: input.serviceKey,
@@ -1086,15 +1313,21 @@ export const ownerDemoApi = {
       model: input.model,
       creditsPerRequest: input.creditsPerRequest,
       creditsPer1kTokens: input.creditsPer1kTokens ?? 0,
-      usdPer1kInputTokens: 0.004,
-      usdPer1kOutputTokens: 0.02,
-      rateLimitPerMinute: 60,
-      warningThresholdPercent: 80,
-      chargeOnFailure: false,
+      usdPer1kInputTokens: input.usdPer1kInputTokens ?? 0.004,
+      usdPer1kOutputTokens: input.usdPer1kOutputTokens ?? 0.02,
+      rateLimitPerMinute: input.rateLimitPerMinute ?? 60,
+      warningThresholdPercent: input.warningThresholdPercent ?? 80,
+      chargeOnFailure: input.chargeOnFailure ?? false,
       isActive: true,
     };
     demoRateCards.push(rc);
     return rc;
+  },
+  updateAiRateCard: async (id: number, input: { isActive?: boolean; creditsPerRequest?: number; creditsPer1kTokens?: number }) => {
+    const rc = demoRateCards.find((r) => r.id === id);
+    if (!rc) throw new ApiError('Rate card not found.', 404);
+    Object.assign(rc, input);
+    return { ...rc };
   },
 };
 

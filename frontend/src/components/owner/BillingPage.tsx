@@ -1,6 +1,6 @@
 /** Billing, invoices, payments, refunds, tax/GST profiles & coupons (SRS §5.8). */
 import { useState, type FormEvent } from 'react';
-import { CreditCard, Download, Plus, ReceiptText, RotateCcw } from 'lucide-react';
+import { CreditCard, Download, Eye, Plus, ReceiptText, RotateCcw, X } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -35,6 +35,7 @@ import {
   OWNER,
   useCoupons,
   useInstitutions,
+  useInvoiceDetail,
   useInvoices,
   useOwnerMutation,
   usePayments,
@@ -60,23 +61,210 @@ import {
 } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
 
+function InvoiceDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
+  const detail = useInvoiceDetail(id);
+  const inv = detail.data;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" onClose={onClose}>
+        <DialogHeader>
+          <DialogTitle>{inv ? `Invoice ${inv.invoiceNumber}` : 'Invoice details'}</DialogTitle>
+          <DialogDescription>Line items, GST/tax breakdown, recorded payments and refund history.</DialogDescription>
+        </DialogHeader>
+        {detail.isPending ? <LoadingRows rows={4} /> : null}
+        {detail.isError ? <ErrorState error={detail.error} /> : null}
+        {inv ? (
+          <div className="space-y-4 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/40 p-3">
+              <div>
+                <span className="block font-medium text-foreground">{inv.institution?.name ?? '—'}</span>
+                <span className="text-muted-foreground">
+                  Period {formatDate(inv.billingPeriodStart)} → {formatDate(inv.billingPeriodEnd)} · Due {formatDate(inv.dueAt)}
+                </span>
+                {inv.gstin ? <span className="block text-muted-foreground">GSTIN: {inv.gstin} ({inv.placeOfSupply ?? '—'})</span> : null}
+              </div>
+              <CommercialStatusBadge status={inv.status} />
+            </div>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Qty</TableHead>
+                  <TableHead className="text-right">Unit price</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inv.items.map((item, idx) => (
+                  <TableRow key={item.id ?? idx}>
+                    <TableCell>{item.description}</TableCell>
+                    <TableCell className="text-right">{item.quantity}</TableCell>
+                    <TableCell className="text-right">{formatMoney(item.unitPrice, inv.currency)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatMoney(item.amount ?? item.quantity * item.unitPrice, inv.currency)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <div className="ml-auto max-w-xs space-y-1 border-t border-border pt-2">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span>{formatMoney(inv.subtotal, inv.currency)}</span>
+              </div>
+              {inv.discountAmount > 0 ? (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Discount</span>
+                  <span>-{formatMoney(inv.discountAmount, inv.currency)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tax ({inv.taxRatePercent}%)</span>
+                <span>{formatMoney(inv.taxAmount, inv.currency)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-foreground">
+                <span>Total</span>
+                <span>{formatMoney(inv.total, inv.currency)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Paid / Balance due</span>
+                <span>
+                  {formatMoney(inv.paidAmount, inv.currency)} / {formatMoney(inv.balance, inv.currency)}
+                </span>
+              </div>
+            </div>
+
+            {inv.payments && inv.payments.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="font-semibold text-foreground">Payments ({inv.payments.length})</p>
+                <ul className="divide-y divide-border rounded-lg border border-border px-3">
+                  {inv.payments.map((p) => (
+                    <li key={p.id} className="flex items-center justify-between py-2">
+                      <span>
+                        <span className="font-mono">{p.paymentReference ?? `#${p.id}`}</span> · {p.gateway}/{p.method}
+                      </span>
+                      <span className="font-medium">
+                        {formatMoney(p.amount, p.currency)} ({p.status})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {inv.refunds && inv.refunds.length > 0 ? (
+              <div className="space-y-1.5">
+                <p className="font-semibold text-foreground">Refunds ({inv.refunds.length})</p>
+                <ul className="divide-y divide-border rounded-lg border border-border px-3">
+                  {inv.refunds.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between py-2">
+                      <span>{r.reason}</span>
+                      <span className="font-medium">
+                        {formatMoney(r.amount, r.currency)} ({r.status})
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RejectRefundDialog({ refundId, onClose }: { refundId: number; onClose: () => void }) {
+  const [reason, setReason] = useState('');
+  const [err, setErr] = useState('');
+  const rejectMut = useOwnerMutation(() => ownerApi.rejectRefund(refundId, reason.trim()));
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setErr('');
+    if (!reason.trim()) {
+      setErr('Rejection reason is required.');
+      return;
+    }
+    try {
+      await rejectMut.mutateAsync(undefined);
+      onClose();
+    } catch (caught) {
+      setErr(errorMessage(caught));
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md" onClose={onClose}>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Reject refund request</DialogTitle>
+            <DialogDescription>Provide an audit reason for rejecting this refund request.</DialogDescription>
+          </DialogHeader>
+          {err ? (
+            <Alert variant="destructive">
+              <AlertDescription>{err}</AlertDescription>
+            </Alert>
+          ) : null}
+          <Field label="Rejection reason">
+            <Input required value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Outside 14-day refund window" />
+          </Field>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" disabled={rejectMut.isPending}>
+              {rejectMut.isPending ? 'Rejecting…' : 'Reject refund'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function BillingPage({ can }: OwnerPageProps) {
   const [tab, setTab] = useState('revenue');
   const [invoiceStatus, setInvoiceStatus] = useState('');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [invoiceInstitutionId, setInvoiceInstitutionId] = useState('');
   const [invoicePage, setInvoicePage] = useState(1);
+  const [paymentStatus, setPaymentStatus] = useState('');
+  const [paymentInstitutionId, setPaymentInstitutionId] = useState('');
   const [paymentPage, setPaymentPage] = useState(1);
   const [refundPage, setRefundPage] = useState(1);
 
   const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [viewingInvoiceId, setViewingInvoiceId] = useState<number | null>(null);
   const [payingInvoice, setPayingInvoice] = useState<Invoice | null>(null);
   const [refundingPayment, setRefundingPayment] = useState<Payment | null>(null);
+  const [rejectingRefundId, setRejectingRefundId] = useState<number | null>(null);
   const [creatingTax, setCreatingTax] = useState(false);
   const [creatingCoupon, setCreatingCoupon] = useState(false);
   const [actionError, setActionError] = useState('');
 
+  const institutions = useInstitutions({ perPage: 100 });
   const revenue = useRevenueSummary();
-  const invoices = useInvoices({ status: invoiceStatus, page: invoicePage, perPage: 20 });
-  const payments = usePayments({ page: paymentPage, perPage: 20 });
+  const invoices = useInvoices({
+    status: invoiceStatus,
+    search: invoiceSearch || undefined,
+    institutionId: invoiceInstitutionId || undefined,
+    page: invoicePage,
+    perPage: 20,
+  });
+  const payments = usePayments({
+    status: paymentStatus || undefined,
+    institutionId: paymentInstitutionId || undefined,
+    page: paymentPage,
+    perPage: 20,
+  });
   const refunds = useRefunds({ page: refundPage, perPage: 20 });
   const taxProfiles = useTaxProfiles();
   const coupons = useCoupons();
@@ -88,6 +276,8 @@ export function BillingPage({ can }: OwnerPageProps) {
   const voidMut = useOwnerMutation((id: number) => ownerApi.voidInvoice(id, 'Voided by operator'));
   const approveRefundMut = useOwnerMutation((id: number) => ownerApi.approveRefund(id));
   const executeRefundMut = useOwnerMutation((id: number) => ownerApi.executeRefund(id));
+  const toggleTaxMut = useOwnerMutation(({ id, isActive }: { id: number; isActive: boolean }) => ownerApi.updateTaxProfile(id, { isActive }));
+  const toggleCouponMut = useOwnerMutation(({ id, isActive }: { id: number; isActive: boolean }) => ownerApi.updateCoupon(id, { isActive }));
 
   const runAction = async (fn: () => Promise<unknown>) => {
     setActionError('');
@@ -213,6 +403,16 @@ export function BillingPage({ can }: OwnerPageProps) {
 
         <TabsContent value="invoices" className="space-y-4 pt-4">
           <div className="flex flex-wrap items-center gap-3">
+            <Input
+              className="w-60"
+              aria-label="Search invoices"
+              placeholder="Search invoice # or institution..."
+              value={invoiceSearch}
+              onChange={(e) => {
+                setInvoiceSearch(e.target.value);
+                setInvoicePage(1);
+              }}
+            />
             <Select
               className="w-44"
               aria-label="Filter invoice status"
@@ -229,6 +429,22 @@ export function BillingPage({ can }: OwnerPageProps) {
               <option value="paid">Paid</option>
               <option value="overdue">Overdue</option>
               <option value="void">Void</option>
+            </Select>
+            <Select
+              className="w-52"
+              aria-label="Filter invoices by institution"
+              value={invoiceInstitutionId}
+              onChange={(e) => {
+                setInvoiceInstitutionId(e.target.value);
+                setInvoicePage(1);
+              }}
+            >
+              <option value="">All institutions</option>
+              {institutions.data?.data.map((inst) => (
+                <option key={inst.id} value={String(inst.id)}>
+                  {inst.name}
+                </option>
+              ))}
             </Select>
           </div>
 
@@ -252,7 +468,7 @@ export function BillingPage({ can }: OwnerPageProps) {
                   </TableHeader>
                   <TableBody>
                     {invoices.data.data.map((inv) => (
-                      <TableRow key={inv.id}>
+                      <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setViewingInvoiceId(inv.id)}>
                         <TableCell className="font-mono text-xs font-medium">{inv.invoiceNumber}</TableCell>
                         <TableCell>
                           <span className="block font-medium">{inv.institution?.name ?? '—'}</span>
@@ -264,7 +480,10 @@ export function BillingPage({ can }: OwnerPageProps) {
                         <TableCell>{formatMoney(inv.total, inv.currency)}</TableCell>
                         <TableCell className="font-medium">{formatMoney(inv.balance, inv.currency)}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{formatDate(inv.dueAt)}</TableCell>
-                        <TableCell className="space-x-1 text-right">
+                        <TableCell className="space-x-1 text-right" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" variant="ghost" aria-label={`Inspect ${inv.invoiceNumber}`} onClick={() => setViewingInvoiceId(inv.id)}>
+                            <Eye size={13} />
+                          </Button>
                           {canManage && inv.status === 'draft' ? (
                             <Button size="sm" variant="outline" onClick={() => void runAction(() => issueMut.mutateAsync(inv.id))}>
                               Issue
@@ -295,6 +514,40 @@ export function BillingPage({ can }: OwnerPageProps) {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4 pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Select
+              className="w-44"
+              aria-label="Filter payment status"
+              value={paymentStatus}
+              onChange={(e) => {
+                setPaymentStatus(e.target.value);
+                setPaymentPage(1);
+              }}
+            >
+              <option value="">All payment statuses</option>
+              <option value="pending">Pending</option>
+              <option value="succeeded">Succeeded</option>
+              <option value="failed">Failed</option>
+              <option value="partially_refunded">Partially refunded</option>
+              <option value="refunded">Refunded</option>
+            </Select>
+            <Select
+              className="w-52"
+              aria-label="Filter payments by institution"
+              value={paymentInstitutionId}
+              onChange={(e) => {
+                setPaymentInstitutionId(e.target.value);
+                setPaymentPage(1);
+              }}
+            >
+              <option value="">All institutions</option>
+              {institutions.data?.data.map((inst) => (
+                <option key={inst.id} value={String(inst.id)}>
+                  {inst.name}
+                </option>
+              ))}
+            </Select>
+          </div>
           {payments.isPending ? <LoadingRows rows={4} /> : null}
           {payments.data && payments.data.data.length === 0 ? <EmptyState title="No payments recorded" /> : null}
           {payments.data && payments.data.data.length > 0 ? (
@@ -369,7 +622,10 @@ export function BillingPage({ can }: OwnerPageProps) {
                         <TableCell className="font-mono text-xs">{r.invoiceNumber ?? '—'}</TableCell>
                         <TableCell>{r.institution?.name ?? '—'}</TableCell>
                         <TableCell className="font-medium">{formatMoney(r.amount, r.currency)}</TableCell>
-                        <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{r.reason}</TableCell>
+                        <TableCell className="max-w-xs truncate text-xs text-muted-foreground">
+                          {r.reason}
+                          {r.rejectionReason ? <span className="block text-destructive">Rejected: {r.rejectionReason}</span> : null}
+                        </TableCell>
                         <TableCell>
                           <CommercialStatusBadge status={r.status} />
                         </TableCell>
@@ -381,9 +637,14 @@ export function BillingPage({ can }: OwnerPageProps) {
                             </Button>
                           ) : null}
                           {canRefund && (r.status === 'requested' || r.status === 'approved') ? (
-                            <Button size="sm" onClick={() => void runAction(() => executeRefundMut.mutateAsync(r.id))}>
-                              Execute
-                            </Button>
+                            <>
+                              <Button size="sm" variant="ghost" onClick={() => setRejectingRefundId(r.id)}>
+                                <X size={12} /> Reject
+                              </Button>
+                              <Button size="sm" onClick={() => void runAction(() => executeRefundMut.mutateAsync(r.id))}>
+                                Execute
+                              </Button>
+                            </>
                           ) : null}
                         </TableCell>
                       </TableRow>
@@ -409,15 +670,23 @@ export function BillingPage({ can }: OwnerPageProps) {
             <CardContent>
               <ul className="divide-y divide-border text-sm">
                 {taxProfiles.data?.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between py-2.5">
+                  <li key={t.id} className="flex items-center justify-between gap-2 py-2.5">
                     <div>
                       <span className="font-medium">{t.name}</span>{' '}
                       {t.isDefault ? <Badge variant="info">Default</Badge> : null}
                       <span className="block text-xs text-muted-foreground">
                         {t.taxType.toUpperCase()} · {t.ratePercent}%{t.gstin ? ` · GSTIN: ${t.gstin}` : ''}
+                        {t.placeOfSupply ? ` · ${t.placeOfSupply}` : ''}
                       </span>
                     </div>
-                    <Badge variant={t.isActive ? 'success' : 'secondary'}>{t.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={t.isActive ? 'success' : 'secondary'}>{t.isActive ? 'Active' : 'Inactive'}</Badge>
+                      {canManage ? (
+                        <Button size="sm" variant="ghost" onClick={() => void runAction(() => toggleTaxMut.mutateAsync({ id: t.id, isActive: !t.isActive }))}>
+                          {t.isActive ? 'Disable' : 'Enable'}
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -426,7 +695,7 @@ export function BillingPage({ can }: OwnerPageProps) {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">Coupons & promotions</CardTitle>
+              <CardTitle className="text-sm">Coupons &amp; promotions</CardTitle>
               {canManage ? (
                 <Button size="sm" variant="outline" onClick={() => setCreatingCoupon(true)}>
                   <Plus size={12} /> Add coupon
@@ -436,7 +705,7 @@ export function BillingPage({ can }: OwnerPageProps) {
             <CardContent>
               <ul className="divide-y divide-border text-sm">
                 {coupons.data?.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between py-2.5">
+                  <li key={c.id} className="flex items-center justify-between gap-2 py-2.5">
                     <div>
                       <span className="font-mono text-xs font-semibold">{c.code}</span> · <span className="font-medium">{c.name}</span>
                       <span className="block text-xs text-muted-foreground">
@@ -444,7 +713,14 @@ export function BillingPage({ can }: OwnerPageProps) {
                         {c.maxRedemptions ? ` / ${c.maxRedemptions}` : ''}
                       </span>
                     </div>
-                    <Badge variant={c.isActive ? 'success' : 'secondary'}>{c.isActive ? 'Active' : 'Inactive'}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={c.isActive ? 'success' : 'secondary'}>{c.isActive ? 'Active' : 'Inactive'}</Badge>
+                      {canManage ? (
+                        <Button size="sm" variant="ghost" onClick={() => void runAction(() => toggleCouponMut.mutateAsync({ id: c.id, isActive: !c.isActive }))}>
+                          {c.isActive ? 'Disable' : 'Enable'}
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -452,6 +728,9 @@ export function BillingPage({ can }: OwnerPageProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {viewingInvoiceId ? <InvoiceDetailDialog id={viewingInvoiceId} onClose={() => setViewingInvoiceId(null)} /> : null}
+      {rejectingRefundId ? <RejectRefundDialog refundId={rejectingRefundId} onClose={() => setRejectingRefundId(null)} /> : null}
 
       {creatingInvoice ? <CreateInvoiceDialog onClose={() => setCreatingInvoice(false)} /> : null}
       {payingInvoice ? <RecordPaymentDialog invoice={payingInvoice} onClose={() => setPayingInvoice(null)} /> : null}

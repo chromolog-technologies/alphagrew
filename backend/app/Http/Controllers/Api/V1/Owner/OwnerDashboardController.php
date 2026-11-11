@@ -10,8 +10,11 @@ use App\Models\Institution;
 use App\Models\InstitutionStatusEvent;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PlatformSetting;
+use App\Models\SecurityEvent;
 use App\Models\Student;
 use App\Models\Subscription;
+use App\Models\SystemIncident;
 use App\Models\User;
 use App\Services\Owner\BillingService;
 use App\Services\Owner\SystemHealth;
@@ -30,13 +33,22 @@ class OwnerDashboardController extends Controller
     public function summary(Request $request, SystemHealth $health, BillingService $billing): JsonResponse
     {
         [$from, $to] = $this->period($request);
+        $statusFilter = $request->validate([
+            'status' => ['nullable', \Illuminate\Validation\Rule::in(Institution::STATUSES)],
+        ])['status'] ?? null;
+
+        $scopedInstitutions = $statusFilter ? Institution::query()->where('status', $statusFilter)->pluck('id') : null;
 
         $institutions = Institution::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
-        $users = User::query()->withoutGlobalScopes()->whereNull('deleted_at')->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role');
+        $users = User::query()->withoutGlobalScopes()->whereNull('deleted_at')
+            ->when($scopedInstitutions !== null, fn ($q) => $q->whereIn('institution_id', $scopedInstitutions))
+            ->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role');
         $ai = DB::table('ai_usage_logs')->whereBetween('created_at', [$from, $to])
+            ->when($scopedInstitutions !== null, fn ($q) => $q->whereIn('institution_id', $scopedInstitutions))
             ->selectRaw("count(*) as calls, sum(case when status = 'success' then 0 else 1 end) as failures, coalesce(sum(prompt_tokens), 0) + coalesce(sum(completion_tokens), 0) as tokens, coalesce(sum(estimated_cost_usd), 0) as cost, coalesce(sum(credits_charged), 0) as credits_used")
             ->first();
         $wallets = DB::table('ai_credit_wallets')
+            ->when($scopedInstitutions !== null, fn ($q) => $q->whereIn('institution_id', $scopedInstitutions))
             ->selectRaw('coalesce(sum(allocated_total), 0) as allocated, coalesce(sum(consumed_total), 0) as consumed, coalesce(sum(balance), 0) as remaining')
             ->first();
         $revenue = $billing->revenueSummary($from, $to);
@@ -44,17 +56,23 @@ class OwnerDashboardController extends Controller
 
         return response()->json(['data' => [
             'period' => ['from' => $from->toIso8601String(), 'to' => $to->toIso8601String()],
+            'filterStatus' => $statusFilter,
+            'defaultCurrency' => PlatformSetting::get('currency'),
             'institutions' => [
-                'total' => (int) $institutions->sum(),
+                'total' => $statusFilter ? (int) ($institutions[$statusFilter] ?? 0) : (int) $institutions->sum(),
                 'byStatus' => collect(Institution::STATUSES)->mapWithKeys(fn (string $status) => [$status => (int) ($institutions[$status] ?? 0)]),
-                'pendingVerification' => Institution::query()->whereIn('verification_status', ['pending', 'requires_information'])->count(),
-                'newInPeriod' => Institution::query()->whereBetween('created_at', [$from, $to])->count(),
+                'pendingVerification' => Institution::query()->whereIn('verification_status', ['pending', 'requires_information'])
+                    ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))->count(),
+                'newInPeriod' => Institution::query()->whereBetween('created_at', [$from, $to])
+                    ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))->count(),
             ],
             'users' => [
                 'total' => (int) $users->sum(),
                 'byRole' => collect(UserRole::cases())->mapWithKeys(fn (UserRole $role) => [$role->value => (int) ($users[$role->value] ?? 0)]),
-                'studentRecords' => Student::query()->withoutGlobalScopes()->whereNull('deleted_at')->count(),
-                'activeInPeriod' => User::query()->withoutGlobalScopes()->whereBetween('last_login_at', [$from, $to])->count(),
+                'studentRecords' => Student::query()->withoutGlobalScopes()->whereNull('deleted_at')
+                    ->when($scopedInstitutions !== null, fn ($q) => $q->whereIn('institution_id', $scopedInstitutions))->count(),
+                'activeInPeriod' => User::query()->withoutGlobalScopes()->whereBetween('last_login_at', [$from, $to])
+                    ->when($scopedInstitutions !== null, fn ($q) => $q->whereIn('institution_id', $scopedInstitutions))->count(),
             ],
             'commercial' => [
                 'currency' => $revenue['currency'],
@@ -77,7 +95,13 @@ class OwnerDashboardController extends Controller
                 'creditsUsedInPeriod' => round((float) ($ai->credits_used ?? 0), 2),
                 'note' => 'Ledger-backed AI credit balances; provider USD cost is metered estimate.',
             ],
-            'system' => ['status' => $snapshot['status'], 'checkedAt' => $snapshot['checkedAt'], 'checks' => $snapshot['checks']],
+            'system' => [
+                'status' => $snapshot['status'],
+                'checkedAt' => $snapshot['checkedAt'],
+                'checks' => $snapshot['checks'],
+                'openIncidents' => SystemIncident::query()->where('status', '!=', 'resolved')->count(),
+                'openSecurityEvents' => SecurityEvent::query()->where('status', '!=', 'resolved')->count(),
+            ],
             'generatedAt' => now()->toIso8601String(),
         ]]);
     }

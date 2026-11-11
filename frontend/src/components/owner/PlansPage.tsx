@@ -1,6 +1,6 @@
 /** Plans & feature entitlements (SRS §5.6): catalog, immutable versioning, limits & cloning. */
 import { useState, type FormEvent } from 'react';
-import { Archive, CheckCircle2, Copy, Edit3, Plus, Trash2 } from 'lucide-react';
+import { Archive, CheckCircle2, Copy, Edit3, History, Plus, Trash2 } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
@@ -24,12 +24,13 @@ import {
   ownerApi,
   OWNER,
   useOwnerMutation,
+  usePlan,
   usePlans,
   type BillingCycle,
   type Plan,
   type PlanInput,
 } from '../../api/ownerApi';
-import { CommercialStatusBadge, EmptyState, ErrorState, Field, formatMoney, LoadingRows, PageHeader, errorMessage } from './ownerUi';
+import { CommercialStatusBadge, EmptyState, ErrorState, Field, formatDateTime, formatMoney, LoadingRows, PageHeader, errorMessage } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
 
 const FEATURE_META: { key: string; label: string }[] = [
@@ -45,6 +46,7 @@ const FEATURE_META: { key: string; label: string }[] = [
 export function PlansPage({ can }: OwnerPageProps) {
   const [statusFilter, setStatusFilter] = useState('');
   const [editing, setEditing] = useState<Plan | 'new' | null>(null);
+  const [versionsFor, setVersionsFor] = useState<number | null>(null);
   const [actionError, setActionError] = useState('');
   const plans = usePlans(statusFilter ? { status: statusFilter } : {});
   const canManage = can(OWNER.plansManage);
@@ -108,7 +110,7 @@ export function PlansPage({ can }: OwnerPageProps) {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="text-2xs font-mono uppercase tracking-wider text-muted-foreground">
-                        {plan.code} · v{v?.versionNumber ?? 1}
+                        {plan.code} · v{v?.versionNumber ?? 1} · {plan.isPublic ? 'Public' : 'Private'}
                       </p>
                       <CardTitle className="mt-0.5 text-base">{plan.name}</CardTitle>
                     </div>
@@ -133,11 +135,17 @@ export function PlansPage({ can }: OwnerPageProps) {
                     <span className="text-right font-medium">{v?.studentLimit ?? 'Unlimited'}</span>
                     <span className="text-muted-foreground">Faculty</span>
                     <span className="text-right font-medium">{v?.facultyLimit ?? 'Unlimited'}</span>
-                    <span className="text-muted-foreground">Campuses</span>
-                    <span className="text-right font-medium">{v?.campusLimit ?? 'Unlimited'}</span>
+                    <span className="text-muted-foreground">Campuses / Depts</span>
+                    <span className="text-right font-medium">
+                      {v?.campusLimit ?? '∞'} / {v?.departmentLimit ?? '∞'}
+                    </span>
+                    <span className="text-muted-foreground">Recruiters</span>
+                    <span className="text-right font-medium">{v?.recruiterLimit ?? 'Unlimited'}</span>
+                    <span className="text-muted-foreground">API requests / mo</span>
+                    <span className="text-right font-medium">{v?.apiRequestsLimit?.toLocaleString() ?? 'Unlimited'}</span>
                     <span className="text-muted-foreground">Storage</span>
                     <span className="text-right font-medium">{v ? `${Math.round(v.storageLimitMb / 1024)} GB` : '—'}</span>
-                    <span className="text-muted-foreground">AI credits / period</span>
+                    <span className="text-muted-foreground">AI credits ({v?.aiCreditResetPeriod ?? 'monthly'})</span>
                     <span className="text-right font-medium">{v?.aiCreditAllocation?.toLocaleString() ?? 0}</span>
                     <span className="text-muted-foreground">Subscriptions</span>
                     <span className="text-right font-medium">{plan.activeSubscriptionsCount} active ({plan.subscriptionsCount} total)</span>
@@ -154,30 +162,35 @@ export function PlansPage({ can }: OwnerPageProps) {
                     })}
                   </div>
 
-                  {canManage ? (
-                    <div className="flex flex-wrap gap-1.5 border-t border-border pt-3">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(plan)}>
-                        <Edit3 size={12} /> Edit
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => void runAction(() => cloneMut.mutateAsync(plan))}>
-                        <Copy size={12} /> Clone
-                      </Button>
-                      {plan.status !== 'active' ? (
-                        <Button size="sm" variant="outline" onClick={() => void runAction(() => publishMut.mutateAsync(plan))}>
-                          <CheckCircle2 size={12} /> Publish
+                  <div className="flex flex-wrap gap-1.5 border-t border-border pt-3">
+                    <Button size="sm" variant="outline" onClick={() => setVersionsFor(plan.id)}>
+                      <History size={12} /> Versions
+                    </Button>
+                    {canManage ? (
+                      <>
+                        <Button size="sm" variant="outline" onClick={() => setEditing(plan)}>
+                          <Edit3 size={12} /> Edit
                         </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" onClick={() => void runAction(() => archiveMut.mutateAsync(plan))}>
-                          <Archive size={12} /> Archive
+                        <Button size="sm" variant="outline" onClick={() => void runAction(() => cloneMut.mutateAsync(plan))}>
+                          <Copy size={12} /> Clone
                         </Button>
-                      )}
-                      {plan.subscriptionsCount === 0 ? (
-                        <Button size="sm" variant="ghost" onClick={() => void runAction(() => deleteMut.mutateAsync(plan))}>
-                          <Trash2 size={12} /> Delete
-                        </Button>
-                      ) : null}
-                    </div>
-                  ) : null}
+                        {plan.status !== 'active' ? (
+                          <Button size="sm" variant="outline" onClick={() => void runAction(() => publishMut.mutateAsync(plan))}>
+                            <CheckCircle2 size={12} /> Publish
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => void runAction(() => archiveMut.mutateAsync(plan))}>
+                            <Archive size={12} /> Archive
+                          </Button>
+                        )}
+                        {plan.subscriptionsCount === 0 ? (
+                          <Button size="sm" variant="ghost" onClick={() => void runAction(() => deleteMut.mutateAsync(plan))}>
+                            <Trash2 size={12} /> Delete
+                          </Button>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -186,7 +199,51 @@ export function PlansPage({ can }: OwnerPageProps) {
       ) : null}
 
       {editing ? <PlanEditorDialog plan={editing === 'new' ? null : editing} onClose={() => setEditing(null)} /> : null}
+      {versionsFor ? <PlanVersionsDialog planId={versionsFor} onClose={() => setVersionsFor(null)} /> : null}
     </div>
+  );
+}
+
+function PlanVersionsDialog({ planId, onClose }: { planId: number; onClose: () => void }) {
+  const detail = usePlan(planId);
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto" onClose={onClose}>
+        <DialogHeader>
+          <DialogTitle>{detail.data ? `${detail.data.name} — Version history` : 'Plan version history'}</DialogTitle>
+          <DialogDescription>Each commercial edit publishes an immutable snapshot so active contracts keep their agreed terms.</DialogDescription>
+        </DialogHeader>
+        {detail.isPending ? <LoadingRows rows={3} /> : null}
+        {detail.isError ? <ErrorState error={detail.error} /> : null}
+        {detail.data?.versions ? (
+          <div className="space-y-3">
+            {detail.data.versions.map((ver) => (
+              <Card key={ver.id}>
+                <CardContent className="space-y-2 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">
+                      v{ver.versionNumber} · {formatMoney(ver.price, ver.currency)} / {ver.billingCycle}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {ver.isCurrent ? <Badge variant="success">Current</Badge> : <Badge variant="secondary">Historical</Badge>}
+                      <span className="text-muted-foreground">{formatDateTime(ver.publishedAt)}</span>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground">
+                    Setup {formatMoney(ver.setupFee, ver.currency)} · Trial {ver.trialDays}d · AI credits {ver.aiCreditAllocation.toLocaleString()} ({ver.aiCreditResetPeriod}) · Students {ver.studentLimit ?? '∞'} · Faculty {ver.facultyLimit ?? '∞'} · Campuses {ver.campusLimit ?? '∞'} · Depts {ver.departmentLimit ?? '∞'} · Recruiters {ver.recruiterLimit ?? '∞'} · Storage {ver.storageLimitMb} MB
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : null}
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -199,6 +256,8 @@ function PlanEditorDialog({ plan, onClose }: { plan: Plan | null; onClose: () =>
     name: plan?.name ?? '',
     description: plan?.description ?? '',
     status: plan?.status ?? 'active',
+    sortOrder: plan?.sortOrder ?? 0,
+    isPublic: plan?.isPublic ?? true,
     billingCycle: (v?.billingCycle ?? 'monthly') as BillingCycle,
     price: v?.price ?? 9999,
     setupFee: v?.setupFee ?? 0,
@@ -245,9 +304,11 @@ function PlanEditorDialog({ plan, onClose }: { plan: Plan | null; onClose: () =>
     }
   };
 
+  const optInt = (val: string) => (val === '' ? null : Number(val));
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto" onClose={onClose}>
         <DialogHeader>
           <DialogTitle>{isNew ? 'Create subscription plan' : `Edit ${plan.name} (creates v${(v?.versionNumber ?? 1) + 1})`}</DialogTitle>
           <DialogDescription>
@@ -291,6 +352,9 @@ function PlanEditorDialog({ plan, onClose }: { plan: Plan | null; onClose: () =>
             <Field label="Trial days" error={errors.trialDays}>
               <Input type="number" min={0} max={365} required value={form.trialDays} onChange={(e) => setForm({ ...form, trialDays: Number(e.target.value) })} />
             </Field>
+            <Field label="Sort order" error={errors.sortOrder}>
+              <Input type="number" min={0} value={form.sortOrder ?? 0} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} />
+            </Field>
             <Field label="AI credit allocation" error={errors.aiCreditAllocation}>
               <Input
                 type="number"
@@ -300,17 +364,43 @@ function PlanEditorDialog({ plan, onClose }: { plan: Plan | null; onClose: () =>
                 onChange={(e) => setForm({ ...form, aiCreditAllocation: Number(e.target.value) })}
               />
             </Field>
+            <Field label="AI credit reset period" error={errors.aiCreditResetPeriod}>
+              <Select
+                value={form.aiCreditResetPeriod}
+                onChange={(e) => setForm({ ...form, aiCreditResetPeriod: e.target.value as 'monthly' | 'yearly' | 'none' })}
+              >
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+                <option value="none">One-time / None</option>
+              </Select>
+            </Field>
             <Field label="Student limit (blank = unlimited)">
-              <Input
-                type="number"
-                min={0}
-                value={form.studentLimit ?? ''}
-                onChange={(e) => setForm({ ...form, studentLimit: e.target.value === '' ? null : Number(e.target.value) })}
-              />
+              <Input type="number" min={0} value={form.studentLimit ?? ''} onChange={(e) => setForm({ ...form, studentLimit: optInt(e.target.value) })} />
+            </Field>
+            <Field label="Faculty limit (blank = unlimited)">
+              <Input type="number" min={0} value={form.facultyLimit ?? ''} onChange={(e) => setForm({ ...form, facultyLimit: optInt(e.target.value) })} />
+            </Field>
+            <Field label="Campus limit (blank = unlimited)">
+              <Input type="number" min={0} value={form.campusLimit ?? ''} onChange={(e) => setForm({ ...form, campusLimit: optInt(e.target.value) })} />
+            </Field>
+            <Field label="Department limit (blank = unlimited)">
+              <Input type="number" min={0} value={form.departmentLimit ?? ''} onChange={(e) => setForm({ ...form, departmentLimit: optInt(e.target.value) })} />
+            </Field>
+            <Field label="Recruiter limit (blank = unlimited)">
+              <Input type="number" min={0} value={form.recruiterLimit ?? ''} onChange={(e) => setForm({ ...form, recruiterLimit: optInt(e.target.value) })} />
+            </Field>
+            <Field label="API requests limit / mo (blank = unlimited)">
+              <Input type="number" min={0} value={form.apiRequestsLimit ?? ''} onChange={(e) => setForm({ ...form, apiRequestsLimit: optInt(e.target.value) })} />
             </Field>
             <Field label="Storage limit (MB)">
               <Input type="number" min={0} required value={form.storageLimitMb} onChange={(e) => setForm({ ...form, storageLimitMb: Number(e.target.value) })} />
             </Field>
+            <div className="flex items-end pb-2">
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={Boolean(form.isPublic ?? true)} onChange={(e) => setForm({ ...form, isPublic: e.target.checked })} />
+                <span>Public plan (visible on pricing catalog)</span>
+              </label>
+            </div>
           </div>
 
           <Field label="Description">

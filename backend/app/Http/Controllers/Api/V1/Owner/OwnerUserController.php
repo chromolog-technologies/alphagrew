@@ -167,6 +167,20 @@ class OwnerUserController extends Controller
         return response()->json(['message' => "A password reset link was sent to {$model->email}."]);
     }
 
+    /** POST /owner/users/{user}/resend-invite (SRS FR-US-005). */
+    public function resendInvite(int $user): JsonResponse
+    {
+        $model = $this->find($user);
+        if ($model->statusEnum() === UserStatus::Suspended) {
+            throw BusinessRuleException::conflict('Reactivate this suspended account before resending an invitation.');
+        }
+
+        Password::broker()->sendResetLink(['email' => $model->email]);
+        $this->audit->record('owner.user_invite_resent', $model, institutionId: $model->institution_id);
+
+        return response()->json(['message' => "Invitation / setup link resent to {$model->email}."]);
+    }
+
     public function revokeSessions(Request $request, int $user): JsonResponse
     {
         $model = $this->find($user);
@@ -200,6 +214,9 @@ class OwnerUserController extends Controller
             'status' => $user->statusEnum()->value,
             'institutionId' => $user->institution_id,
             'institution' => $institution,
+            'title' => $user->title,
+            'phone' => $user->phone,
+            'emailVerified' => $user->email_verified_at !== null,
             'mfaEnabled' => $user->mfa_enabled_at !== null,
             'lastLoginAt' => $user->last_login_at?->toIso8601String(),
             'createdAt' => $user->created_at?->toIso8601String(),

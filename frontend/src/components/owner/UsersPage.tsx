@@ -26,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { ApiError } from '../../api/http';
-import { ownerApi, OWNER, useOwnerMutation, usePlatformUser, usePlatformUsers, type PlatformUserDetail } from '../../api/ownerApi';
+import { ownerApi, OWNER, useInstitutions, useOwnerMutation, usePlatformUser, usePlatformUsers, type PlatformUserDetail } from '../../api/ownerApi';
 import { campusRoleLabels, type CampusRole } from '../../campusTypes';
 import { EmptyState, ErrorState, errorMessage, Field, formatDate, formatDateTime, LoadingRows, PageHeader, Pagination, UserStatusBadge } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
@@ -39,10 +39,24 @@ function UserList({ user, can, go }: OwnerPageProps) {
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
   const [status, setStatus] = useState('');
+  const [institutionId, setInstitutionId] = useState('');
+  const [registeredFrom, setRegisteredFrom] = useState('');
+  const [registeredTo, setRegisteredTo] = useState('');
   const [platformOnly, setPlatformOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [inviting, setInviting] = useState(false);
-  const list = usePlatformUsers({ search, role, status, platformOnly: platformOnly ? 1 : undefined, page, perPage: 25 });
+  const institutions = useInstitutions({ perPage: 100 });
+  const list = usePlatformUsers({
+    search,
+    role,
+    status,
+    institutionId: institutionId || undefined,
+    registeredFrom: registeredFrom || undefined,
+    registeredTo: registeredTo || undefined,
+    platformOnly: platformOnly ? 1 : undefined,
+    page,
+    perPage: 25,
+  });
 
   return (
     <div className="space-y-5">
@@ -59,7 +73,7 @@ function UserList({ user, can, go }: OwnerPageProps) {
       />
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_180px_150px_auto]">
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_140px_180px_auto]">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -87,9 +101,23 @@ function UserList({ user, can, go }: OwnerPageProps) {
               <option value="suspended">Suspended</option>
               <option value="rejected">Rejected</option>
             </Select>
+            <Select aria-label="Institution filter" value={institutionId} onChange={(event) => (setInstitutionId(event.target.value), setPage(1))}>
+              <option value="">All institutions</option>
+              {institutions.data?.data.map((inst) => (
+                <option key={inst.id} value={String(inst.id)}>
+                  {inst.name}
+                </option>
+              ))}
+            </Select>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={platformOnly} onChange={(event) => (setPlatformOnly(event.target.checked), setPage(1))} /> Platform owners only
             </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span>Registered between:</span>
+            <Input aria-label="Registered from" type="date" className="h-8 w-36" value={registeredFrom} onChange={(e) => (setRegisteredFrom(e.target.value), setPage(1))} />
+            <span>and</span>
+            <Input aria-label="Registered to" type="date" className="h-8 w-36" value={registeredTo} onChange={(e) => (setRegisteredTo(e.target.value), setPage(1))} />
           </div>
 
           {list.isPending ? <LoadingRows /> : null}
@@ -104,6 +132,7 @@ function UserList({ user, can, go }: OwnerPageProps) {
                     <TableHead>Role</TableHead>
                     <TableHead>Institution</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Verified</TableHead>
                     <TableHead>Last sign-in</TableHead>
                     <TableHead>Joined</TableHead>
                   </TableRow>
@@ -125,6 +154,9 @@ function UserList({ user, can, go }: OwnerPageProps) {
                       <TableCell>{row.institution ?? (row.isPlatform ? 'Platform' : '—')}</TableCell>
                       <TableCell>
                         <UserStatusBadge status={row.status} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={row.emailVerified ? 'success' : 'secondary'}>{row.emailVerified ? 'Verified' : 'Unverified'}</Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDateTime(row.lastLoginAt)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{formatDate(row.createdAt)}</TableCell>
@@ -217,6 +249,7 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
   };
   const activate = useOwnerMutation(() => ownerApi.changeUserStatus(id, { status: 'active' }));
   const reset = useOwnerMutation(() => ownerApi.sendPasswordReset(id));
+  const resendInvite = useOwnerMutation(() => ownerApi.resendUserInvite(id));
   const revoke = useOwnerMutation(() => ownerApi.revokeUserSessions(id));
 
   if (detail.isPending) return <LoadingRows rows={6} />;
@@ -235,6 +268,11 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
         description={`${person.email} · ${person.role === 'super_admin' ? 'Platform Owner' : person.roleLabel}${person.institution ? ` at ${person.institution}` : ''}`}
         actions={
           <>
+            {can(OWNER.usersInvite) && person.status !== 'suspended' ? (
+              <Button variant="outline" size="sm" onClick={() => void run(() => resendInvite.mutateAsync(undefined), 'Invitation / verification link sent.')}>
+                Resend invite / verification
+              </Button>
+            ) : null}
             {can(OWNER.usersSessions) ? (
               <>
                 <Button variant="outline" size="sm" onClick={() => void run(() => reset.mutateAsync(undefined), 'Password reset link sent.')}>
@@ -288,6 +326,7 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
               <Item label="Locked until">{formatDateTime(person.lockedUntil)}</Item>
               <Item label="Joined">{formatDate(person.createdAt)}</Item>
               <Item label="Title">{person.title ?? '—'}</Item>
+              <Item label="Phone">{person.phone ?? '—'}</Item>
             </dl>
           </CardContent>
         </Card>

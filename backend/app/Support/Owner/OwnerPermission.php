@@ -49,6 +49,27 @@ final class OwnerPermission
     public const AI_MANAGE = 'owner.ai.manage';
     public const AI_CREDITS = 'owner.ai.credits';
 
+    // Release 3 — Product Oversight & Reporting.
+    public const OVERSIGHT_VIEW = 'owner.oversight.view';
+    public const REPORTS_VIEW = 'owner.reports.view';
+    public const REPORTS_EXPORT = 'owner.reports.export';
+
+    // Release 4 — Operations, Customer Success, Integrations & Data Management.
+    public const ONBOARDING_VIEW = 'owner.onboarding.view';
+    public const ONBOARDING_MANAGE = 'owner.onboarding.manage';
+    public const CRM_VIEW = 'owner.crm.view';
+    public const CRM_MANAGE = 'owner.crm.manage';
+    public const SUPPORT_VIEW = 'owner.support.view';
+    public const SUPPORT_MANAGE = 'owner.support.manage';
+    public const INTEGRATIONS_VIEW = 'owner.integrations.view';
+    public const INTEGRATIONS_MANAGE = 'owner.integrations.manage';
+    public const DATA_VIEW = 'owner.data.view';
+    public const DATA_MANAGE = 'owner.data.manage';
+
+    // Release 4/5 — Announcements, CMS & Product Releases.
+    public const COMMUNICATIONS_VIEW = 'owner.communications.view';
+    public const COMMUNICATIONS_MANAGE = 'owner.communications.manage';
+
     /** module => [permission => label], for the role editor. */
     public const CATALOG = [
         'Overview' => [
@@ -97,7 +118,32 @@ final class OwnerPermission
             self::SECURITY_VIEW => 'View login history and sessions',
         ],
         'System' => [
-            self::SYSTEM_VIEW => 'View system health',
+            self::SYSTEM_VIEW => 'View system health and incidents',
+        ],
+        'Product Oversight & Reports' => [
+            self::OVERSIGHT_VIEW => 'View cross-institution academic, placement, assessment, resume and AI interview oversight',
+            self::REPORTS_VIEW => 'View analytics and generate report previews',
+            self::REPORTS_EXPORT => 'Export reports and manage scheduled reports',
+        ],
+        'Onboarding & CRM' => [
+            self::ONBOARDING_VIEW => 'View institution onboarding requests and checklists',
+            self::ONBOARDING_MANAGE => 'Manage onboarding stages and convert requests into institutions',
+            self::CRM_VIEW => 'View sales leads and follow-up pipeline',
+            self::CRM_MANAGE => 'Create, update and convert CRM leads',
+        ],
+        'Support' => [
+            self::SUPPORT_VIEW => 'View support tickets, SLA timers and customer feedback',
+            self::SUPPORT_MANAGE => 'Reply to, escalate and resolve support tickets',
+        ],
+        'Communications & Content' => [
+            self::COMMUNICATIONS_VIEW => 'View announcements, CMS pages and product releases',
+            self::COMMUNICATIONS_MANAGE => 'Publish announcements, CMS pages and product releases',
+        ],
+        'Integrations & Data' => [
+            self::INTEGRATIONS_VIEW => 'View integrations catalog, API clients and webhooks',
+            self::INTEGRATIONS_MANAGE => 'Configure integrations, issue API keys and manage webhooks',
+            self::DATA_VIEW => 'View backups, restore verifications and tenant data requests',
+            self::DATA_MANAGE => 'Trigger backups, verify restores and approve export/deletion requests',
         ],
     ];
 
@@ -121,26 +167,33 @@ final class OwnerPermission
                 ...$read, self::INSTITUTIONS_CREATE, self::INSTITUTIONS_EDIT, self::INSTITUTIONS_VERIFY, self::INSTITUTIONS_SUSPEND, self::INSTITUTIONS_EXPORT,
                 self::USERS_VIEW, self::USERS_SUSPEND, self::USERS_SESSIONS, self::SYSTEM_VIEW,
                 self::PLANS_VIEW, self::SUBSCRIPTIONS_VIEW, self::SUBSCRIPTIONS_MANAGE, self::AI_VIEW,
+                self::OVERSIGHT_VIEW, self::REPORTS_VIEW, self::REPORTS_EXPORT,
+                self::ONBOARDING_VIEW, self::ONBOARDING_MANAGE, self::SUPPORT_VIEW, self::SUPPORT_MANAGE,
+                self::COMMUNICATIONS_VIEW, self::COMMUNICATIONS_MANAGE, self::DATA_VIEW,
             ]],
             ['name' => 'Finance Manager', 'slug' => 'finance-manager', 'description' => 'Plans, subscriptions, invoices, payments, refunds and revenue reports.', 'permissions' => [
                 ...$read, self::INSTITUTIONS_EXPORT,
                 self::PLANS_VIEW, self::PLANS_MANAGE, self::SUBSCRIPTIONS_VIEW, self::SUBSCRIPTIONS_MANAGE,
                 self::BILLING_VIEW, self::BILLING_MANAGE, self::BILLING_REFUND,
-                self::AI_VIEW, self::AI_CREDITS,
+                self::AI_VIEW, self::AI_CREDITS, self::REPORTS_VIEW, self::REPORTS_EXPORT,
             ]],
-            ['name' => 'Support Manager', 'slug' => 'support-manager', 'description' => 'Customer records, institution status and user support.', 'permissions' => [
+            ['name' => 'Support Manager', 'slug' => 'support-manager', 'description' => 'Customer records, institution status, support tickets and user support.', 'permissions' => [
                 ...$read, self::USERS_VIEW, self::USERS_SESSIONS, self::SUBSCRIPTIONS_VIEW,
+                self::SUPPORT_VIEW, self::SUPPORT_MANAGE, self::ONBOARDING_VIEW, self::OVERSIGHT_VIEW, self::COMMUNICATIONS_VIEW,
             ]],
-            ['name' => 'Technical Admin', 'slug' => 'technical-admin', 'description' => 'System health, AI providers, maintenance mode and settings.', 'permissions' => [
+            ['name' => 'Technical Admin', 'slug' => 'technical-admin', 'description' => 'System health, AI providers, integrations, backups, maintenance mode and settings.', 'permissions' => [
                 self::DASHBOARD_VIEW, self::SYSTEM_VIEW, self::SETTINGS_VIEW, self::SETTINGS_MANAGE, self::SECURITY_VIEW,
-                self::AI_VIEW, self::AI_MANAGE,
+                self::AI_VIEW, self::AI_MANAGE, self::INTEGRATIONS_VIEW, self::INTEGRATIONS_MANAGE, self::DATA_VIEW, self::DATA_MANAGE,
+                self::COMMUNICATIONS_VIEW, self::COMMUNICATIONS_MANAGE,
             ]],
             ['name' => 'Security Auditor', 'slug' => 'security-auditor', 'description' => 'Read-only security events, audit logs and access reports.', 'permissions' => [
                 self::DASHBOARD_VIEW, self::INSTITUTIONS_VIEW, self::USERS_VIEW, self::ROLES_VIEW, self::SETTINGS_VIEW, self::AUDIT_VIEW, self::SECURITY_VIEW, self::SYSTEM_VIEW,
                 self::PLANS_VIEW, self::SUBSCRIPTIONS_VIEW, self::BILLING_VIEW, self::AI_VIEW,
+                self::OVERSIGHT_VIEW, self::REPORTS_VIEW, self::DATA_VIEW, self::INTEGRATIONS_VIEW, self::SUPPORT_VIEW,
             ]],
-            ['name' => 'Sales / Customer Success', 'slug' => 'customer-success', 'description' => 'Onboarding status and approved institution summaries.', 'permissions' => [
+            ['name' => 'Sales / Customer Success', 'slug' => 'customer-success', 'description' => 'CRM leads, onboarding status and approved institution summaries.', 'permissions' => [
                 ...$read, self::PLANS_VIEW, self::SUBSCRIPTIONS_VIEW,
+                self::CRM_VIEW, self::CRM_MANAGE, self::ONBOARDING_VIEW, self::ONBOARDING_MANAGE, self::REPORTS_VIEW,
             ]],
         ];
     }

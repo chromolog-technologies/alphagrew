@@ -13,16 +13,23 @@ class PlatformSetting extends Model
 {
     public const DEFAULTS = [
         'platformName' => 'Alpha Grew',
+        'brandTagline' => 'Campus placement, assessment & AI readiness cloud',
+        'brandPrimaryColor' => '#2563eb',
         'supportEmail' => null,
+        'supportPhone' => null,
         'defaultTimezone' => 'Asia/Kolkata',
+        'defaultLanguage' => 'en',
         'currency' => 'INR',
         'dateFormat' => 'DD MMM YYYY',
         'defaultTrialDays' => 30,
         'maxUploadMb' => 10,
         'passwordMinLength' => 8,
+        'sessionTimeoutMinutes' => 120,
         'mfaRequiredForPlatformStaff' => false,
+        'billingDefaultTaxCode' => 'GST-18',
         'maintenanceEnabled' => false,
         'maintenanceMessage' => 'Alpha Grew is down for scheduled maintenance. Please try again shortly.',
+        'maintenanceBypassIps' => [],
     ];
 
     private const CACHE_KEY = 'platform_settings';

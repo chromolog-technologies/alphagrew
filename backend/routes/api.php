@@ -35,12 +35,19 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Auth\MfaController;
 use App\Http\Controllers\Api\V1\Owner\OwnerAiController;
 use App\Http\Controllers\Api\V1\Owner\OwnerBillingController;
+use App\Http\Controllers\Api\V1\Owner\OwnerContentController;
 use App\Http\Controllers\Api\V1\Owner\OwnerDashboardController;
+use App\Http\Controllers\Api\V1\Owner\OwnerDataController;
 use App\Http\Controllers\Api\V1\Owner\OwnerInstitutionController;
+use App\Http\Controllers\Api\V1\Owner\OwnerIntegrationController;
+use App\Http\Controllers\Api\V1\Owner\OwnerOnboardingCrmController;
+use App\Http\Controllers\Api\V1\Owner\OwnerOversightController;
 use App\Http\Controllers\Api\V1\Owner\OwnerPlanController;
 use App\Http\Controllers\Api\V1\Owner\OwnerPlatformController;
+use App\Http\Controllers\Api\V1\Owner\OwnerReportController;
 use App\Http\Controllers\Api\V1\Owner\OwnerRoleController;
 use App\Http\Controllers\Api\V1\Owner\OwnerSubscriptionController;
+use App\Http\Controllers\Api\V1\Owner\OwnerSupportController;
 use App\Http\Controllers\Api\V1\Owner\OwnerUserController;
 use App\Support\Owner\OwnerPermission as OP;
 use App\Http\Controllers\Api\V1\Placement\PlacementJobController;
@@ -482,6 +489,11 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/institutions/{institution}/verify', [OwnerInstitutionController::class, 'verify'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VERIFY);
             Route::post('/institutions/{institution}/status', [OwnerInstitutionController::class, 'changeStatus'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_SUSPEND);
             Route::get('/institutions/{institution}/history', [OwnerInstitutionController::class, 'history'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+            Route::get('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'showLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+            Route::post('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'uploadLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_EDIT);
+            Route::delete('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'deleteLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_EDIT);
+            Route::get('/institutions/{institution}/settings', [OwnerInstitutionController::class, 'settings'])->whereNumber('institution')->middleware('owner:'.OP::SETTINGS_VIEW);
+            Route::put('/institutions/{institution}/settings', [OwnerInstitutionController::class, 'updateSettings'])->whereNumber('institution')->middleware('owner:'.OP::SETTINGS_MANAGE);
 
             Route::get('/users', [OwnerUserController::class, 'index'])->middleware('owner:'.OP::USERS_VIEW);
             Route::post('/users/invitations', [OwnerUserController::class, 'invite'])->middleware('owner:'.OP::USERS_INVITE);
@@ -489,6 +501,7 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/users/{user}', [OwnerUserController::class, 'update'])->whereNumber('user')->middleware('owner:'.OP::ROLES_MANAGE);
             Route::post('/users/{user}/status', [OwnerUserController::class, 'changeStatus'])->whereNumber('user')->middleware('owner:'.OP::USERS_SUSPEND);
             Route::post('/users/{user}/password-reset', [OwnerUserController::class, 'sendPasswordReset'])->whereNumber('user')->middleware('owner:'.OP::USERS_SESSIONS);
+            Route::post('/users/{user}/resend-invite', [OwnerUserController::class, 'resendInvite'])->whereNumber('user')->middleware('owner:'.OP::USERS_INVITE);
             Route::delete('/users/{user}/sessions', [OwnerUserController::class, 'revokeSessions'])->whereNumber('user')->middleware('owner:'.OP::USERS_SESSIONS);
 
             Route::get('/permissions', [OwnerRoleController::class, 'permissions'])->middleware('owner:'.OP::ROLES_VIEW);
@@ -501,9 +514,14 @@ Route::prefix('v1')->group(function (): void {
             Route::put('/settings', [OwnerPlatformController::class, 'updateSettings'])->middleware('owner:'.OP::SETTINGS_MANAGE);
             Route::get('/audit-logs', [OwnerPlatformController::class, 'auditLogs'])->middleware('owner:'.OP::AUDIT_VIEW);
             Route::get('/login-history', [OwnerPlatformController::class, 'loginHistory'])->middleware('owner:'.OP::SECURITY_VIEW);
+            Route::get('/security-events', [OwnerPlatformController::class, 'securityEvents'])->middleware('owner:'.OP::SECURITY_VIEW);
+            Route::patch('/security-events/{securityEvent}', [OwnerPlatformController::class, 'updateSecurityEvent'])->whereNumber('securityEvent')->middleware('owner:'.OP::SETTINGS_MANAGE);
             Route::get('/sessions', [OwnerPlatformController::class, 'sessions'])->middleware('owner:'.OP::SECURITY_VIEW);
             Route::delete('/sessions/{session}', [OwnerPlatformController::class, 'revokeSession'])->whereNumber('session')->middleware('owner:'.OP::USERS_SESSIONS);
             Route::get('/system/health', [OwnerPlatformController::class, 'health'])->middleware('owner:'.OP::SYSTEM_VIEW);
+            Route::get('/system/incidents', [OwnerPlatformController::class, 'incidents'])->middleware('owner:'.OP::SYSTEM_VIEW);
+            Route::post('/system/incidents', [OwnerPlatformController::class, 'storeIncident'])->middleware('owner:'.OP::SETTINGS_MANAGE);
+            Route::patch('/system/incidents/{incident}', [OwnerPlatformController::class, 'updateIncident'])->whereNumber('incident')->middleware('owner:'.OP::SETTINGS_MANAGE);
 
             // Release 2: Plans & Entitlements (SRS §5.6)
             Route::get('/plans', [OwnerPlanController::class, 'index'])->middleware('owner:'.OP::PLANS_VIEW);
@@ -559,6 +577,78 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/ai/providers', [OwnerAiController::class, 'providers'])->middleware('owner:'.OP::AI_VIEW);
             Route::post('/ai/rate-cards', [OwnerAiController::class, 'storeRateCard'])->middleware('owner:'.OP::AI_MANAGE);
             Route::patch('/ai/rate-cards/{rateCard}', [OwnerAiController::class, 'updateRateCard'])->whereNumber('rateCard')->middleware('owner:'.OP::AI_MANAGE);
+
+            // Release 3: Cross-Tenant Oversight & Analytics Reports (SRS §5.10–§5.15, §13)
+            Route::get('/oversight/academic', [OwnerOversightController::class, 'academic'])->middleware('owner:'.OP::OVERSIGHT_VIEW);
+            Route::get('/oversight/placement', [OwnerOversightController::class, 'placement'])->middleware('owner:'.OP::OVERSIGHT_VIEW);
+            Route::get('/oversight/assessments', [OwnerOversightController::class, 'assessments'])->middleware('owner:'.OP::OVERSIGHT_VIEW);
+            Route::get('/oversight/resumes', [OwnerOversightController::class, 'resumes'])->middleware('owner:'.OP::OVERSIGHT_VIEW);
+            Route::get('/oversight/interviews', [OwnerOversightController::class, 'interviews'])->middleware('owner:'.OP::OVERSIGHT_VIEW);
+
+            Route::get('/reports/catalog', [OwnerReportController::class, 'catalog'])->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::get('/reports/preview', [OwnerReportController::class, 'preview'])->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::get('/reports/export', [OwnerReportController::class, 'export'])->middleware(['owner:'.OP::REPORTS_EXPORT, 'throttle:exports']);
+            Route::get('/reports/saved', [OwnerReportController::class, 'savedIndex'])->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::post('/reports/saved', [OwnerReportController::class, 'saveReport'])->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::delete('/reports/saved/{savedReport}', [OwnerReportController::class, 'deleteSavedReport'])->whereNumber('savedReport')->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::get('/reports/schedules', [OwnerReportController::class, 'schedulesIndex'])->middleware('owner:'.OP::REPORTS_VIEW);
+            Route::post('/reports/schedules', [OwnerReportController::class, 'storeSchedule'])->middleware('owner:'.OP::REPORTS_EXPORT);
+            Route::patch('/reports/schedules/{reportSchedule}', [OwnerReportController::class, 'updateSchedule'])->whereNumber('reportSchedule')->middleware('owner:'.OP::REPORTS_EXPORT);
+            Route::delete('/reports/schedules/{reportSchedule}', [OwnerReportController::class, 'deleteSchedule'])->whereNumber('reportSchedule')->middleware('owner:'.OP::REPORTS_EXPORT);
+            Route::get('/reports/exports', [OwnerReportController::class, 'exportsIndex'])->middleware('owner:'.OP::REPORTS_VIEW);
+
+            // Release 4: Onboarding Pipeline & Sales CRM (SRS §5.3, §5.17)
+            Route::get('/crm/leads', [OwnerOnboardingCrmController::class, 'leads'])->middleware('owner:'.OP::CRM_VIEW);
+            Route::post('/crm/leads', [OwnerOnboardingCrmController::class, 'storeLead'])->middleware('owner:'.OP::CRM_MANAGE);
+            Route::get('/crm/leads/{lead}', [OwnerOnboardingCrmController::class, 'showLead'])->whereNumber('lead')->middleware('owner:'.OP::CRM_VIEW);
+            Route::patch('/crm/leads/{lead}', [OwnerOnboardingCrmController::class, 'updateLead'])->whereNumber('lead')->middleware('owner:'.OP::CRM_MANAGE);
+            Route::post('/crm/leads/{lead}/activities', [OwnerOnboardingCrmController::class, 'addLeadActivity'])->whereNumber('lead')->middleware('owner:'.OP::CRM_MANAGE);
+            Route::post('/crm/leads/{lead}/convert', [OwnerOnboardingCrmController::class, 'convertLead'])->whereNumber('lead')->middleware('owner:'.OP::CRM_MANAGE);
+
+            Route::get('/onboarding', [OwnerOnboardingCrmController::class, 'onboardingList'])->middleware('owner:'.OP::ONBOARDING_VIEW);
+            Route::post('/onboarding', [OwnerOnboardingCrmController::class, 'storeOnboarding'])->middleware('owner:'.OP::ONBOARDING_MANAGE);
+            Route::patch('/onboarding/{onboardingRequest}', [OwnerOnboardingCrmController::class, 'updateOnboarding'])->whereNumber('onboardingRequest')->middleware('owner:'.OP::ONBOARDING_MANAGE);
+            Route::post('/onboarding/checklists/{item}/toggle', [OwnerOnboardingCrmController::class, 'toggleChecklist'])->whereNumber('item')->middleware('owner:'.OP::ONBOARDING_MANAGE);
+            Route::post('/onboarding/{onboardingRequest}/convert-institution', [OwnerOnboardingCrmController::class, 'convertOnboardingToInstitution'])->whereNumber('onboardingRequest')->middleware('owner:'.OP::INSTITUTIONS_CREATE);
+
+            // Release 4: Support Tickets & SLA (SRS §5.16)
+            Route::get('/support/tickets', [OwnerSupportController::class, 'index'])->middleware('owner:'.OP::SUPPORT_VIEW);
+            Route::post('/support/tickets', [OwnerSupportController::class, 'store'])->middleware('owner:'.OP::SUPPORT_MANAGE);
+            Route::get('/support/tickets/{ticket}', [OwnerSupportController::class, 'show'])->whereNumber('ticket')->middleware('owner:'.OP::SUPPORT_VIEW);
+            Route::patch('/support/tickets/{ticket}', [OwnerSupportController::class, 'update'])->whereNumber('ticket')->middleware('owner:'.OP::SUPPORT_MANAGE);
+            Route::post('/support/tickets/{ticket}/replies', [OwnerSupportController::class, 'reply'])->whereNumber('ticket')->middleware('owner:'.OP::SUPPORT_MANAGE);
+            Route::get('/support/attachments/{attachment}', [OwnerSupportController::class, 'downloadAttachment'])->whereNumber('attachment')->middleware('owner:'.OP::SUPPORT_VIEW);
+
+            // Release 4: Integrations Catalog, API Clients & Webhooks (SRS §5.21)
+            Route::get('/integrations', [OwnerIntegrationController::class, 'integrations'])->middleware('owner:'.OP::INTEGRATIONS_VIEW);
+            Route::post('/integrations', [OwnerIntegrationController::class, 'saveIntegration'])->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::post('/integrations/{integration}/test', [OwnerIntegrationController::class, 'testIntegration'])->whereNumber('integration')->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::get('/api-clients', [OwnerIntegrationController::class, 'apiClients'])->middleware('owner:'.OP::INTEGRATIONS_VIEW);
+            Route::post('/api-clients', [OwnerIntegrationController::class, 'storeApiClient'])->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::post('/api-clients/{apiClient}/revoke', [OwnerIntegrationController::class, 'revokeApiClient'])->whereNumber('apiClient')->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::get('/webhooks', [OwnerIntegrationController::class, 'webhooks'])->middleware('owner:'.OP::INTEGRATIONS_VIEW);
+            Route::post('/webhooks', [OwnerIntegrationController::class, 'storeWebhook'])->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::post('/webhooks/{webhook}/test', [OwnerIntegrationController::class, 'testWebhook'])->whereNumber('webhook')->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+            Route::post('/webhooks/{webhook}/toggle', [OwnerIntegrationController::class, 'toggleWebhook'])->whereNumber('webhook')->middleware('owner:'.OP::INTEGRATIONS_MANAGE);
+
+            // Release 4: Data Governance, Backups & Restore Verification (SRS §5.23)
+            Route::get('/data/backups', [OwnerDataController::class, 'backups'])->middleware('owner:'.OP::DATA_VIEW);
+            Route::post('/data/backups', [OwnerDataController::class, 'triggerBackup'])->middleware('owner:'.OP::DATA_MANAGE);
+            Route::post('/data/backups/{backup}/verify', [OwnerDataController::class, 'verifyRestore'])->whereNumber('backup')->middleware('owner:'.OP::DATA_MANAGE);
+            Route::get('/data/requests', [OwnerDataController::class, 'requests'])->middleware('owner:'.OP::DATA_VIEW);
+            Route::post('/data/requests', [OwnerDataController::class, 'storeRequest'])->middleware('owner:'.OP::DATA_MANAGE);
+            Route::post('/data/requests/{dataRequest}/review', [OwnerDataController::class, 'reviewRequest'])->whereNumber('dataRequest')->middleware('owner:'.OP::DATA_MANAGE);
+
+            // Release 4 & 5: Platform Announcements, CMS Pages & Product Releases (SRS §5.18, §5.24, §5.25)
+            Route::get('/announcements', [OwnerContentController::class, 'announcements'])->middleware('owner:'.OP::COMMUNICATIONS_VIEW);
+            Route::post('/announcements', [OwnerContentController::class, 'storeAnnouncement'])->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
+            Route::patch('/announcements/{announcement}', [OwnerContentController::class, 'updateAnnouncement'])->whereNumber('announcement')->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
+            Route::get('/cms/pages', [OwnerContentController::class, 'cmsPages'])->middleware('owner:'.OP::COMMUNICATIONS_VIEW);
+            Route::post('/cms/pages', [OwnerContentController::class, 'storeCmsPage'])->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
+            Route::patch('/cms/pages/{cmsPage}', [OwnerContentController::class, 'updateCmsPage'])->whereNumber('cmsPage')->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
+            Route::get('/releases', [OwnerContentController::class, 'releases'])->middleware('owner:'.OP::COMMUNICATIONS_VIEW);
+            Route::post('/releases', [OwnerContentController::class, 'storeRelease'])->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
+            Route::patch('/releases/{release}', [OwnerContentController::class, 'updateRelease'])->whereNumber('release')->middleware('owner:'.OP::COMMUNICATIONS_MANAGE);
         });
 
         // In-app notifications and preferences, for every role.

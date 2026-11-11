@@ -165,11 +165,104 @@ class OwnerInstitutionController extends Controller
         ]]);
     }
 
+    /** POST /owner/institutions/{institution}/logo */
+    public function uploadLogo(Request $request, Institution $institution): JsonResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'file', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+        ]);
+
+        $file = $request->file('logo');
+        $ext = strtolower($file->getClientOriginalExtension() ?: 'png');
+        $name = 'logo-'.\Illuminate\Support\Str::random(12).'.'.$ext;
+        $path = $file->storeAs("owner/institution-logos/{$institution->id}", $name, 'local');
+
+        $previous = $institution->logo_path;
+        $institution->forceFill(['logo_path' => $path])->save();
+        if ($previous && $previous !== $path) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($previous);
+        }
+
+        $this->audit->record('owner.institution_logo_updated', $institution, ['logoPath' => $previous], ['logoPath' => $path], $request->user(), $institution->id);
+
+        return response()->json(['data' => $this->detail($institution->fresh())]);
+    }
+
+    /** GET /owner/institutions/{institution}/logo */
+    public function showLogo(Institution $institution)
+    {
+        abort_unless($institution->logo_path && \Illuminate\Support\Facades\Storage::disk('local')->exists($institution->logo_path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($institution->logo_path, null, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, max-age=3600',
+        ]);
+    }
+
+    /** DELETE /owner/institutions/{institution}/logo */
+    public function deleteLogo(Request $request, Institution $institution): JsonResponse
+    {
+        $previous = $institution->logo_path;
+        if ($previous) {
+            \Illuminate\Support\Facades\Storage::disk('local')->delete($previous);
+            $institution->forceFill(['logo_path' => null])->save();
+            $this->audit->record('owner.institution_logo_removed', $institution, ['logoPath' => $previous], ['logoPath' => null], $request->user(), $institution->id);
+        }
+
+        return response()->json(['data' => $this->detail($institution->fresh())]);
+    }
+
+    /** GET /owner/institutions/{institution}/settings */
+    public function settings(Institution $institution): JsonResponse
+    {
+        $overrides = $institution->institutionSettings()->pluck('value', 'key')->all();
+
+        return response()->json([
+            'data' => [
+                'overrides' => $overrides,
+                'allowedKeys' => \App\Models\InstitutionSetting::OVERRIDABLE_KEYS,
+                'defaults' => array_intersect_key(\App\Models\PlatformSetting::values(), array_flip(\App\Models\InstitutionSetting::OVERRIDABLE_KEYS)),
+            ],
+        ]);
+    }
+
+    /** PUT /owner/institutions/{institution}/settings (SRS FR-GS-004) */
+    public function updateSettings(Request $request, Institution $institution): JsonResponse
+    {
+        $data = $request->validate([
+            'defaultTimezone' => ['nullable', 'timezone:all'],
+            'currency' => ['nullable', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
+            'defaultTrialDays' => ['nullable', 'integer', 'between:0,365'],
+            'maxUploadMb' => ['nullable', 'integer', 'between:1,100'],
+            'aiMonthlyQuota' => ['nullable', 'numeric', 'min:0'],
+            'customDomain' => ['nullable', 'string', 'max:190'],
+            'defaultLanguage' => ['nullable', 'string', 'max:12'],
+        ]);
+
+        $before = $institution->institutionSettings()->pluck('value', 'key')->all();
+        foreach ($data as $key => $value) {
+            if ($value === null || $value === '') {
+                $institution->institutionSettings()->where('key', $key)->delete();
+            } else {
+                $institution->institutionSettings()->updateOrCreate(
+                    ['key' => $key],
+                    ['value' => $value, 'updated_by' => $request->user()->id]
+                );
+            }
+        }
+
+        $after = $institution->institutionSettings()->pluck('value', 'key')->all();
+        $this->audit->record('owner.institution_settings_updated', $institution, $before, $after, $request->user(), $institution->id);
+
+        return $this->settings($institution);
+    }
+
     private function filtered(Request $request)
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', Rule::in(Institution::STATUSES)],
+            'institutionType' => ['nullable', Rule::in(Institution::TYPES)],
             'verification' => ['nullable', Rule::in(Institution::VERIFICATION_STATUSES)],
             'sort' => ['nullable', Rule::in(self::SORTS)],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
@@ -182,6 +275,7 @@ class OwnerInstitutionController extends Controller
             ->when($filters['search'] ?? null, fn ($query, string $term) => $query->where(fn ($inner) => $inner
                 ->where('name', 'like', "%{$term}%")->orWhere('code', 'like', "%{$term}%")->orWhere('official_email', 'like', "%{$term}%")))
             ->when($filters['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
+            ->when($filters['institutionType'] ?? null, fn ($query, string $type) => $query->where('institution_type', $type))
             ->when($filters['verification'] ?? null, fn ($query, string $status) => $query->where('verification_status', $status))
             ->orderBy($filters['sort'] ?? 'created_at', $filters['direction'] ?? (($filters['sort'] ?? null) === 'name' ? 'asc' : 'desc'));
     }
@@ -275,6 +369,8 @@ class OwnerInstitutionController extends Controller
             'registrationNumber' => $institution->registration_number,
             'contactPhone' => $institution->contact_phone,
             'website' => $institution->website,
+            'logoUrl' => $institution->logo_path ? '/api/v1/owner/institutions/'.$institution->id.'/logo?v='.substr(md5($institution->logo_path), 0, 8) : null,
+            'settingsOverrides' => $institution->institutionSettings()->pluck('value', 'key')->all(),
             'country' => $institution->country,
             'district' => $institution->district,
             'address' => $institution->address,

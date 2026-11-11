@@ -53,12 +53,23 @@ import type { OwnerPageProps } from './OwnerWorkspace';
 
 export function SubscriptionsPage({ can }: OwnerPageProps) {
   const [status, setStatus] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [institutionId, setInstitutionId] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [assigning, setAssigning] = useState(false);
 
-  const list = useSubscriptions({ status, search, page, perPage: 20 });
+  const plans = usePlans();
+  const institutions = useInstitutions({ perPage: 100 });
+  const list = useSubscriptions({
+    status,
+    planId: planId || undefined,
+    institutionId: institutionId || undefined,
+    search,
+    page,
+    perPage: 20,
+  });
   const canManage = can(OWNER.subscriptionsManage);
 
   return (
@@ -77,7 +88,7 @@ export function SubscriptionsPage({ can }: OwnerPageProps) {
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
-          className="w-64"
+          className="w-60"
           placeholder="Search institution name or code..."
           value={search}
           onChange={(e) => {
@@ -86,7 +97,7 @@ export function SubscriptionsPage({ can }: OwnerPageProps) {
           }}
         />
         <Select
-          className="w-44"
+          className="w-40"
           aria-label="Filter subscription status"
           value={status}
           onChange={(e) => {
@@ -101,6 +112,38 @@ export function SubscriptionsPage({ can }: OwnerPageProps) {
           <option value="paused">Paused</option>
           <option value="cancelled">Cancelled</option>
           <option value="expired">Expired</option>
+        </Select>
+        <Select
+          className="w-44"
+          aria-label="Filter by plan"
+          value={planId}
+          onChange={(e) => {
+            setPlanId(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">All plans</option>
+          {plans.data?.map((p) => (
+            <option key={p.id} value={String(p.id)}>
+              {p.name}
+            </option>
+          ))}
+        </Select>
+        <Select
+          className="w-52"
+          aria-label="Filter by institution"
+          value={institutionId}
+          onChange={(e) => {
+            setInstitutionId(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">All institutions</option>
+          {institutions.data?.data.map((inst) => (
+            <option key={inst.id} value={String(inst.id)}>
+              {inst.name}
+            </option>
+          ))}
         </Select>
       </div>
 
@@ -171,6 +214,14 @@ function AssignSubscriptionDialog({ onClose }: { onClose: () => void }) {
   const [institutionId, setInstitutionId] = useState('');
   const [planId, setPlanId] = useState('');
   const [status, setStatus] = useState<'trial' | 'active'>('active');
+  const [billingCycle, setBillingCycle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('');
+  const [startAt, setStartAt] = useState('');
+  const [trialDays, setTrialDays] = useState('');
+  const [graceDays, setGraceDays] = useState('7');
+  const [expiryBehavior, setExpiryBehavior] = useState<'grace_then_readonly' | 'grace_then_suspend' | 'immediate_suspend'>('grace_then_readonly');
+  const [autoRenew, setAutoRenew] = useState(true);
   const [generateInvoice, setGenerateInvoice] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -184,6 +235,14 @@ function AssignSubscriptionDialog({ onClose }: { onClose: () => void }) {
         institutionId: Number(institutionId),
         planId: Number(planId),
         status,
+        billingCycle: (billingCycle || undefined) as 'monthly' | 'quarterly' | 'yearly' | undefined,
+        amount: amount === '' ? undefined : Number(amount),
+        currency: currency || undefined,
+        startAt: startAt || undefined,
+        trialDays: trialDays === '' ? undefined : Number(trialDays),
+        graceDays: graceDays === '' ? undefined : Number(graceDays),
+        expiryBehavior,
+        autoRenew,
         generateInvoice: status === 'active' ? generateInvoice : false,
       });
       onClose();
@@ -194,7 +253,7 @@ function AssignSubscriptionDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto" onClose={onClose}>
         <DialogHeader>
           <DialogTitle>Assign subscription</DialogTitle>
           <DialogDescription>Attaches a plan version entitlement snapshot and allocates AI credits to the institution wallet.</DialogDescription>
@@ -205,38 +264,76 @@ function AssignSubscriptionDialog({ onClose }: { onClose: () => void }) {
               <AlertDescription>{errorMsg}</AlertDescription>
             </Alert>
           ) : null}
-          <Field label="Institution">
-            <Select required value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}>
-              <option value="">Select institution...</option>
-              {institutions.data?.data.map((inst) => (
-                <option key={inst.id} value={inst.id}>
-                  {inst.name} ({inst.code})
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Active plan">
-            <Select required value={planId} onChange={(e) => setPlanId(e.target.value)}>
-              <option value="">Select plan...</option>
-              {plans.data?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.currentVersion ? formatMoney(p.currentVersion.price, p.currentVersion.currency) : ''} / {p.currentVersion?.billingCycle})
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Initial status">
-            <Select value={status} onChange={(e) => setStatus(e.target.value as 'trial' | 'active')}>
-              <option value="active">Active (paid)</option>
-              <option value="trial">Trial</option>
-            </Select>
-          </Field>
-          {status === 'active' ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Institution">
+              <Select required value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}>
+                <option value="">Select institution...</option>
+                {institutions.data?.data.map((inst) => (
+                  <option key={inst.id} value={inst.id}>
+                    {inst.name} ({inst.code})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Active plan">
+              <Select required value={planId} onChange={(e) => setPlanId(e.target.value)}>
+                <option value="">Select plan...</option>
+                {plans.data?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.currentVersion ? formatMoney(p.currentVersion.price, p.currentVersion.currency) : ''} / {p.currentVersion?.billingCycle})
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Initial status">
+              <Select value={status} onChange={(e) => setStatus(e.target.value as 'trial' | 'active')}>
+                <option value="active">Active (paid)</option>
+                <option value="trial">Trial</option>
+              </Select>
+            </Field>
+            <Field label="Billing cycle override">
+              <Select value={billingCycle} onChange={(e) => setBillingCycle(e.target.value)}>
+                <option value="">Plan default</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </Select>
+            </Field>
+            <Field label="Custom price override">
+              <Input type="number" min={0} step="0.01" placeholder="Plan default" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </Field>
+            <Field label="Currency override">
+              <Input maxLength={3} placeholder="Plan default" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} />
+            </Field>
+            <Field label="Start date">
+              <Input type="date" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
+            </Field>
+            <Field label="Trial days">
+              <Input type="number" min={0} max={365} placeholder="Plan default" value={trialDays} onChange={(e) => setTrialDays(e.target.value)} />
+            </Field>
+            <Field label="Grace days">
+              <Input type="number" min={0} max={90} value={graceDays} onChange={(e) => setGraceDays(e.target.value)} />
+            </Field>
+            <Field label="Expiry behavior">
+              <Select value={expiryBehavior} onChange={(e) => setExpiryBehavior(e.target.value as 'grace_then_readonly' | 'grace_then_suspend' | 'immediate_suspend')}>
+                <option value="grace_then_readonly">Grace then read-only</option>
+                <option value="grace_then_suspend">Grace then suspend</option>
+                <option value="immediate_suspend">Immediate suspend</option>
+              </Select>
+            </Field>
+          </div>
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={generateInvoice} onChange={(e) => setGenerateInvoice(e.target.checked)} />
-              <span>Automatically generate initial invoice for subscription + setup fee</span>
+              <input type="checkbox" checked={autoRenew} onChange={(e) => setAutoRenew(e.target.checked)} />
+              <span>Auto-renew on billing anniversary</span>
             </label>
-          ) : null}
+            {status === 'active' ? (
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" checked={generateInvoice} onChange={(e) => setGenerateInvoice(e.target.checked)} />
+                <span>Automatically generate initial invoice for subscription + setup fee</span>
+              </label>
+            ) : null}
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
             <Button type="submit" disabled={assign.isPending}>{assign.isPending ? 'Assigning...' : 'Assign subscription'}</Button>
@@ -371,14 +468,67 @@ function SubscriptionDetailDialog({ id, canManage, onClose }: { id: number; canM
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Entitlement snapshot</CardTitle>
+                <CardTitle className="text-sm">Commercial terms &amp; entitlement snapshot</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-1.5 text-xs">
-                {Object.entries(sub.entitlementSnapshot?.features ?? {}).map(([key, enabled]) => (
-                  <Badge key={key} variant={enabled ? 'info' : 'secondary'} className={enabled ? '' : 'opacity-45'}>
-                    {key.replace(/_/g, ' ')}
-                  </Badge>
-                ))}
+              <CardContent className="space-y-3 text-xs">
+                <dl className="grid gap-2 sm:grid-cols-3">
+                  <div>
+                    <dt className="text-muted-foreground">Start / End</dt>
+                    <dd className="font-medium">
+                      {formatDate(sub.startAt)} → {formatDate(sub.endAt)}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Next renewal</dt>
+                    <dd className="font-medium">{formatDate(sub.renewalAt)} ({sub.autoRenew ? 'Auto-renew on' : 'Manual'})</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Grace &amp; expiry policy</dt>
+                    <dd className="font-medium">
+                      {sub.graceDays}d ({sub.expiryBehavior.replace(/_/g, ' ')})
+                      {sub.graceEndsAt ? ` · ends ${formatDate(sub.graceEndsAt)}` : ''}
+                    </dd>
+                  </div>
+                  {sub.trialStartAt || sub.trialEndAt ? (
+                    <div>
+                      <dt className="text-muted-foreground">Trial window</dt>
+                      <dd className="font-medium">
+                        {formatDate(sub.trialStartAt)} → {formatDate(sub.trialEndAt)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {sub.pausedAt ? (
+                    <div>
+                      <dt className="text-muted-foreground">Paused at</dt>
+                      <dd className="font-medium">{formatDateTime(sub.pausedAt)}</dd>
+                    </div>
+                  ) : null}
+                  {sub.cancelledAt ? (
+                    <div>
+                      <dt className="text-muted-foreground">Cancelled</dt>
+                      <dd className="font-medium">
+                        {formatDateTime(sub.cancelledAt)}
+                        {sub.cancelReason ? ` · ${sub.cancelReason}` : ''}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+                {sub.entitlementSnapshot?.limits ? (
+                  <div className="flex flex-wrap gap-2 border-t border-border pt-2">
+                    {Object.entries(sub.entitlementSnapshot.limits).map(([key, val]) => (
+                      <span key={key} className="rounded bg-muted px-2 py-0.5 text-2xs">
+                        {key}: <strong>{val ?? 'Unlimited'}</strong>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.entries(sub.entitlementSnapshot?.features ?? {}).map(([key, enabled]) => (
+                    <Badge key={key} variant={enabled ? 'info' : 'secondary'} className={enabled ? '' : 'opacity-45'}>
+                      {key.replace(/_/g, ' ')}
+                    </Badge>
+                  ))}
+                </div>
               </CardContent>
             </Card>
 

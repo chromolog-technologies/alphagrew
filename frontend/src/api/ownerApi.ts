@@ -30,10 +30,14 @@ export interface SystemHealthSnapshot {
   status: HealthStatus;
   checkedAt: string;
   checks: HealthCheck[];
+  openIncidents?: number;
+  openSecurityEvents?: number;
 }
 
 export interface OwnerSummary {
   period: { from: string; to: string };
+  filterStatus?: string | null;
+  defaultCurrency?: string;
   institutions: { total: number; byStatus: Record<InstitutionStatus, number>; pendingVerification: number; newInPeriod: number };
   users: { total: number; byRole: Record<string, number>; studentRecords: number; activeInPeriod: number };
   commercial?: {
@@ -110,6 +114,8 @@ export interface InstitutionDetail extends InstitutionSummary {
   registrationNumber: string | null;
   contactPhone: string | null;
   website: string | null;
+  logoUrl?: string | null;
+  settingsOverrides?: Record<string, unknown>;
   country: string | null;
   district: string | null;
   address: string | null;
@@ -176,6 +182,9 @@ export interface PlatformUserSummary {
   status: 'active' | 'pending' | 'rejected' | 'suspended';
   institutionId: number | null;
   institution: string | null;
+  title?: string | null;
+  phone?: string | null;
+  emailVerified?: boolean;
   mfaEnabled: boolean;
   lastLoginAt: string | null;
   createdAt: string | null;
@@ -215,16 +224,60 @@ export interface RoleChangePreview {
 
 export interface PlatformSettings {
   platformName: string;
+  brandTagline?: string | null;
+  brandPrimaryColor?: string;
   supportEmail: string | null;
+  supportPhone?: string | null;
   defaultTimezone: string;
+  defaultLanguage?: string;
   currency: string;
   dateFormat: string;
   defaultTrialDays: number;
   maxUploadMb: number;
   passwordMinLength: number;
+  sessionTimeoutMinutes?: number;
   mfaRequiredForPlatformStaff: boolean;
+  billingDefaultTaxCode?: string | null;
   maintenanceEnabled: boolean;
   maintenanceMessage: string;
+  maintenanceBypassIps?: string[];
+}
+
+export interface InstitutionSettingsResponse {
+  overrides: Record<string, unknown>;
+  allowedKeys: string[];
+  defaults: Record<string, unknown>;
+}
+
+export interface SecurityEvent {
+  id: number;
+  severity: 'info' | 'warning' | 'high' | 'critical';
+  eventType: string;
+  institution: string | null;
+  email: string | null;
+  ip: string | null;
+  summary: string;
+  metadata: Record<string, unknown> | null;
+  status: 'open' | 'acknowledged' | 'resolved';
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  at: string;
+}
+
+export interface SystemIncident {
+  id: number;
+  title: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'open' | 'investigating' | 'mitigated' | 'resolved';
+  component: string;
+  summary: string;
+  impact: string | null;
+  assignee: { id: number; name: string } | null;
+  creator: string | null;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string | null;
 }
 
 export interface AuditEntry {
@@ -564,7 +617,7 @@ const offlineMfaError = () =>
   Promise.reject(new ApiError('Two-factor setup requires a connected Laravel API.', 400));
 
 export const ownerApi = {
-  summary: () => (isApiConfigured() ? http.get<{ data: OwnerSummary }>('/owner/dashboard/summary').then((r) => r.data) : ownerDemoApi.summary()),
+  summary: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: OwnerSummary }>('/owner/dashboard/summary', query).then((r) => r.data) : ownerDemoApi.summary(query)),
   trends: () => (isApiConfigured() ? http.get<{ data: TrendPoint[] }>('/owner/dashboard/trends').then((r) => r.data) : ownerDemoApi.trends()),
   alerts: () => (isApiConfigured() ? http.get<{ data: OwnerAlert[] }>('/owner/dashboard/alerts').then((r) => r.data) : ownerDemoApi.alerts()),
   activity: () => (isApiConfigured() ? http.get<{ data: ActivityEntry[] }>('/owner/dashboard/activity').then((r) => r.data) : ownerDemoApi.activity()),
@@ -583,6 +636,18 @@ export const ownerApi = {
     isApiConfigured()
       ? http.post<{ data: InstitutionDetail; scheduled: boolean }>(`/owner/institutions/${id}/status`, input)
       : ownerDemoApi.changeInstitutionStatus(id, input),
+  uploadInstitutionLogo: (id: number, file: File) => {
+    if (!isApiConfigured()) return ownerDemoApi.uploadInstitutionLogo(id);
+    const form = new FormData();
+    form.append('logo', file);
+    return http.post<{ data: InstitutionDetail }>(`/owner/institutions/${id}/logo`, form).then((r) => r.data);
+  },
+  deleteInstitutionLogo: (id: number) =>
+    isApiConfigured() ? http.delete<{ data: InstitutionDetail }>(`/owner/institutions/${id}/logo`).then((r) => r.data) : ownerDemoApi.deleteInstitutionLogo(id),
+  institutionSettings: (id: number) =>
+    isApiConfigured() ? http.get<{ data: InstitutionSettingsResponse }>(`/owner/institutions/${id}/settings`).then((r) => r.data) : ownerDemoApi.institutionSettings(id),
+  saveInstitutionSettings: (id: number, input: Record<string, unknown>) =>
+    isApiConfigured() ? http.put<{ data: InstitutionSettingsResponse }>(`/owner/institutions/${id}/settings`, input).then((r) => r.data) : ownerDemoApi.saveInstitutionSettings(id, input),
 
   users: (query: Query) => (isApiConfigured() ? http.get<Page<PlatformUserSummary>>('/owner/users', query) : ownerDemoApi.users(query)),
   user: (id: number) => (isApiConfigured() ? http.get<{ data: PlatformUserDetail }>(`/owner/users/${id}`).then((r) => r.data) : ownerDemoApi.user(id)),
@@ -593,6 +658,8 @@ export const ownerApi = {
     isApiConfigured() ? http.post<{ data: PlatformUserDetail }>(`/owner/users/${id}/status`, input).then((r) => r.data) : ownerDemoApi.changeUserStatus(id, input),
   sendPasswordReset: (id: number) =>
     isApiConfigured() ? http.post<{ message: string }>(`/owner/users/${id}/password-reset`) : ownerDemoApi.sendPasswordReset(),
+  resendUserInvite: (id: number) =>
+    isApiConfigured() ? http.post<{ message: string }>(`/owner/users/${id}/resend-invite`) : ownerDemoApi.sendPasswordReset(),
   revokeUserSessions: (id: number) =>
     isApiConfigured() ? http.delete<{ message: string }>(`/owner/users/${id}/sessions`) : ownerDemoApi.revokeUserSessions(id),
 
@@ -610,9 +677,19 @@ export const ownerApi = {
   auditLogs: (query: Query) => (isApiConfigured() ? http.get<Page<AuditEntry>>('/owner/audit-logs', query) : ownerDemoApi.auditLogs(query)),
   loginHistory: (query: Query) =>
     isApiConfigured() ? http.get<Page<LoginEntry> & { summary: Record<string, number> }>('/owner/login-history', query) : ownerDemoApi.loginHistory(query),
+  securityEvents: (query: Query = {}) =>
+    isApiConfigured() ? http.get<Page<SecurityEvent>>('/owner/security-events', query) : ownerDemoApi.securityEvents(query),
+  updateSecurityEvent: (id: number, status: SecurityEvent['status']) =>
+    isApiConfigured() ? http.patch<{ data: { id: number; status: SecurityEvent['status'] } }>(`/owner/security-events/${id}`, { status }).then((r) => r.data) : ownerDemoApi.updateSecurityEvent(id, status),
   sessions: () => (isApiConfigured() ? http.get<{ data: SessionEntry[] }>('/owner/sessions').then((r) => r.data) : ownerDemoApi.sessions()),
   revokeSession: (id: number) => (isApiConfigured() ? http.delete<{ message: string }>(`/owner/sessions/${id}`) : ownerDemoApi.revokeSession(id)),
   health: () => (isApiConfigured() ? http.get<{ data: SystemHealthSnapshot }>('/owner/system/health').then((r) => r.data) : ownerDemoApi.health()),
+  incidents: (query: Query = {}) =>
+    isApiConfigured() ? http.get<{ data: SystemIncident[] }>('/owner/system/incidents', query).then((r) => r.data) : ownerDemoApi.incidents(query),
+  createIncident: (input: { title: string; severity: SystemIncident['severity']; component: string; summary: string; impact?: string }) =>
+    isApiConfigured() ? http.post<{ data: { id: number; status: string } }>('/owner/system/incidents', input).then((r) => r.data) : ownerDemoApi.createIncident(input),
+  updateIncident: (id: number, input: { status?: SystemIncident['status']; severity?: SystemIncident['severity']; resolutionNote?: string }) =>
+    isApiConfigured() ? http.patch<{ data: { id: number; status: string } }>(`/owner/system/incidents/${id}`, input).then((r) => r.data) : ownerDemoApi.updateIncident(id, input),
 
   mfaStatus: () => (isApiConfigured() ? http.get<{ data: MfaStatus }>('/auth/mfa').then((r) => r.data) : ownerDemoApi.mfaStatus()),
   mfaSetup: () => (isApiConfigured() ? http.post<{ data: { secret: string; otpauthUri: string } }>('/auth/mfa/setup').then((r) => r.data) : offlineMfaError()),
@@ -621,6 +698,7 @@ export const ownerApi = {
 
   // Release 2: Plans & Entitlements
   plans: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: Plan[] }>('/owner/plans', query).then((r) => r.data) : ownerDemoApi.plans(query)),
+  plan: (id: number) => (isApiConfigured() ? http.get<{ data: Plan }>(`/owner/plans/${id}`).then((r) => r.data) : ownerDemoApi.plan(id)),
   createPlan: (input: PlanInput) => (isApiConfigured() ? http.post<{ data: Plan }>('/owner/plans', input).then((r) => r.data) : ownerDemoApi.createPlan(input)),
   updatePlan: (id: number, input: Partial<PlanInput>) =>
     isApiConfigured() ? http.patch<{ data: Plan }>(`/owner/plans/${id}`, input).then((r) => r.data) : ownerDemoApi.updatePlan(id, input),
@@ -639,9 +717,13 @@ export const ownerApi = {
     institutionId: number;
     planId: number;
     status?: 'trial' | 'active';
+    billingCycle?: BillingCycle;
+    amount?: number;
+    currency?: string;
+    startAt?: string;
     trialDays?: number;
     graceDays?: number;
-    expiryBehavior?: string;
+    expiryBehavior?: 'grace_then_readonly' | 'grace_then_suspend' | 'immediate_suspend';
     autoRenew?: boolean;
     generateInvoice?: boolean;
   }) => (isApiConfigured() ? http.post<{ data: Subscription }>('/owner/subscriptions', input).then((r) => r.data) : ownerDemoApi.assignSubscription(input)),
@@ -664,6 +746,7 @@ export const ownerApi = {
 
   // Release 2: Billing, Invoices, Payments, Refunds, Tax & Coupons
   invoices: (query: Query = {}) => (isApiConfigured() ? http.get<Page<Invoice>>('/owner/invoices', query) : ownerDemoApi.invoices(query)),
+  invoice: (id: number) => (isApiConfigured() ? http.get<{ data: Invoice }>(`/owner/invoices/${id}`).then((r) => r.data) : ownerDemoApi.invoice(id)),
   createInvoice: (input: {
     institutionId: number;
     subscriptionId?: number | null;
@@ -703,9 +786,13 @@ export const ownerApi = {
   taxProfiles: () => (isApiConfigured() ? http.get<{ data: TaxProfile[] }>('/owner/tax-profiles').then((r) => r.data) : ownerDemoApi.taxProfiles()),
   createTaxProfile: (input: { code: string; name: string; taxType: string; ratePercent: number; gstin?: string; placeOfSupply?: string; isDefault?: boolean }) =>
     isApiConfigured() ? http.post<{ data: TaxProfile }>('/owner/tax-profiles', input).then((r) => r.data) : ownerDemoApi.createTaxProfile(input),
+  updateTaxProfile: (id: number, input: { isActive?: boolean; isDefault?: boolean }) =>
+    isApiConfigured() ? http.patch<{ data: TaxProfile }>(`/owner/tax-profiles/${id}`, input).then((r) => r.data) : ownerDemoApi.updateTaxProfile(id, input),
   coupons: () => (isApiConfigured() ? http.get<{ data: Coupon[] }>('/owner/coupons').then((r) => r.data) : ownerDemoApi.coupons()),
   createCoupon: (input: { code: string; name: string; discountType: 'percent' | 'fixed'; discountValue: number; currency?: string; maxRedemptions?: number | null }) =>
     isApiConfigured() ? http.post<{ data: Coupon }>('/owner/coupons', input).then((r) => r.data) : ownerDemoApi.createCoupon(input),
+  updateCoupon: (id: number, input: { isActive?: boolean; maxRedemptions?: number | null }) =>
+    isApiConfigured() ? http.patch<{ data: Coupon }>(`/owner/coupons/${id}`, input).then((r) => r.data) : ownerDemoApi.updateCoupon(id, input),
 
   // Release 2: AI Usage, Credit Wallets, Ledger & Providers
   aiUsage: (query: Query = {}) =>
@@ -736,22 +823,27 @@ export const ownerApi = {
     model: string;
     creditsPerRequest: number;
     creditsPer1kTokens?: number;
+    usdPer1kInputTokens?: number;
+    usdPer1kOutputTokens?: number;
     rateLimitPerMinute?: number | null;
     warningThresholdPercent?: number;
     chargeOnFailure?: boolean;
   }) =>
     isApiConfigured() ? http.post<{ data: AiRateCard }>('/owner/ai/rate-cards', input).then((r) => r.data) : ownerDemoApi.saveAiRateCard(input),
+  updateAiRateCard: (id: number, input: { isActive?: boolean; creditsPerRequest?: number; creditsPer1kTokens?: number }) =>
+    isApiConfigured() ? http.patch<{ data: AiRateCard }>(`/owner/ai/rate-cards/${id}`, input).then((r) => r.data) : ownerDemoApi.updateAiRateCard(id, input),
 };
 
 export const ownerKeys = {
   all: ['owner'] as const,
-  summary: ['owner', 'summary'] as const,
+  summary: (query: Query = {}) => ['owner', 'summary', query] as const,
   trends: ['owner', 'trends'] as const,
   alerts: ['owner', 'alerts'] as const,
   activity: ['owner', 'activity'] as const,
   institutions: (query: Query) => ['owner', 'institutions', query] as const,
   institution: (id: number) => ['owner', 'institution', id] as const,
   institutionHistory: (id: number) => ['owner', 'institution', id, 'history'] as const,
+  institutionSettings: (id: number) => ['owner', 'institution', id, 'settings'] as const,
   users: (query: Query) => ['owner', 'users', query] as const,
   user: (id: number) => ['owner', 'user', id] as const,
   permissions: ['owner', 'permissions'] as const,
@@ -759,13 +851,17 @@ export const ownerKeys = {
   settings: ['owner', 'settings'] as const,
   auditLogs: (query: Query) => ['owner', 'audit', query] as const,
   loginHistory: (query: Query) => ['owner', 'logins', query] as const,
+  securityEvents: (query: Query) => ['owner', 'securityEvents', query] as const,
   sessions: ['owner', 'sessions'] as const,
   health: ['owner', 'health'] as const,
+  incidents: (query: Query) => ['owner', 'incidents', query] as const,
   mfa: ['owner', 'mfa'] as const,
   plans: (query: Query) => ['owner', 'plans', query] as const,
+  plan: (id: number) => ['owner', 'plan', id] as const,
   subscriptions: (query: Query) => ['owner', 'subscriptions', query] as const,
   subscription: (id: number) => ['owner', 'subscription', id] as const,
   invoices: (query: Query) => ['owner', 'invoices', query] as const,
+  invoice: (id: number) => ['owner', 'invoice', id] as const,
   payments: (query: Query) => ['owner', 'payments', query] as const,
   refunds: (query: Query) => ['owner', 'refunds', query] as const,
   revenue: ['owner', 'revenue'] as const,
@@ -777,7 +873,7 @@ export const ownerKeys = {
   aiProviders: ['owner', 'aiProviders'] as const,
 };
 
-export const useOwnerSummary = () => useQuery({ queryKey: ownerKeys.summary, queryFn: ownerApi.summary, refetchInterval: 120_000 });
+export const useOwnerSummary = (query: Query = {}) => useQuery({ queryKey: ownerKeys.summary(query), queryFn: () => ownerApi.summary(query), refetchInterval: 120_000 });
 export const useOwnerTrends = () => useQuery({ queryKey: ownerKeys.trends, queryFn: ownerApi.trends });
 export const useOwnerAlerts = () => useQuery({ queryKey: ownerKeys.alerts, queryFn: ownerApi.alerts, refetchInterval: 120_000 });
 export const useOwnerActivity = () => useQuery({ queryKey: ownerKeys.activity, queryFn: ownerApi.activity });
@@ -785,6 +881,7 @@ export const useInstitutions = (query: Query) =>
   useQuery({ queryKey: ownerKeys.institutions(query), queryFn: () => ownerApi.institutions(query), placeholderData: (previous) => previous });
 export const useInstitution = (id: number) => useQuery({ queryKey: ownerKeys.institution(id), queryFn: () => ownerApi.institution(id) });
 export const useInstitutionHistory = (id: number) => useQuery({ queryKey: ownerKeys.institutionHistory(id), queryFn: () => ownerApi.institutionHistory(id) });
+export const useInstitutionSettings = (id: number) => useQuery({ queryKey: ownerKeys.institutionSettings(id), queryFn: () => ownerApi.institutionSettings(id) });
 export const usePlatformUsers = (query: Query) =>
   useQuery({ queryKey: ownerKeys.users(query), queryFn: () => ownerApi.users(query), placeholderData: (previous) => previous });
 export const usePlatformUser = (id: number) => useQuery({ queryKey: ownerKeys.user(id), queryFn: () => ownerApi.user(id) });
@@ -795,16 +892,21 @@ export const useAuditLogs = (query: Query) =>
   useQuery({ queryKey: ownerKeys.auditLogs(query), queryFn: () => ownerApi.auditLogs(query), placeholderData: (previous) => previous });
 export const useLoginHistory = (query: Query) =>
   useQuery({ queryKey: ownerKeys.loginHistory(query), queryFn: () => ownerApi.loginHistory(query), placeholderData: (previous) => previous });
+export const useSecurityEvents = (query: Query = {}) => useQuery({ queryKey: ownerKeys.securityEvents(query), queryFn: () => ownerApi.securityEvents(query) });
 export const useSessions = () => useQuery({ queryKey: ownerKeys.sessions, queryFn: ownerApi.sessions });
 export const useSystemHealth = () => useQuery({ queryKey: ownerKeys.health, queryFn: ownerApi.health, refetchInterval: 60_000 });
+export const useSystemIncidents = (query: Query = {}) => useQuery({ queryKey: ownerKeys.incidents(query), queryFn: () => ownerApi.incidents(query) });
 export const useMfaStatus = () => useQuery({ queryKey: ownerKeys.mfa, queryFn: ownerApi.mfaStatus });
 
 export const usePlans = (query: Query = {}) => useQuery({ queryKey: ownerKeys.plans(query), queryFn: () => ownerApi.plans(query) });
+export const usePlan = (id: number | null) => useQuery({ queryKey: ownerKeys.plan(id ?? 0), queryFn: () => ownerApi.plan(id!), enabled: Boolean(id) });
 export const useSubscriptions = (query: Query = {}) =>
   useQuery({ queryKey: ownerKeys.subscriptions(query), queryFn: () => ownerApi.subscriptions(query), placeholderData: (p) => p });
 export const useSubscription = (id: number) => useQuery({ queryKey: ownerKeys.subscription(id), queryFn: () => ownerApi.subscription(id) });
 export const useInvoices = (query: Query = {}) =>
   useQuery({ queryKey: ownerKeys.invoices(query), queryFn: () => ownerApi.invoices(query), placeholderData: (p) => p });
+export const useInvoiceDetail = (id: number | null) =>
+  useQuery({ queryKey: ownerKeys.invoice(id ?? 0), queryFn: () => ownerApi.invoice(id!), enabled: Boolean(id) });
 export const usePayments = (query: Query = {}) =>
   useQuery({ queryKey: ownerKeys.payments(query), queryFn: () => ownerApi.payments(query), placeholderData: (p) => p });
 export const useRefunds = (query: Query = {}) =>
@@ -855,6 +957,21 @@ export const OWNER = {
   aiView: 'owner.ai.view',
   aiManage: 'owner.ai.manage',
   aiCredits: 'owner.ai.credits',
+  oversightView: 'owner.oversight.view',
+  reportsView: 'owner.reports.view',
+  reportsExport: 'owner.reports.export',
+  onboardingView: 'owner.onboarding.view',
+  onboardingManage: 'owner.onboarding.manage',
+  crmView: 'owner.crm.view',
+  crmManage: 'owner.crm.manage',
+  supportView: 'owner.support.view',
+  supportManage: 'owner.support.manage',
+  integrationsView: 'owner.integrations.view',
+  integrationsManage: 'owner.integrations.manage',
+  dataView: 'owner.data.view',
+  dataManage: 'owner.data.manage',
+  communicationsView: 'owner.communications.view',
+  communicationsManage: 'owner.communications.manage',
 } as const;
 
 export const institutionStatusLabels: Record<InstitutionStatus, string> = {

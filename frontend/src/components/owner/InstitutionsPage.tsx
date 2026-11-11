@@ -1,10 +1,11 @@
 /** Institutions (SRS FR-IN): directory, onboarding with a first admin, profile, verification and lifecycle. */
 import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Download, Plus, Search } from 'lucide-react';
+import { ArrowLeft, Download, ImagePlus, Plus, Search, Trash2 } from 'lucide-react';
 import {
   Alert,
   AlertDescription,
+  Badge,
   Button,
   Card,
   CardContent,
@@ -37,6 +38,7 @@ import {
   REASON_REQUIRED,
   useInstitution,
   useInstitutionHistory,
+  useInstitutionSettings,
   useInstitutions,
   useOwnerMutation,
   verificationLabels,
@@ -74,18 +76,19 @@ function InstitutionList({ can, go }: OwnerPageProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(params.get('status') ?? '');
   const [verification, setVerification] = useState('');
+  const [institutionType, setInstitutionType] = useState('');
   const [sort, setSort] = useState('created_at');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [exportError, setExportError] = useState('');
 
-  const query = { search, status, verification, sort, page, perPage: 20 };
+  const query = { search, status, verification, institutionType: institutionType || undefined, sort, page, perPage: 20 };
   const list = useInstitutions(query);
 
   const exportCsv = async () => {
     setExportError('');
     try {
-      await downloadFile('/owner/institutions/export', { search, status, verification, sort }, 'institutions.csv');
+      await downloadFile('/owner/institutions/export', { search, status, verification, institutionType: institutionType || undefined, sort }, 'institutions.csv');
     } catch (error) {
       setExportError(errorMessage(error));
     }
@@ -119,7 +122,7 @@ function InstitutionList({ can, go }: OwnerPageProps) {
 
       <Card>
         <CardContent className="space-y-4 p-4">
-          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_180px_160px]">
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_140px_150px_150px_140px]">
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -133,6 +136,14 @@ function InstitutionList({ can, go }: OwnerPageProps) {
                 }}
               />
             </div>
+            <Select aria-label="Institution type" value={institutionType} onChange={(event) => (setInstitutionType(event.target.value), setPage(1))}>
+              <option value="">All types</option>
+              {TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {typeLabel(type)}
+                </option>
+              ))}
+            </Select>
             <Select aria-label="Status" value={status} onChange={(event) => (setStatus(event.target.value), setPage(1))}>
               <option value="">All statuses</option>
               {Object.entries(institutionStatusLabels).map(([value, label]) => (
@@ -324,11 +335,27 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
   const detail = useInstitution(id);
   const [tab, setTab] = useState('overview');
   const [dialog, setDialog] = useState<'status' | 'verify' | null>(null);
+  const [logoError, setLogoError] = useState('');
+  const uploadLogo = useOwnerMutation((file: File) => ownerApi.uploadInstitutionLogo(id, file));
+  const deleteLogo = useOwnerMutation(() => ownerApi.deleteInstitutionLogo(id));
 
   if (detail.isPending) return <LoadingRows rows={6} />;
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />;
 
   const institution = detail.data;
+
+  const onLogoSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoError('');
+    try {
+      await uploadLogo.mutateAsync(file);
+    } catch (caught) {
+      setLogoError(errorMessage(caught));
+    } finally {
+      event.target.value = '';
+    }
+  };
 
   return (
     <div className="space-y-5">
@@ -354,11 +381,33 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      {logoError ? (
+        <Alert variant="destructive">
+          <AlertDescription>{logoError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-3">
+        {institution.logoUrl ? (
+          <img src={institution.logoUrl} alt={`${institution.name} logo`} className="h-10 w-10 rounded-lg border border-border object-cover" />
+        ) : null}
         <InstitutionStatusBadge status={institution.status} />
         <VerificationBadge status={institution.verificationStatus} />
         {institution.status === 'trial' && institution.trialEndsAt ? (
           <span className="text-xs text-muted-foreground">Trial ends {formatDate(institution.trialEndsAt)}</span>
+        ) : null}
+        {can(OWNER.institutionsEdit) ? (
+          <div className="ml-auto flex items-center gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted">
+              <ImagePlus size={13} /> {uploadLogo.isPending ? 'Uploading…' : institution.logoUrl ? 'Replace logo' : 'Upload logo'}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => void onLogoSelected(e)} />
+            </label>
+            {institution.logoUrl ? (
+              <Button variant="ghost" size="sm" disabled={deleteLogo.isPending} onClick={() => void deleteLogo.mutateAsync(undefined)}>
+                <Trash2 size={13} /> Remove
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -383,6 +432,7 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="overrides">Overrides</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-5 pt-4">
@@ -395,24 +445,42 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
             <KpiCard label="AI requests (30 days)" value={institution.aiUsage30d.calls} hint={`≈ $${institution.aiUsage30d.estimatedCostUsd.toFixed(2)}`} />
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <KpiCard
-              label="Active subscription"
-              value={institution.subscription ? (institution.subscription.planName ?? institution.subscription.planCode ?? 'Assigned') : 'No subscription'}
-              hint={
-                institution.subscription
-                  ? `${institution.subscription.status.replace('_', ' ')} · ${institution.subscription.currency ?? ''} ${(institution.subscription.amount ?? 0).toLocaleString()} / ${institution.subscription.billingCycle}${institution.subscription.renewalAt ? ` · Renews ${new Date(institution.subscription.renewalAt).toLocaleDateString()}` : ''}`
-                  : 'Assign a plan under SaaS & Revenue → Subscriptions'
-              }
-            />
-            <KpiCard
-              label="AI credit wallet"
-              value={institution.aiCreditWallet ? `${institution.aiCreditWallet.balance.toLocaleString()} credits` : 'Not funded'}
-              hint={
-                institution.aiCreditWallet
-                  ? `${institution.aiCreditWallet.consumedTotal.toLocaleString()} consumed of ${institution.aiCreditWallet.allocatedTotal.toLocaleString()} allocated`
-                  : 'Manage credit grants and quotas under AI & Intelligence → AI & credits'
-              }
-            />
+            <Card className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Active subscription</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">
+                    {institution.subscription ? (institution.subscription.planName ?? institution.subscription.planCode ?? 'Assigned') : 'No subscription'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {institution.subscription
+                      ? `${institution.subscription.status.replace('_', ' ')} · ${institution.subscription.currency ?? ''} ${(institution.subscription.amount ?? 0).toLocaleString()} / ${institution.subscription.billingCycle}${institution.subscription.renewalAt ? ` · Renews ${new Date(institution.subscription.renewalAt).toLocaleDateString()}` : ''}`
+                      : 'Assign a plan under SaaS & Revenue → Subscriptions'}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => go('subscriptions')}>
+                  Subscriptions
+                </Button>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">AI credit wallet</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">
+                    {institution.aiCreditWallet ? `${institution.aiCreditWallet.balance.toLocaleString()} credits` : 'Not funded'}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {institution.aiCreditWallet
+                      ? `${institution.aiCreditWallet.consumedTotal.toLocaleString()} consumed of ${institution.aiCreditWallet.allocatedTotal.toLocaleString()} allocated`
+                      : 'Manage credit grants and quotas under AI & Intelligence → AI & credits'}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => go('ai')}>
+                  AI credits
+                </Button>
+              </div>
+            </Card>
           </div>
           <Card>
             <CardHeader className="pb-2">
@@ -437,6 +505,9 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
         <TabsContent value="profile" className="pt-4">
           <ProfileCard institution={institution} editable={can(OWNER.institutionsEdit)} />
         </TabsContent>
+        <TabsContent value="overrides" className="pt-4">
+          <SettingsOverridesCard id={institution.id} editable={can(OWNER.institutionsEdit)} />
+        </TabsContent>
         <TabsContent value="history" className="pt-4">
           <HistoryCard id={institution.id} />
         </TabsContent>
@@ -445,6 +516,86 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
       {dialog === 'status' ? <StatusDialog institution={institution} onClose={() => setDialog(null)} /> : null}
       {dialog === 'verify' ? <VerifyDialog institution={institution} onClose={() => setDialog(null)} /> : null}
     </div>
+  );
+}
+
+function SettingsOverridesCard({ id, editable }: { id: number; editable: boolean }) {
+  const query = useInstitutionSettings(id);
+  const save = useOwnerMutation((input: Record<string, unknown>) => ownerApi.saveInstitutionSettings(id, input));
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [notice, setNotice] = useState('');
+  const [err, setErr] = useState('');
+
+  if (query.isPending) return <LoadingRows rows={4} />;
+  if (query.isError) return <ErrorState error={query.error} onRetry={() => void query.refetch()} />;
+
+  const { overrides, allowedKeys, defaults } = query.data;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setNotice('');
+    setErr('');
+    const payload: Record<string, unknown> = {};
+    for (const key of allowedKeys) {
+      if (draft[key] !== undefined) {
+        const val = draft[key].trim();
+        payload[key] = val === '' ? null : key === 'maxUploadMb' || key === 'sessionTimeoutMinutes' ? Number(val) : val;
+      }
+    }
+    try {
+      await save.mutateAsync(payload);
+      setNotice('Institution overrides saved.');
+    } catch (caught) {
+      setErr(errorMessage(caught));
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm">Tenant configuration overrides</CardTitle>
+          <Badge variant="secondary">Inherits platform defaults when blank</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          {notice ? (
+            <Alert variant="success">
+              <AlertDescription>{notice}</AlertDescription>
+            </Alert>
+          ) : null}
+          {err ? (
+            <Alert variant="destructive">
+              <AlertDescription>{err}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {allowedKeys.map((key) => {
+              const value = draft[key] ?? (overrides[key] !== undefined && overrides[key] !== null ? String(overrides[key]) : '');
+              return (
+                <Field key={key} label={key} htmlFor={`ovr-${key}`} hint={`Platform default: ${String(defaults[key] ?? '—')}`}>
+                  <Input
+                    id={`ovr-${key}`}
+                    disabled={!editable}
+                    placeholder={`Inherit (${String(defaults[key] ?? 'default')})`}
+                    value={value}
+                    onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                  />
+                </Field>
+              );
+            })}
+          </div>
+          {editable ? (
+            <div className="flex justify-end">
+              <Button type="submit" size="sm" disabled={save.isPending}>
+                {save.isPending ? 'Saving…' : 'Save overrides'}
+              </Button>
+            </div>
+          ) : null}
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
