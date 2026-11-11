@@ -149,6 +149,79 @@ export interface InstitutionHistory {
   audit: { id: number; action: string; actor: string | null; old: Record<string, unknown> | null; new: Record<string, unknown> | null; ip: string | null; at: string }[];
 }
 
+export interface ActivityLogEntry {
+  id: number;
+  action: string;
+  modelType: string | null;
+  modelId: number;
+  actor: { id: number; name: string; email: string; role: string } | null;
+  institution: string | null;
+  changes: Record<string, unknown> | null;
+  ip: string | null;
+  userAgent: string | null;
+  at: string;
+}
+
+export type CollegeLogCategory = 'all' | 'audit' | 'activity' | 'login' | 'security' | 'status' | 'subscription' | 'ai';
+
+export interface CollegeLogTimelineItem {
+  id: string;
+  category: Exclude<CollegeLogCategory, 'all'>;
+  title: string;
+  detail: string;
+  statusOrSeverity: string;
+  actor: string;
+  ip: string | null;
+  at: string;
+  metadata: unknown;
+}
+
+export interface InstitutionLogsBundle {
+  institution: { id: number; code: string; name: string; status: InstitutionStatus | string };
+  counts: {
+    audit: number;
+    activity: number;
+    login: number;
+    security: number;
+    status: number;
+    subscription: number;
+    ai: number;
+    total: number;
+  };
+  timeline: CollegeLogTimelineItem[];
+  audit: AuditEntry[];
+  activity: ActivityLogEntry[];
+  logins: LoginEntry[];
+  security: SecurityEvent[];
+  status: InstitutionHistory['status'];
+  subscription: {
+    id: number;
+    subscriptionId: number;
+    eventType: string;
+    fromStatus: string | null;
+    toStatus: string | null;
+    reason: string | null;
+    metadata: Record<string, unknown> | null;
+    actor: string | null;
+    at: string;
+  }[];
+  ai: {
+    id: number;
+    feature: string;
+    provider: string;
+    model: string;
+    status: string;
+    user: { id: number; name: string; email: string } | null;
+    promptTokens: number;
+    completionTokens: number;
+    latencyMs: number;
+    creditsCharged: number;
+    estimatedCostUsd: number;
+    error: string | null;
+    at: string;
+  }[];
+}
+
 export interface InstitutionProfileInput {
   name: string;
   institutionType: string;
@@ -626,6 +699,8 @@ export const ownerApi = {
   institution: (id: number) => (isApiConfigured() ? http.get<{ data: InstitutionDetail }>(`/owner/institutions/${id}`).then((r) => r.data) : ownerDemoApi.institution(id)),
   institutionHistory: (id: number) =>
     isApiConfigured() ? http.get<{ data: InstitutionHistory }>(`/owner/institutions/${id}/history`).then((r) => r.data) : ownerDemoApi.institutionHistory(id),
+  institutionLogs: (id: number, query: Query = {}) =>
+    isApiConfigured() ? http.get<{ data: InstitutionLogsBundle }>(`/owner/institutions/${id}/logs`, query).then((r) => r.data) : ownerDemoApi.institutionLogs(id, query),
   createInstitution: (input: CreateInstitutionInput) =>
     isApiConfigured() ? http.post<{ data: InstitutionDetail }>('/owner/institutions', input).then((r) => r.data) : ownerDemoApi.createInstitution(input),
   updateInstitution: (id: number, input: Partial<InstitutionProfileInput>) =>
@@ -675,13 +750,14 @@ export const ownerApi = {
   saveSettings: (input: Partial<PlatformSettings>) =>
     isApiConfigured() ? http.put<{ data: PlatformSettings }>('/owner/settings', input).then((r) => r.data) : ownerDemoApi.saveSettings(input),
   auditLogs: (query: Query) => (isApiConfigured() ? http.get<Page<AuditEntry>>('/owner/audit-logs', query) : ownerDemoApi.auditLogs(query)),
+  activityLogs: (query: Query) => (isApiConfigured() ? http.get<Page<ActivityLogEntry>>('/owner/activity-logs', query) : ownerDemoApi.activityLogs(query)),
   loginHistory: (query: Query) =>
     isApiConfigured() ? http.get<Page<LoginEntry> & { summary: Record<string, number> }>('/owner/login-history', query) : ownerDemoApi.loginHistory(query),
   securityEvents: (query: Query = {}) =>
     isApiConfigured() ? http.get<Page<SecurityEvent>>('/owner/security-events', query) : ownerDemoApi.securityEvents(query),
   updateSecurityEvent: (id: number, status: SecurityEvent['status']) =>
     isApiConfigured() ? http.patch<{ data: { id: number; status: SecurityEvent['status'] } }>(`/owner/security-events/${id}`, { status }).then((r) => r.data) : ownerDemoApi.updateSecurityEvent(id, status),
-  sessions: () => (isApiConfigured() ? http.get<{ data: SessionEntry[] }>('/owner/sessions').then((r) => r.data) : ownerDemoApi.sessions()),
+  sessions: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: SessionEntry[] }>('/owner/sessions', query).then((r) => r.data) : ownerDemoApi.sessions(query)),
   revokeSession: (id: number) => (isApiConfigured() ? http.delete<{ message: string }>(`/owner/sessions/${id}`) : ownerDemoApi.revokeSession(id)),
   health: () => (isApiConfigured() ? http.get<{ data: SystemHealthSnapshot }>('/owner/system/health').then((r) => r.data) : ownerDemoApi.health()),
   incidents: (query: Query = {}) =>
@@ -843,6 +919,7 @@ export const ownerKeys = {
   institutions: (query: Query) => ['owner', 'institutions', query] as const,
   institution: (id: number) => ['owner', 'institution', id] as const,
   institutionHistory: (id: number) => ['owner', 'institution', id, 'history'] as const,
+  institutionLogs: (id: number, query: Query = {}) => ['owner', 'institution', id, 'logs', query] as const,
   institutionSettings: (id: number) => ['owner', 'institution', id, 'settings'] as const,
   users: (query: Query) => ['owner', 'users', query] as const,
   user: (id: number) => ['owner', 'user', id] as const,
@@ -850,9 +927,10 @@ export const ownerKeys = {
   roles: ['owner', 'roles'] as const,
   settings: ['owner', 'settings'] as const,
   auditLogs: (query: Query) => ['owner', 'audit', query] as const,
+  activityLogs: (query: Query) => ['owner', 'activityLogs', query] as const,
   loginHistory: (query: Query) => ['owner', 'logins', query] as const,
   securityEvents: (query: Query) => ['owner', 'securityEvents', query] as const,
-  sessions: ['owner', 'sessions'] as const,
+  sessions: (query: Query = {}) => ['owner', 'sessions', query] as const,
   health: ['owner', 'health'] as const,
   incidents: (query: Query) => ['owner', 'incidents', query] as const,
   mfa: ['owner', 'mfa'] as const,
@@ -881,6 +959,13 @@ export const useInstitutions = (query: Query) =>
   useQuery({ queryKey: ownerKeys.institutions(query), queryFn: () => ownerApi.institutions(query), placeholderData: (previous) => previous });
 export const useInstitution = (id: number) => useQuery({ queryKey: ownerKeys.institution(id), queryFn: () => ownerApi.institution(id) });
 export const useInstitutionHistory = (id: number) => useQuery({ queryKey: ownerKeys.institutionHistory(id), queryFn: () => ownerApi.institutionHistory(id) });
+export const useInstitutionLogs = (id: number, query: Query = {}, enabled = true) =>
+  useQuery({
+    queryKey: ownerKeys.institutionLogs(id, query),
+    queryFn: () => ownerApi.institutionLogs(id, query),
+    enabled: enabled && id > 0,
+    placeholderData: (previous) => previous,
+  });
 export const useInstitutionSettings = (id: number) => useQuery({ queryKey: ownerKeys.institutionSettings(id), queryFn: () => ownerApi.institutionSettings(id) });
 export const usePlatformUsers = (query: Query) =>
   useQuery({ queryKey: ownerKeys.users(query), queryFn: () => ownerApi.users(query), placeholderData: (previous) => previous });
@@ -890,10 +975,12 @@ export const usePlatformRoles = (enabled = true) => useQuery({ queryKey: ownerKe
 export const usePlatformSettings = () => useQuery({ queryKey: ownerKeys.settings, queryFn: ownerApi.settings });
 export const useAuditLogs = (query: Query) =>
   useQuery({ queryKey: ownerKeys.auditLogs(query), queryFn: () => ownerApi.auditLogs(query), placeholderData: (previous) => previous });
+export const useActivityLogs = (query: Query) =>
+  useQuery({ queryKey: ownerKeys.activityLogs(query), queryFn: () => ownerApi.activityLogs(query), placeholderData: (previous) => previous });
 export const useLoginHistory = (query: Query) =>
   useQuery({ queryKey: ownerKeys.loginHistory(query), queryFn: () => ownerApi.loginHistory(query), placeholderData: (previous) => previous });
 export const useSecurityEvents = (query: Query = {}) => useQuery({ queryKey: ownerKeys.securityEvents(query), queryFn: () => ownerApi.securityEvents(query) });
-export const useSessions = () => useQuery({ queryKey: ownerKeys.sessions, queryFn: ownerApi.sessions });
+export const useSessions = (query: Query = {}) => useQuery({ queryKey: ownerKeys.sessions(query), queryFn: () => ownerApi.sessions(query) });
 export const useSystemHealth = () => useQuery({ queryKey: ownerKeys.health, queryFn: ownerApi.health, refetchInterval: 60_000 });
 export const useSystemIncidents = (query: Query = {}) => useQuery({ queryKey: ownerKeys.incidents(query), queryFn: () => ownerApi.incidents(query) });
 export const useMfaStatus = () => useQuery({ queryKey: ownerKeys.mfa, queryFn: ownerApi.mfaStatus });

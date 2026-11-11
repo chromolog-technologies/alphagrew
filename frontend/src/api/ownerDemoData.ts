@@ -5,16 +5,20 @@
 import { ApiError } from './http';
 import type {
   ActivityEntry,
+  ActivityLogEntry,
   AiCreditTransaction,
   AiCreditWallet,
   AiProvidersResponse,
   AiRateCard,
   AiUsageLogEntry,
   AuditEntry,
+  CollegeLogCategory,
+  CollegeLogTimelineItem,
   Coupon,
   CreateInstitutionInput,
   InstitutionDetail,
   InstitutionHistory,
+  InstitutionLogsBundle,
   InstitutionProfileInput,
   InstitutionSettingsResponse,
   InstitutionStatus,
@@ -470,6 +474,34 @@ const demoRateCards: AiRateCard[] = [
 
 const demoAiLogs: AiUsageLogEntry[] = [
   { id: 1, institution: { id: 1, name: 'Brightnode Institute of Technology', code: 'DEFAULT' }, user: { id: 2, name: 'Aarav Nair' }, feature: 'interview_turn', provider: 'anthropic', model: 'claude-opus-5-5', status: 'success', promptTokens: 820, completionTokens: 190, latencyMs: 740, estimatedCostUsd: 0.0071, creditsCharged: 2, error: null, at: new Date(Date.now() - 3_600_000).toISOString() },
+  { id: 2, institution: { id: 2, name: 'Riverside Institute of Technology', code: 'RIVERSIDE' }, user: { id: 12, name: 'Meera Kulkarni' }, feature: 'resume_analysis', provider: 'anthropic', model: 'claude-opus-5-5', status: 'success', promptTokens: 540, completionTokens: 160, latencyMs: 520, estimatedCostUsd: 0.0054, creditsCharged: 4, error: null, at: new Date(Date.now() - 5_400_000).toISOString() },
+];
+
+const demoActivityLogs: ActivityLogEntry[] = [
+  {
+    id: 1,
+    action: 'updated',
+    modelType: 'Institution',
+    modelId: 2,
+    actor: { id: 12, name: 'Meera Kulkarni', email: 'riverside.admin@demo.com', role: 'institution_admin' },
+    institution: 'Riverside Institute of Technology',
+    changes: { old: { placement_policy: 'manual' }, new: { placement_policy: 'verified_only' } },
+    ip: '198.51.100.22',
+    userAgent: 'Mozilla/5.0',
+    at: new Date(Date.now() - 7_200_000).toISOString(),
+  },
+  {
+    id: 2,
+    action: 'created',
+    modelType: 'Student',
+    modelId: 108,
+    actor: { id: 1, name: 'Dr. Anand Narayanan', email: 'admin@demo.com', role: 'institution_admin' },
+    institution: 'Brightnode Institute of Technology',
+    changes: { new: { department: 'CSE', batch: '2027' } },
+    ip: '198.51.100.10',
+    userAgent: 'Mozilla/5.0',
+    at: new Date(Date.now() - 10_800_000).toISOString(),
+  },
 ];
 
 export const ownerDemoApi = {
@@ -748,22 +780,51 @@ export const ownerDemoApi = {
 
   auditLogs: async (query: Query) => {
     const action = String(query.action ?? '').toLowerCase();
-    return paginate(auditEntries.filter((e) => !action || e.action.toLowerCase().includes(action)), query);
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const instName = institutionId ? institutions.find((i) => i.id === institutionId)?.name ?? '__none__' : null;
+    return paginate(
+      auditEntries.filter((e) => (!action || e.action.toLowerCase().includes(action)) && (!instName || e.institution === instName)),
+      query,
+    );
+  },
+
+  activityLogs: async (query: Query = {}) => {
+    const action = String(query.action ?? '').toLowerCase();
+    const search = String(query.search ?? '').toLowerCase();
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const instName = institutionId ? institutions.find((i) => i.id === institutionId)?.name ?? '__none__' : null;
+    return paginate(
+      demoActivityLogs.filter(
+        (e) =>
+          (!action || e.action.toLowerCase().includes(action)) &&
+          (!instName || e.institution === instName) &&
+          (!search || JSON.stringify(e).toLowerCase().includes(search)),
+      ),
+      query,
+    );
   },
 
   loginHistory: async (query: Query) => {
     const outcome = String(query.outcome ?? '');
     const email = String(query.email ?? '').toLowerCase();
-    const filtered = loginEntries.filter((e) => (!outcome || e.outcome === outcome) && (!email || e.email.toLowerCase().includes(email)));
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const instName = institutionId ? institutions.find((i) => i.id === institutionId)?.name ?? '__none__' : null;
+    const filtered = loginEntries.filter(
+      (e) => (!outcome || e.outcome === outcome) && (!email || e.email.toLowerCase().includes(email)) && (!instName || e.institution === instName),
+    );
     const page = paginate(filtered, query);
-    return { ...page, summary: { success: loginEntries.filter((e) => e.outcome === 'success').length } };
+    return { ...page, summary: { success: filtered.filter((e) => e.outcome === 'success').length } };
   },
 
   securityEvents: async (query: Query = {}) => {
     const severity = String(query.severity ?? '');
     const status = String(query.status ?? '');
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const instName = institutionId ? institutions.find((i) => i.id === institutionId)?.name ?? '__none__' : null;
     return paginate(
-      demoSecurityEvents.filter((e) => (!severity || e.severity === severity) && (!status || e.status === status)),
+      demoSecurityEvents.filter(
+        (e) => (!severity || e.severity === severity) && (!status || e.status === status) && (!instName || e.institution === instName),
+      ),
       query,
     );
   },
@@ -779,7 +840,11 @@ export const ownerDemoApi = {
     return { id: found.id, status: found.status };
   },
 
-  sessions: async () => [...activeSessions],
+  sessions: async (query: Query = {}) => {
+    const institutionId = query.institutionId ? Number(query.institutionId) : null;
+    const instName = institutionId ? institutions.find((i) => i.id === institutionId)?.name ?? '__none__' : null;
+    return activeSessions.filter((s) => !instName || s.institution === instName);
+  },
 
   revokeSession: async (id: number) => {
     activeSessions = activeSessions.filter((s) => s.id !== id);
@@ -1328,6 +1393,187 @@ export const ownerDemoApi = {
     if (!rc) throw new ApiError('Rate card not found.', 404);
     Object.assign(rc, input);
     return { ...rc };
+  },
+
+  institutionLogs: async (id: number, query: Query = {}): Promise<InstitutionLogsBundle> => {
+    const inst = institutions.find((i) => i.id === id);
+    if (!inst) throw new ApiError('Institution not found.', 404);
+    const search = String(query.search ?? '').trim().toLowerCase();
+    const category = (String(query.category ?? 'all') || 'all') as CollegeLogCategory;
+    const matchSearch = (row: unknown) => !search || JSON.stringify(row).toLowerCase().includes(search);
+
+    const history = await ownerDemoApi.institutionHistory(id);
+    const audit = auditEntries.filter((e) => e.institution === inst.name).filter(matchSearch);
+    const activity = demoActivityLogs.filter((e) => e.institution === inst.name).filter(matchSearch);
+    const logins = loginEntries.filter((e) => e.institution === inst.name).filter(matchSearch);
+    const security = demoSecurityEvents.filter((e) => e.institution === inst.name).filter(matchSearch);
+    const status = (
+      history.status.length > 0
+        ? history.status
+        : [
+            {
+              id: id * 10 + 1,
+              kind: 'verification' as const,
+              from: 'pending',
+              to: inst.verificationStatus,
+              reason: 'Verification record',
+              effectiveAt: inst.createdAt ?? new Date().toISOString(),
+              applied: true,
+              actor: 'Platform Owner',
+              at: inst.createdAt ?? new Date().toISOString(),
+            },
+          ]
+    ).filter(matchSearch);
+    const subscription = demoSubscriptions
+      .filter((s) => s.institution?.id === id)
+      .flatMap((s) =>
+        s.events.map((ev) => ({
+          id: ev.id,
+          subscriptionId: s.id,
+          eventType: ev.eventType,
+          fromStatus: ev.fromStatus,
+          toStatus: ev.toStatus,
+          reason: ev.reason,
+          metadata: null,
+          actor: ev.actor,
+          at: ev.at,
+        })),
+      )
+      .filter(matchSearch);
+    const ai = demoAiLogs
+      .filter((l) => l.institution?.id === id)
+      .map((l) => ({
+        id: l.id,
+        feature: l.feature,
+        provider: l.provider,
+        model: l.model,
+        status: l.status,
+        user: l.user ? { id: l.user.id, name: l.user.name, email: '' } : null,
+        promptTokens: l.promptTokens,
+        completionTokens: l.completionTokens,
+        latencyMs: l.latencyMs,
+        creditsCharged: l.creditsCharged,
+        estimatedCostUsd: l.estimatedCostUsd,
+        error: l.error,
+        at: l.at,
+      }))
+      .filter(matchSearch);
+
+    const timeline: CollegeLogTimelineItem[] = [
+      ...(category === 'all' || category === 'audit'
+        ? audit.map((r) => ({
+            id: `audit-${r.id}`,
+            category: 'audit' as const,
+            title: r.action,
+            detail: r.subjectType ? `${r.subjectType} #${r.subjectId ?? ''}` : inst.name,
+            statusOrSeverity: 'audit',
+            actor: r.actor?.email ?? 'System',
+            ip: r.ip,
+            at: r.at,
+            metadata: { old: r.old, new: r.new },
+          }))
+        : []),
+      ...(category === 'all' || category === 'activity'
+        ? activity.map((r) => ({
+            id: `activity-${r.id}`,
+            category: 'activity' as const,
+            title: `${r.modelType ?? 'Record'} ${r.action}`,
+            detail: `#${r.modelId}`,
+            statusOrSeverity: r.action,
+            actor: r.actor?.email ?? 'System',
+            ip: r.ip,
+            at: r.at,
+            metadata: r.changes,
+          }))
+        : []),
+      ...(category === 'all' || category === 'login'
+        ? logins.map((r) => ({
+            id: `login-${r.id}`,
+            category: 'login' as const,
+            title: `Sign-in ${r.outcome}`,
+            detail: r.reason ? `${r.email} · ${r.reason}` : r.email,
+            statusOrSeverity: r.outcome,
+            actor: r.email,
+            ip: r.ip,
+            at: r.at,
+            metadata: { userAgent: r.userAgent },
+          }))
+        : []),
+      ...(category === 'all' || category === 'security'
+        ? security.map((r) => ({
+            id: `security-${r.id}`,
+            category: 'security' as const,
+            title: r.eventType.replace(/_/g, ' '),
+            detail: r.summary,
+            statusOrSeverity: r.severity,
+            actor: r.email ?? 'System',
+            ip: r.ip,
+            at: r.at,
+            metadata: r.metadata,
+          }))
+        : []),
+      ...(category === 'all' || category === 'status'
+        ? status.map((r) => ({
+            id: `status-${r.id}`,
+            category: 'status' as const,
+            title: `${r.kind === 'verification' ? 'Verification' : 'Status'}: ${r.from ? `${r.from} → ` : ''}${r.to}`,
+            detail: r.reason ?? 'Status updated',
+            statusOrSeverity: r.to,
+            actor: r.actor ?? 'System',
+            ip: null,
+            at: r.at,
+            metadata: { effectiveAt: r.effectiveAt, applied: r.applied },
+          }))
+        : []),
+      ...(category === 'all' || category === 'subscription'
+        ? subscription.map((r) => ({
+            id: `sub-${r.id}`,
+            category: 'subscription' as const,
+            title: `Subscription ${r.eventType}`,
+            detail: [r.fromStatus ? `${r.fromStatus} → ${r.toStatus ?? ''}` : r.toStatus, r.reason].filter(Boolean).join(' · '),
+            statusOrSeverity: r.toStatus ?? r.eventType,
+            actor: r.actor ?? 'System',
+            ip: null,
+            at: r.at,
+            metadata: r.metadata,
+          }))
+        : []),
+      ...(category === 'all' || category === 'ai'
+        ? ai.map((r) => ({
+            id: `ai-${r.id}`,
+            category: 'ai' as const,
+            title: `AI ${r.feature}`,
+            detail: `${r.model} · ${r.creditsCharged} credits · ${r.latencyMs}ms`,
+            statusOrSeverity: r.status,
+            actor: r.user?.name ?? 'System',
+            ip: null,
+            at: r.at,
+            metadata: { provider: r.provider, promptTokens: r.promptTokens, completionTokens: r.completionTokens, estimatedCostUsd: r.estimatedCostUsd },
+          }))
+        : []),
+    ].sort((a, b) => b.at.localeCompare(a.at));
+
+    return {
+      institution: { id: inst.id, code: inst.code, name: inst.name, status: inst.status },
+      counts: {
+        audit: audit.length,
+        activity: activity.length,
+        login: logins.length,
+        security: security.length,
+        status: status.length,
+        subscription: subscription.length,
+        ai: ai.length,
+        total: audit.length + activity.length + logins.length + security.length + status.length + subscription.length + ai.length,
+      },
+      timeline,
+      audit,
+      activity,
+      logins,
+      security,
+      status,
+      subscription,
+      ai,
+    };
   },
 };
 

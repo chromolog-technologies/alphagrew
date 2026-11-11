@@ -30,6 +30,7 @@ import { ownerApi, OWNER, useInstitutions, useOwnerMutation, usePlatformUser, us
 import { campusRoleLabels, type CampusRole } from '../../campusTypes';
 import { EmptyState, ErrorState, errorMessage, Field, formatDate, formatDateTime, LoadingRows, PageHeader, Pagination, UserStatusBadge } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
+import { CollegeLogsPanel } from './CollegeLogsPanel';
 
 export function UsersPage(props: OwnerPageProps) {
   return props.id ? <UserDetailView {...props} id={props.id} /> : <UserList {...props} />;
@@ -362,6 +363,29 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
           </CardContent>
         </Card>
       </div>
+
+      {person.institutionId ? (
+        <div className="space-y-3">
+          {can(OWNER.institutionsView) && person.institution ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-2.5 text-sm">
+              <div>
+                <span className="text-muted-foreground">College: </span>
+                <span className="font-medium">{person.institution}</span>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => go(`institutions/${person.institutionId}`)}>
+                Open college profile
+              </Button>
+            </div>
+          ) : null}
+          {can(OWNER.auditView) ? (
+            <CollegeLogsPanel
+              institutionId={person.institutionId}
+              institutionName={person.institution}
+              onOpenSecurity={() => go(`security?institutionId=${person.institutionId}`)}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       {suspending ? <SuspendUserDialog person={person} onClose={() => setSuspending(false)} onDone={() => setNotice('Account suspended and signed out.')} /> : null}
     </div>

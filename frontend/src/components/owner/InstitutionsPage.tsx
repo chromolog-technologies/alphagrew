@@ -63,6 +63,7 @@ import {
   VerificationBadge,
 } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
+import { CollegeLogsPanel } from './CollegeLogsPanel';
 
 const TYPES = ['college', 'university', 'institute', 'school', 'training_centre'];
 const typeLabel = (type: string | null) => (type ? type.replace('_', ' ').replace(/^\w/, (c) => c.toUpperCase()) : '—');
@@ -434,6 +435,7 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="overrides">Overrides</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          {can(OWNER.auditView) ? <TabsTrigger value="logs">College logs</TabsTrigger> : null}
         </TabsList>
         <TabsContent value="overview" className="space-y-5 pt-4">
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
@@ -511,6 +513,15 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
         <TabsContent value="history" className="pt-4">
           <HistoryCard id={institution.id} />
         </TabsContent>
+        {can(OWNER.auditView) ? (
+          <TabsContent value="logs" className="pt-4">
+            <CollegeLogsPanel
+              institutionId={institution.id}
+              institutionName={institution.name}
+              onOpenSecurity={() => go(`security?institutionId=${institution.id}`)}
+            />
+          </TabsContent>
+        ) : null}
       </Tabs>
 
       {dialog === 'status' ? <StatusDialog institution={institution} onClose={() => setDialog(null)} /> : null}

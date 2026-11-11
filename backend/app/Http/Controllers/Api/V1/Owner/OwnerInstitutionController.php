@@ -10,6 +10,7 @@ use App\Models\InstitutionStatusEvent;
 use App\Models\PlatformSetting;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Owner\CollegeLogService;
 use App\Services\Owner\InstitutionLifecycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -163,6 +164,19 @@ class OwnerInstitutionController extends Controller
                 'ip' => $log->ip_address, 'at' => $log->created_at?->toIso8601String(),
             ]),
         ]]);
+    }
+
+    public function logs(Request $request, Institution $institution, CollegeLogService $logs): JsonResponse
+    {
+        $filters = $request->validate([
+            'category' => ['nullable', Rule::in(['all', 'audit', 'activity', 'login', 'security', 'status', 'subscription', 'ai'])],
+            'search' => ['nullable', 'string', 'max:100'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'limit' => ['nullable', 'integer', 'between:1,100'],
+        ]);
+
+        return response()->json(['data' => $logs->forInstitution($institution, $filters, $request->user())]);
     }
 
     /** POST /owner/institutions/{institution}/logo */

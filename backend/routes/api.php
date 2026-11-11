@@ -489,6 +489,7 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/institutions/{institution}/verify', [OwnerInstitutionController::class, 'verify'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VERIFY);
             Route::post('/institutions/{institution}/status', [OwnerInstitutionController::class, 'changeStatus'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_SUSPEND);
             Route::get('/institutions/{institution}/history', [OwnerInstitutionController::class, 'history'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
+            Route::get('/institutions/{institution}/logs', [OwnerInstitutionController::class, 'logs'])->whereNumber('institution')->middleware('owner:'.OP::AUDIT_VIEW);
             Route::get('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'showLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_VIEW);
             Route::post('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'uploadLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_EDIT);
             Route::delete('/institutions/{institution}/logo', [OwnerInstitutionController::class, 'deleteLogo'])->whereNumber('institution')->middleware('owner:'.OP::INSTITUTIONS_EDIT);
@@ -513,6 +514,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/settings', [OwnerPlatformController::class, 'settings'])->middleware('owner:'.OP::SETTINGS_VIEW);
             Route::put('/settings', [OwnerPlatformController::class, 'updateSettings'])->middleware('owner:'.OP::SETTINGS_MANAGE);
             Route::get('/audit-logs', [OwnerPlatformController::class, 'auditLogs'])->middleware('owner:'.OP::AUDIT_VIEW);
+            Route::get('/activity-logs', [OwnerPlatformController::class, 'activityLogs'])->middleware('owner:'.OP::AUDIT_VIEW);
             Route::get('/login-history', [OwnerPlatformController::class, 'loginHistory'])->middleware('owner:'.OP::SECURITY_VIEW);
             Route::get('/security-events', [OwnerPlatformController::class, 'securityEvents'])->middleware('owner:'.OP::SECURITY_VIEW);
             Route::patch('/security-events/{securityEvent}', [OwnerPlatformController::class, 'updateSecurityEvent'])->whereNumber('securityEvent')->middleware('owner:'.OP::SETTINGS_MANAGE);

@@ -11,6 +11,7 @@ use App\Models\SecurityEvent;
 use App\Models\SystemIncident;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
+use App\Services\Owner\CollegeLogService;
 use App\Services\Owner\SystemHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,7 +70,7 @@ class OwnerPlatformController extends Controller
         return $this->settings();
     }
 
-    public function auditLogs(Request $request): JsonResponse
+    public function auditLogs(Request $request, CollegeLogService $logs): JsonResponse
     {
         $filters = $request->validate([
             'action' => ['nullable', 'string', 'max:100'],
@@ -80,36 +81,25 @@ class OwnerPlatformController extends Controller
             'perPage' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
-        $page = AuditLog::query()->withoutGlobalScopes()->with('actor:id,name,email,role')
-            ->when($filters['action'] ?? null, fn ($query, string $action) => $query->where('action', 'like', "%{$action}%"))
-            ->when($filters['actorId'] ?? null, fn ($query, int $id) => $query->where('actor_id', $id))
-            ->when($filters['institutionId'] ?? null, fn ($query, int $id) => $query->where('institution_id', $id))
-            ->when($filters['from'] ?? null, fn ($query, string $date) => $query->where('created_at', '>=', Carbon::parse($date)->startOfDay()))
-            ->when($filters['to'] ?? null, fn ($query, string $date) => $query->where('created_at', '<=', Carbon::parse($date)->endOfDay()))
-            ->latest('created_at')->latest('id')
-            ->paginate($filters['perPage'] ?? 50);
-
-        $institutions = Institution::query()->whereIn('id', collect($page->items())->pluck('institution_id')->filter()->unique())->pluck('name', 'id');
-
-        return response()->json([
-            'data' => collect($page->items())->map(fn (AuditLog $log) => [
-                'id' => $log->id,
-                'action' => $log->action,
-                'actor' => $log->actor ? ['id' => $log->actor->id, 'name' => $log->actor->name, 'email' => $log->actor->email, 'role' => $log->actor->role] : null,
-                'institution' => $institutions[$log->institution_id] ?? null,
-                'subjectType' => $log->subject_type ? class_basename($log->subject_type) : null,
-                'subjectId' => $log->subject_id,
-                'old' => $log->old_values,
-                'new' => $log->new_values,
-                'ip' => $log->ip_address,
-                'userAgent' => $log->user_agent,
-                'at' => $log->created_at?->toIso8601String(),
-            ]),
-            'meta' => ['currentPage' => $page->currentPage(), 'lastPage' => $page->lastPage(), 'total' => $page->total()],
-        ]);
+        return response()->json($logs->paginatedAuditLogs($filters));
     }
 
-    public function loginHistory(Request $request): JsonResponse
+    public function activityLogs(Request $request, CollegeLogService $logs): JsonResponse
+    {
+        $filters = $request->validate([
+            'action' => ['nullable', 'string', 'max:100'],
+            'modelType' => ['nullable', 'string', 'max:100'],
+            'userId' => ['nullable', 'integer'],
+            'institutionId' => ['nullable', 'integer'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+            'perPage' => ['nullable', 'integer', 'between:1,100'],
+        ]);
+
+        return response()->json($logs->paginatedActivityLogs($filters));
+    }
+
+    public function loginHistory(Request $request, CollegeLogService $logs): JsonResponse
     {
         $filters = $request->validate([
             'outcome' => ['nullable', Rule::in(['success', 'failed', 'locked', 'refused', 'mfa_failed'])],
@@ -120,35 +110,32 @@ class OwnerPlatformController extends Controller
             'perPage' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
-        $page = LoginHistory::query()->with('institution:id,name')
-            ->when($filters['outcome'] ?? null, fn ($query, string $outcome) => $query->where('outcome', $outcome))
-            ->when($filters['institutionId'] ?? null, fn ($query, int $id) => $query->where('institution_id', $id))
-            ->when($filters['email'] ?? null, fn ($query, string $email) => $query->where('email', 'like', "%{$email}%"))
-            ->when($filters['from'] ?? null, fn ($query, string $date) => $query->where('created_at', '>=', Carbon::parse($date)->startOfDay()))
-            ->when($filters['to'] ?? null, fn ($query, string $date) => $query->where('created_at', '<=', Carbon::parse($date)->endOfDay()))
-            ->latest('created_at')->latest('id')
-            ->paginate($filters['perPage'] ?? 50);
-
-        return response()->json([
-            'data' => collect($page->items())->map(fn (LoginHistory $entry) => [
-                'id' => $entry->id, 'email' => $entry->email, 'userId' => $entry->user_id, 'institution' => $entry->institution?->name,
-                'outcome' => $entry->outcome, 'reason' => $entry->reason, 'ip' => $entry->ip_address, 'userAgent' => $entry->user_agent,
-                'at' => $entry->created_at?->toIso8601String(),
-            ]),
-            'meta' => ['currentPage' => $page->currentPage(), 'lastPage' => $page->lastPage(), 'total' => $page->total()],
-            'summary' => LoginHistory::query()->where('created_at', '>=', now()->subDay())->selectRaw('outcome, count(*) as total')->groupBy('outcome')->pluck('total', 'outcome'),
-        ]);
+        return response()->json($logs->paginatedLoginHistory($filters));
     }
 
-    /** Active API sessions (tokens), platform-wide. Token values are never returned. */
+    /** Active API sessions (tokens), platform-wide or per institution. Token values are never returned. */
     public function sessions(Request $request): JsonResponse
     {
-        $userId = $request->validate(['userId' => ['nullable', 'integer']])['userId'] ?? null;
+        $filters = $request->validate([
+            'userId' => ['nullable', 'integer'],
+            'institutionId' => ['nullable', 'integer'],
+        ]);
+        $userId = $filters['userId'] ?? null;
+        $institutionId = $filters['institutionId'] ?? null;
+
+        $institutionUserIds = $institutionId !== null
+            ? User::query()->withoutGlobalScopes()->where('institution_id', (int) $institutionId)->pluck('id')->all()
+            : null;
+
+        if ($institutionUserIds === []) {
+            return response()->json(['data' => []]);
+        }
 
         $tokens = DB::table('personal_access_tokens')
             ->where('tokenable_type', User::class)
             ->where(fn ($query) => $query->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->when($userId, fn ($query, int $id) => $query->where('tokenable_id', $id))
+            ->when($institutionUserIds !== null, fn ($query) => $query->whereIn('tokenable_id', $institutionUserIds))
             ->orderByDesc('last_used_at')->orderByDesc('id')
             ->limit(200)
             ->get(['id', 'tokenable_id', 'name', 'last_used_at', 'created_at', 'expires_at']);
@@ -187,38 +174,18 @@ class OwnerPlatformController extends Controller
     }
 
     /** GET /owner/security-events (SRS FR-SEC-003) */
-    public function securityEvents(Request $request): JsonResponse
+    public function securityEvents(Request $request, CollegeLogService $logs): JsonResponse
     {
         $filters = $request->validate([
             'status' => ['nullable', Rule::in(SecurityEvent::STATUSES)],
             'severity' => ['nullable', Rule::in(SecurityEvent::SEVERITIES)],
+            'institutionId' => ['nullable', 'integer'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
             'perPage' => ['nullable', 'integer', 'between:1,100'],
         ]);
 
-        $page = SecurityEvent::query()
-            ->with(['institution:id,name', 'resolver:id,name'])
-            ->when($filters['status'] ?? null, fn ($q, string $s) => $q->where('status', $s))
-            ->when($filters['severity'] ?? null, fn ($q, string $s) => $q->where('severity', $s))
-            ->latest('created_at')->latest('id')
-            ->paginate($filters['perPage'] ?? 30);
-
-        return response()->json([
-            'data' => collect($page->items())->map(fn (SecurityEvent $e) => [
-                'id' => $e->id,
-                'severity' => $e->severity,
-                'eventType' => $e->event_type,
-                'institution' => $e->institution?->name,
-                'email' => $e->email,
-                'ip' => $e->ip_address,
-                'summary' => $e->summary,
-                'metadata' => $e->metadata,
-                'status' => $e->status,
-                'resolvedBy' => $e->resolver?->name,
-                'resolvedAt' => $e->resolved_at?->toIso8601String(),
-                'at' => $e->created_at?->toIso8601String(),
-            ]),
-            'meta' => ['currentPage' => $page->currentPage(), 'lastPage' => $page->lastPage(), 'total' => $page->total()],
-        ]);
+        return response()->json($logs->paginatedSecurityEvents($filters));
     }
 
     /** PATCH /owner/security-events/{securityEvent} */
