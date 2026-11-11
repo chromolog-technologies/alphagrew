@@ -4,45 +4,51 @@ namespace App\Actions\Placement;
 
 use App\Exceptions\BusinessRuleException;
 use App\Models\Company;
-use App\Models\CompanyApplication;
+use App\Models\JobPosting;
 use App\Models\User;
 use App\Support\Campus\CampusPermission;
-use Illuminate\Support\Facades\DB;
+use App\Support\Placement\LegacyCompanyImporter;
 
 /**
- * Applies the signed-in student to a company drive. Applying twice is a no-op.
+ * Legacy entry point (`POST /companies/{company}/apply`, used by the offline-era screens):
+ * applies to the company's job on the job-posting model, so the same eligibility rules and
+ * placement policies apply. Applying twice is a no-op.
  */
 class ApplyToCompanyAction
 {
+    public function __construct(private readonly ApplyToJobAction $apply)
+    {
+    }
+
     public function execute(User $user, Company $company): void
     {
         if (! $user->can(CampusPermission::PLACEMENT_APPLY)) {
             throw BusinessRuleException::forbidden('You do not have permission to apply to company drives.');
         }
 
-        $student = $user->student;
-
-        if (! $student) {
+        if (! $user->student) {
             throw BusinessRuleException::forbidden('A linked student profile is required before applying.');
         }
 
-        if (! in_array($student->department_code, $company->eligible_departments ?? [], true)) {
-            throw BusinessRuleException::forbidden('You are not eligible for this drive.');
+        $this->apply->execute($user, $this->jobFor($company));
+    }
+
+    private function jobFor(Company $company): JobPosting
+    {
+        $find = fn () => JobPosting::query()
+            ->where(fn ($query) => $query->where('legacy_company_id', $company->id)->orWhere('company_id', $company->id))
+            ->orderByRaw("case status when 'open' then 0 when 'draft' then 1 else 2 end")
+            ->latest('id')
+            ->first();
+
+        $job = $find();
+
+        if (! $job) {
+            // A company created through the old screens after the last import.
+            (new LegacyCompanyImporter())->import();
+            $job = $find();
         }
 
-        if ($company->status === 'closed') {
-            throw BusinessRuleException::unprocessable('This drive is already closed.');
-        }
-
-        DB::transaction(function () use ($student, $company): void {
-            $application = CompanyApplication::query()->firstOrCreate([
-                'student_id' => $student->id,
-                'company_id' => $company->id,
-            ]);
-
-            if ($application->wasRecentlyCreated) {
-                $company->increment('applicants');
-            }
-        });
+        return $job ?? throw BusinessRuleException::unprocessable('This drive has no job to apply to yet.');
     }
 }

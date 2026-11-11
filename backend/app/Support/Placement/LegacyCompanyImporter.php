@@ -61,7 +61,8 @@ final class LegacyCompanyImporter
             'employment_type' => str_contains(strtolower((string) $company->type), 'intern') ? 'internship' : 'full_time',
             'location' => $company->location,
             'package_display' => $company->package_offered,
-            'apply_deadline' => $company->drive_date ? substr((string) $company->drive_date, 0, 10).' 23:59:59' : null,
+            // The old model had no application deadline; the drive date is kept on the drive.
+            'apply_deadline' => null,
             'status' => $postingStatus,
             'legacy_company_id' => $company->id,
             'created_at' => $now,

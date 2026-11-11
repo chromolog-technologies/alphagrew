@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\Staff\StaffManagementController;
 use App\Http\Controllers\Api\Student\AttendanceController as StudentAttendanceController;
 use App\Http\Controllers\Api\Student\MarksController;
 use App\Http\Controllers\Api\Student\MaterialsController;
-use App\Http\Controllers\Api\Student\NotificationsController;
 use App\Http\Controllers\Api\Student\StudentResultController;
 use App\Http\Controllers\Api\Student\TimetableController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
@@ -32,6 +31,9 @@ use App\Http\Controllers\Api\V1\Interviews\InterviewController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\CampusSiteController;
 use App\Http\Controllers\Api\V1\InstitutionSettingsController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\Placement\PlacementJobController;
+use App\Http\Controllers\Api\V1\Placement\StudentJobController;
 use App\Http\Controllers\Api\V1\InvitationController;
 use App\Http\Controllers\Api\V1\PlacementPolicyController;
 use App\Http\Controllers\Api\V1\MarkEntryController;
@@ -405,6 +407,55 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/companies/{company}/apply', [CompanyController::class, 'apply'])
             ->middleware(['permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum', 'verified']);
 
+        // Placement on the job-posting model (PRD v1.1 §6, §10): jobs with eligibility rules,
+        // the application pipeline, rounds, offers and placement policies.
+        $placementView = 'permission:'.CampusPermission::PLACEMENT_VIEW.',sanctum';
+        $placementApply = 'permission:'.CampusPermission::PLACEMENT_APPLY.',sanctum';
+        $placementCreate = 'permission:'.CampusPermission::PLACEMENT_CREATE.',sanctum';
+        $placementManage = 'permission:'.CampusPermission::PLACEMENT_MANAGE.',sanctum';
+        $placementRounds = 'permission:'.CampusPermission::PLACEMENT_SCHEDULE_ROUND.',sanctum';
+        // Officer-side reads: students also hold placement.view, but must not see other applicants.
+        $placementStaff = 'permission:'.CampusPermission::PLACEMENT_VIEW_RESULTS.',sanctum';
+
+        Route::get('/students/me/jobs', [StudentJobController::class, 'index'])->middleware($placementView);
+        Route::get('/students/me/jobs/{job}', [StudentJobController::class, 'show'])->whereNumber('job')->middleware($placementView);
+        Route::post('/students/me/jobs/{job}/apply', [StudentJobController::class, 'apply'])->whereNumber('job')->middleware([$placementApply, 'verified']);
+        Route::get('/students/me/applications', [StudentJobController::class, 'applications'])->middleware($placementView);
+        Route::post('/students/me/applications/{application}/withdraw', [StudentJobController::class, 'withdraw'])->whereNumber('application')->middleware($placementApply);
+        Route::post('/students/me/applications/{application}/offer/accept', [StudentJobController::class, 'acceptOffer'])->whereNumber('application')->middleware($placementApply);
+        Route::post('/students/me/applications/{application}/offer/decline', [StudentJobController::class, 'declineOffer'])->whereNumber('application')->middleware($placementApply);
+        Route::put('/students/me/placement-preference', [StudentJobController::class, 'updatePreference'])->middleware($placementApply);
+
+        Route::prefix('placement')->group(function () use ($placementStaff, $placementCreate, $placementManage, $placementRounds): void {
+            Route::get('/jobs', [PlacementJobController::class, 'index'])->middleware($placementStaff);
+            Route::post('/jobs', [PlacementJobController::class, 'store'])->middleware($placementCreate);
+            Route::post('/eligibility/preview', [PlacementJobController::class, 'preview'])->middleware($placementStaff);
+            Route::get('/jobs/{job}', [PlacementJobController::class, 'show'])->whereNumber('job')->middleware($placementStaff);
+            Route::patch('/jobs/{job}', [PlacementJobController::class, 'update'])->whereNumber('job')->middleware($placementManage);
+            Route::delete('/jobs/{job}', [PlacementJobController::class, 'destroy'])->whereNumber('job')->middleware($placementManage);
+            Route::post('/jobs/{job}/publish', [PlacementJobController::class, 'publish'])->whereNumber('job')->middleware($placementManage);
+            Route::post('/jobs/{job}/close', [PlacementJobController::class, 'close'])->whereNumber('job')->middleware($placementManage);
+            Route::get('/jobs/{job}/eligible-students', [PlacementJobController::class, 'eligibleStudents'])->whereNumber('job')->middleware($placementStaff);
+            Route::get('/jobs/{job}/applications', [PlacementJobController::class, 'applications'])->whereNumber('job')->middleware($placementStaff);
+            Route::post('/applications/status', [PlacementJobController::class, 'updateStatus'])->middleware($placementManage);
+            Route::post('/applications/{application}/offer', [PlacementJobController::class, 'offer'])->whereNumber('application')->middleware($placementManage);
+            Route::get('/jobs/{job}/rounds', [PlacementJobController::class, 'rounds'])->whereNumber('job')->middleware($placementStaff);
+            Route::post('/jobs/{job}/rounds', [PlacementJobController::class, 'storeRound'])->whereNumber('job')->middleware($placementRounds);
+            Route::patch('/rounds/{round}', [PlacementJobController::class, 'updateRound'])->whereNumber('round')->middleware($placementRounds);
+            Route::delete('/rounds/{round}', [PlacementJobController::class, 'destroyRound'])->whereNumber('round')->middleware($placementRounds);
+            Route::put('/rounds/{round}/results', [PlacementJobController::class, 'recordResults'])->whereNumber('round')->middleware($placementRounds);
+            Route::post('/students/{student}/debar', [PlacementJobController::class, 'debar'])->whereNumber('student')->middleware($placementManage);
+            Route::delete('/students/{student}/debar', [PlacementJobController::class, 'lift'])->whereNumber('student')->middleware($placementManage);
+        });
+
+        // In-app notifications and preferences, for every role.
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::get('/notifications/preferences', [NotificationController::class, 'preferences']);
+        Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->whereUuid('id');
+        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy'])->whereUuid('id');
+
         Route::get('/announcements', [AnnouncementController::class, 'index'])
             ->middleware('permission:'.CampusPermission::ANNOUNCEMENTS_VIEW.',sanctum');
         Route::post('/announcements', [AnnouncementController::class, 'store'])
@@ -565,23 +616,6 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('permission:'.CampusPermission::ASSIGNMENTS_SUBMIT.',sanctum');
             });
 
-            // Student Notifications
-            Route::prefix('notifications')->middleware('sample-data')->group(function (): void {
-                Route::get('/', [NotificationsController::class, 'index'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
-                Route::post('/mark-as-read', [NotificationsController::class, 'markAsRead'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
-                Route::post('/mark-all-as-read', [NotificationsController::class, 'markAllAsRead'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
-                Route::delete('/delete', [NotificationsController::class, 'delete'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
-                Route::delete('/delete-all', [NotificationsController::class, 'deleteAll'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_VIEW.',sanctum');
-                Route::get('/preferences', [NotificationsController::class, 'getPreferences'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_MANAGE.',sanctum');
-                Route::put('/preferences', [NotificationsController::class, 'updatePreferences'])
-                    ->middleware('permission:'.CampusPermission::NOTIFICATIONS_MANAGE.',sanctum');
-            });
         });
 
         // Staff Routes

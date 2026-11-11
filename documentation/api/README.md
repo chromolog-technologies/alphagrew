@@ -14,6 +14,7 @@ This folder documents every HTTP endpoint the Laravel backend in `backend/` expo
 | [07-staff-portal-and-attendance.md](07-staff-portal-and-attendance.md) | `/staff/*` portal endpoints (mostly sample data) and the attendance module |
 | [08-known-issues.md](08-known-issues.md) | Defects and gaps found while documenting |
 | [09-dashboards-and-custom-fields.md](09-dashboards-and-custom-fields.md) | Role dashboards, user-built dashboards, sharing, the widget query engine, custom form fields |
+| [11-placement-workflow-and-notifications.md](11-placement-workflow-and-notifications.md) | Jobs with eligibility rules, the application pipeline, rounds, offers, placement policies and in-app notifications |
 | [10-frontend-coverage.md](10-frontend-coverage.md) | Which endpoints the web app uses, which have no screen, and which screens have no real backend |
 
 > **Regenerating the index.** The endpoint table at the bottom of this file is generated from the live route table. If routes change, re-run `php artisan route:list --path=api --json` and update the table, or ask for this reference to be refreshed.
@@ -338,7 +339,7 @@ Parameter names differ by endpoint. Each endpoint lists its own.
 
 **Legend.** ✓ allowed by the role's base permissions. **D** allowed only when the user's designation grants the permission (staff and placement officers). — denied. · not applicable (public or signed URL). The index reflects route permissions plus the role checks made inside controllers and form requests. Record-level rules such as "own department" are in the Notes column and the module files.
 
-Total: 277 routes.
+Total: 303 routes.
 
 | Method | Path | Auth | Permission | SA | IA | PO | STF | STU | REC | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -471,6 +472,12 @@ Total: 277 routes.
 | POST | `/api/v1/masters` | Bearer | `departments.create` | ✓ | ✓ | — | — | — | — | Admins only (checked in controller). |
 | PUT | `/api/v1/masters/{master}` | Bearer | `departments.create` | ✓ | ✓ | — | — | — | — | Admins only (checked in controller). |
 | DELETE | `/api/v1/masters/{master}` | Bearer | `departments.create` | ✓ | ✓ | — | — | — | — | Admins only (checked in controller). |
+| GET | `/api/v1/notifications` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Own notifications; `unreadCount` in meta. |
+| GET | `/api/v1/notifications/preferences` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| PUT | `/api/v1/notifications/preferences` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| POST | `/api/v1/notifications/read-all` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| DELETE | `/api/v1/notifications/{id}` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
+| POST | `/api/v1/notifications/{id}/read` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 404 for another user's notification. |
 | GET | `/api/v1/permissions/all` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/permissions/modules` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/permissions/roles/all` | Bearer | `roles.view` | ✓ | ✓ | D | D | — | — |  |
@@ -478,6 +485,25 @@ Total: 277 routes.
 | GET | `/api/v1/permissions/{permission}/check` | Bearer | `dashboard.view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/placement-policy` | Bearer | `placement.view` | ✓ | ✓ | ✓ | D | ✓ | — |  |
 | PUT | `/api/v1/placement-policy` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | D | — | — | Needs an institution (not Super Admin). |
+| POST | `/api/v1/placement/applications/status` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — | Bulk move; lifecycle checked. |
+| POST | `/api/v1/placement/applications/{application}/offer` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — | Selected applications only. |
+| POST | `/api/v1/placement/eligibility/preview` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — | Counts for unsaved rules. |
+| GET | `/api/v1/placement/jobs` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — | See 11. |
+| POST | `/api/v1/placement/jobs` | Bearer | `placement.create` | ✓ | ✓ | ✓ | — | — | — | Creates a draft. |
+| GET | `/api/v1/placement/jobs/{job}` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — |  |
+| PATCH | `/api/v1/placement/jobs/{job}` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — |  |
+| DELETE | `/api/v1/placement/jobs/{job}` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — | 409 once anyone applied. |
+| GET | `/api/v1/placement/jobs/{job}/applications` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — |  |
+| POST | `/api/v1/placement/jobs/{job}/close` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — |  |
+| GET | `/api/v1/placement/jobs/{job}/eligible-students` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — | With failed rules and blockers. |
+| POST | `/api/v1/placement/jobs/{job}/publish` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — | Notifies eligible students. |
+| GET | `/api/v1/placement/jobs/{job}/rounds` | Bearer | `placement.view_results` | ✓ | ✓ | ✓ | — | — | — |  |
+| POST | `/api/v1/placement/jobs/{job}/rounds` | Bearer | `placement.schedule_round` | ✓ | ✓ | ✓ | — | — | — | Notifies candidates. |
+| PATCH | `/api/v1/placement/rounds/{round}` | Bearer | `placement.schedule_round` | ✓ | ✓ | ✓ | — | — | — |  |
+| DELETE | `/api/v1/placement/rounds/{round}` | Bearer | `placement.schedule_round` | ✓ | ✓ | ✓ | — | — | — | 409 once results exist. |
+| PUT | `/api/v1/placement/rounds/{round}/results` | Bearer | `placement.schedule_round` | ✓ | ✓ | ✓ | — | — | — |  |
+| POST | `/api/v1/placement/students/{student}/debar` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — |  |
+| DELETE | `/api/v1/placement/students/{student}/debar` | Bearer | `placement.manage` | ✓ | ✓ | ✓ | — | — | — |  |
 | GET | `/api/v1/registrations` | Bearer | `students.create` | ✓ | ✓ | D | D | — | — |  |
 | POST | `/api/v1/registrations/{registration}/approve` | Bearer | `students.create` | ✓ | ✓ | D | D | — | — |  |
 | POST | `/api/v1/registrations/{registration}/reject` | Bearer | `students.create` | ✓ | ✓ | D | D | — | — |  |
@@ -555,13 +581,6 @@ Total: 277 routes.
 | GET | `/api/v1/student/marks` | Bearer | `marks.view` | ✓ | ✓ | D | ✓ | ✓ | — |  |
 | GET | `/api/v1/student/marks/statistics` | Bearer | `marks.view` | ✓ | ✓ | D | ✓ | ✓ | — |  |
 | GET | `/api/v1/student/materials` | Bearer | `materials.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| GET | `/api/v1/student/notifications` | Bearer | `notifications.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| DELETE | `/api/v1/student/notifications/delete` | Bearer | `notifications.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| DELETE | `/api/v1/student/notifications/delete-all` | Bearer | `notifications.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| POST | `/api/v1/student/notifications/mark-all-as-read` | Bearer | `notifications.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| POST | `/api/v1/student/notifications/mark-as-read` | Bearer | `notifications.view` | ✓ | ✓ | D | D | ✓ | — | Sample data. |
-| GET | `/api/v1/student/notifications/preferences` | Bearer | `notifications.manage` | ✓ | ✓ | D | D | — | — | Sample data. |
-| PUT | `/api/v1/student/notifications/preferences` | Bearer | `notifications.manage` | ✓ | ✓ | D | D | — | — | Sample data. |
 | GET | `/api/v1/student/results/all` | Bearer | `marks.view` | — | — | — | — | ✓ | — |  |
 | GET | `/api/v1/student/results/semester/{semester}` | Bearer | `marks.view` | — | — | — | — | ✓ | — |  |
 | GET | `/api/v1/student/results/semesters` | Bearer | `marks.view` | — | — | — | — | ✓ | — |  |
@@ -570,6 +589,10 @@ Total: 277 routes.
 | GET | `/api/v1/students` | Bearer | `students.view` | ✓ | ✓ | ✓ | ✓ | — | — |  |
 | POST | `/api/v1/students` | Bearer | `students.create` | ✓ | ✓ | D | D | — | — |  |
 | GET | `/api/v1/students/me/academics` | Bearer | `profile.view` | — | — | — | — | ✓ | — |  |
+| GET | `/api/v1/students/me/applications` | Bearer | `placement.view` | — | — | — | — | ✓ | — |  |
+| POST | `/api/v1/students/me/applications/{application}/offer/accept` | Bearer | `placement.apply` | — | — | — | — | ✓ | — | One-offer rule applied. |
+| POST | `/api/v1/students/me/applications/{application}/offer/decline` | Bearer | `placement.apply` | — | — | — | — | ✓ | — |  |
+| POST | `/api/v1/students/me/applications/{application}/withdraw` | Bearer | `placement.apply` | — | — | — | — | ✓ | — | Before an offer. |
 | GET | `/api/v1/students/me/certifications` | Bearer | `profile.view` | — | — | — | — | ✓ | — |  |
 | POST | `/api/v1/students/me/certifications` | Bearer | `profile.edit` | — | — | — | — | ✓ | — |  |
 | PUT | `/api/v1/students/me/certifications/{certification}` | Bearer | `profile.edit` | — | — | — | — | ✓ | — |  |
@@ -583,6 +606,10 @@ Total: 277 routes.
 | DELETE | `/api/v1/students/me/experience/{experience}` | Bearer | `profile.edit` | — | — | — | — | ✓ | — |  |
 | POST | `/api/v1/students/me/interviews` | Bearer | `interviews.practice` | — | — | — | — | ✓ | — |  |
 | GET | `/api/v1/students/me/interviews` | Bearer | `interviews.practice` | — | — | — | — | ✓ | — |  |
+| GET | `/api/v1/students/me/jobs` | Bearer | `placement.view` | — | — | — | — | ✓ | — | Eligibility and blockers per job. |
+| GET | `/api/v1/students/me/jobs/{job}` | Bearer | `placement.view` | — | — | — | — | ✓ | — |  |
+| POST | `/api/v1/students/me/jobs/{job}/apply` | Bearer | `placement.apply` + verified email | — | — | — | — | ✓ | — | 422 lists the reasons. |
+| PUT | `/api/v1/students/me/placement-preference` | Bearer | `placement.apply` | — | — | — | — | ✓ | — | Opt out / in. |
 | GET | `/api/v1/students/me/profile` | Bearer | `profile.view` | — | — | — | — | ✓ | — |  |
 | PUT | `/api/v1/students/me/profile` | Bearer | `profile.edit` | — | — | — | — | ✓ | — |  |
 | POST | `/api/v1/students/me/profile/photo` | Bearer | `profile.edit` | — | — | — | — | ✓ | — |  |

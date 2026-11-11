@@ -25,6 +25,11 @@ class JobApplication extends Model
         'applied_at',
         'withdrawn_at',
         'decided_at',
+        'offer_ctc_lpa',
+        'offered_at',
+        'offer_respond_by',
+        'responded_at',
+        'offer_note',
     ];
 
     protected function casts(): array
@@ -35,6 +40,10 @@ class JobApplication extends Model
             'applied_at' => 'datetime',
             'withdrawn_at' => 'datetime',
             'decided_at' => 'datetime',
+            'offer_ctc_lpa' => 'float',
+            'offered_at' => 'datetime',
+            'offer_respond_by' => 'datetime',
+            'responded_at' => 'datetime',
         ];
     }
 
@@ -46,6 +55,11 @@ class JobApplication extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    public function roundResults(): HasMany
+    {
+        return $this->hasMany(PlacementResult::class);
     }
 
     public function events(): HasMany

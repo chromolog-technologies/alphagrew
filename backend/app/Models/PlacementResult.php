@@ -17,6 +17,7 @@ class PlacementResult extends Model
         'student_id',
         'company_id',
         'round_id',
+        'job_application_id',
         'status',
         'score',
         'feedback',

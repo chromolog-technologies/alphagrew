@@ -207,7 +207,7 @@ class CampusApiTest extends TestCase
         $token = $this->loginAndGetToken('student@demo.com');
 
         $this->withToken($token)
-            ->getJson('/api/v1/student/notifications')
+            ->getJson('/api/v1/student/materials')
             ->assertOk()
             ->assertHeader('X-Data-Source', 'sample');
 

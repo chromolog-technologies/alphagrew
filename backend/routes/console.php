@@ -1,11 +1,14 @@
 <?php
 
 use App\Actions\Interviews\FinishInterviewAction;
+use App\Actions\Placement\OfferActions;
 use App\Enums\InterviewStatus;
 use App\Enums\UserRole;
 use App\Models\AiInterview;
+use App\Models\Institution;
 use App\Models\User;
 use App\Support\Tenancy\InstitutionScope;
+use App\Support\Tenancy\Tenant;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -75,3 +78,17 @@ Schedule::command('interviews:close-idle')->everyFiveMinutes();
 
 // API tokens expire after SANCTUM_EXPIRATION minutes; remove them a day later.
 Schedule::command('sanctum:prune-expired --hours=24')->daily();
+
+// Offers not answered by their respond-by date expire (PRD v1.1 §6). One institution at a
+// time, inside its tenant context, so every query and notification stays scoped.
+Artisan::command('placement:expire-offers', function (OfferActions $offers, Tenant $tenant) {
+    $expired = 0;
+
+    foreach (Institution::query()->pluck('id') as $institutionId) {
+        $expired += $tenant->runAs((int) $institutionId, fn () => $offers->expireDue());
+    }
+
+    $this->info("Expired {$expired} offers.");
+})->purpose('Expire placement offers past their respond-by date');
+
+Schedule::command('placement:expire-offers')->hourly();

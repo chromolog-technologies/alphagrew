@@ -22,6 +22,8 @@ class EligibilityRule extends Model
         'attendance_percentage' => ['gte'],
         'department' => ['in', 'not_in'],
         'year' => ['in', 'not_in'],
+        'batch' => ['in'], // batch codes or graduation years
+        'profile_completion' => ['gte'],
         'class_10_score' => ['gte'],
         'class_12_score' => ['gte'],
         'skill' => ['gte'], // value: { "skillId": 12, "minLevel": 3 }

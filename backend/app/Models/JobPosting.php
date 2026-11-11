@@ -35,6 +35,8 @@ class JobPosting extends Model
         'required_skills',
         'apply_deadline',
         'status',
+        'created_by',
+        'published_at',
     ];
 
     protected function casts(): array
@@ -46,6 +48,7 @@ class JobPosting extends Model
             'openings' => 'integer',
             'required_skills' => 'array',
             'apply_deadline' => 'datetime',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -67,6 +70,24 @@ class JobPosting extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(JobApplication::class);
+    }
+
+    public function rounds(): HasMany
+    {
+        return $this->hasMany(PlacementRound::class)->orderBy('sequence')->orderBy('id');
+    }
+
+    public function isOpen(): bool
+    {
+        return $this->status === 'open' && ($this->apply_deadline === null || $this->apply_deadline->isFuture());
+    }
+
+    /** Upper CTC in LPA, for the dream-offer rule; null when no CTC is recorded. */
+    public function ctcLpa(): ?float
+    {
+        $paise = $this->ctc_max_paise ?? $this->ctc_min_paise;
+
+        return $paise === null ? null : round($paise / 10_000_000, 2);
     }
 
     /** Open postings in published drives: what students can see. */
