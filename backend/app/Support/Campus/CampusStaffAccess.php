@@ -9,6 +9,7 @@ final class CampusStaffAccess
         return [
             CampusPermission::DASHBOARD_VIEW,
             CampusPermission::PROFILE_VIEW,
+            CampusPermission::DASHBOARDS_BUILD,
         ];
     }
 

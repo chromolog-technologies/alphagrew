@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Companies\SaveCompanyRequest;
 use App\Models\Company;
 use App\Models\CompanyApplication;
+use App\Models\JobPosting;
 use App\Services\Campus\CampusDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -46,6 +47,8 @@ class CompanyController extends Controller
     public function destroy(Request $request, Company $company): JsonResponse
     {
         CompanyApplication::query()->where('company_id', $company->id)->delete();
+        // Its open jobs stop taking applications; their history is kept.
+        JobPosting::query()->where('company_id', $company->id)->where('status', '!=', 'closed')->update(['status' => 'closed']);
         $company->delete();
 
         return $this->datasetResponse($request);

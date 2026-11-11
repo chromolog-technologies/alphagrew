@@ -97,7 +97,7 @@ export const ResultPublishingPanel: React.FC<ResultPublishingPanelProps> = ({ se
         ['Submitted', stats.submitted, 'bg-[#f5b971]'],
         ['Verified', stats.verified, 'bg-[#7fb4e3]'],
         ['Approved', stats.approved, 'bg-[#4caf7d]'],
-        ['Published', readiness.locked, 'bg-[#0a2342]'],
+        ['Published', readiness.locked, 'bg-foreground'],
       ] as const)
     : [];
 
@@ -119,21 +119,21 @@ export const ResultPublishingPanel: React.FC<ResultPublishingPanelProps> = ({ se
           <>
             <div>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="text-sm font-semibold text-[#0a2342]">
+                <p className="text-sm font-semibold text-foreground">
                   {stats.total_entries} entries · {readiness.pending === 0 ? 'all reviewed' : `${readiness.pending} still in review`}
                 </p>
-                <p className="text-sm text-[#4d6d8f]">{published ? `Published for ${status.published_results_count} students` : 'Not published'}</p>
+                <p className="text-sm text-muted-foreground">{published ? `Published for ${status.published_results_count} students` : 'Not published'}</p>
               </div>
               <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
                 {segments.map(([label, value, color]) =>
                   value > 0 ? <div key={label} className={color} style={{ width: `${(value / stats.total_entries) * 100}%` }} /> : null,
                 )}
               </div>
-              <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-[#4d6d8f]">
+              <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground">
                 {segments.map(([label, value, color]) => (
                   <li key={label} className="flex items-center gap-1.5">
                     <span className={`h-2.5 w-2.5 rounded-full ${color}`} aria-hidden="true" />
-                    {label} <span className="font-semibold tabular-nums text-[#0a2342]">{value}</span>
+                    {label} <span className="font-semibold tabular-nums text-foreground">{value}</span>
                   </li>
                 ))}
               </ul>
@@ -152,7 +152,7 @@ export const ResultPublishingPanel: React.FC<ResultPublishingPanelProps> = ({ se
                   </button>
                 ) : null}
                 {!readiness.canPublish && readiness.pending > 0 ? (
-                  <p className="text-sm text-[#4d6d8f]">Approve the {readiness.pending} remaining entries to publish.</p>
+                  <p className="text-sm text-muted-foreground">Approve the {readiness.pending} remaining entries to publish.</p>
                 ) : null}
               </div>
             ) : (
@@ -168,7 +168,7 @@ export const ResultPublishingPanel: React.FC<ResultPublishingPanelProps> = ({ se
                 className="flex flex-wrap items-end gap-2 rounded-[16px] bg-red-50/50 p-4"
               >
                 <div className="flex min-w-[280px] flex-1 flex-col gap-1.5">
-                  <label htmlFor="unlock-reason" className="text-sm font-semibold text-[#123a66]">
+                  <label htmlFor="unlock-reason" className="text-sm font-semibold text-foreground">
                     Reason for unlocking (kept in the audit log)
                   </label>
                   <input id="unlock-reason" required value={unlockReason} onChange={(event) => setUnlockReason(event.target.value)} className={inputClass} />
@@ -186,15 +186,15 @@ export const ResultPublishingPanel: React.FC<ResultPublishingPanelProps> = ({ se
 
         {logs.length > 0 ? (
           <div>
-            <h4 className="text-sm font-bold text-[#0a2342]">Publishing log</h4>
+            <h4 className="text-sm font-bold text-foreground">Publishing log</h4>
             <ul className="mt-2 divide-y divide-slate-100 rounded-[14px] border border-slate-100">
               {logs.map((log) => (
                 <li key={log.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
                   <span>
-                    <span className="font-semibold capitalize text-[#0a2342]">{log.action === 'publish' ? 'Published' : 'Unlocked'}</span>
-                    {log.details ? <span className="text-[#4d6d8f]"> · {log.details}</span> : null}
+                    <span className="font-semibold capitalize text-foreground">{log.action === 'publish' ? 'Published' : 'Unlocked'}</span>
+                    {log.details ? <span className="text-muted-foreground"> · {log.details}</span> : null}
                   </span>
-                  <span className="text-[#4d6d8f]">
+                  <span className="text-muted-foreground">
                     {relationName(log.published_by) ?? 'Unknown'} · {new Date(log.published_at).toLocaleString()}
                   </span>
                 </li>

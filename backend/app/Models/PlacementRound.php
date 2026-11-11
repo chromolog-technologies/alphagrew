@@ -15,8 +15,12 @@ class PlacementRound extends Model
 
     protected $table = 'placement_rounds';
 
+    public const TYPES = ['aptitude', 'technical', 'coding', 'group_discussion', 'interview', 'hr', 'other'];
+
     protected $fillable = [
         'company_id',
+        'job_posting_id',
+        'sequence',
         'name',
         'type',
         'scheduled_at',
@@ -34,6 +38,11 @@ class PlacementRound extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function jobPosting(): BelongsTo
+    {
+        return $this->belongsTo(JobPosting::class);
     }
 
     public function results(): HasMany

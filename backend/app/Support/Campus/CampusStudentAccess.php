@@ -27,6 +27,7 @@ final class CampusStudentAccess
             CampusPermission::NOTIFICATIONS_VIEW,
             CampusPermission::RESUMES_MANAGE,
             CampusPermission::INTERVIEWS_PRACTICE,
+            CampusPermission::DASHBOARDS_BUILD,
         ]);
     }
 

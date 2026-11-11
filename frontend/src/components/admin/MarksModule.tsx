@@ -15,6 +15,7 @@ import {
   FileText,
   Sliders,
   History,
+  Edit3,
 } from 'lucide-react';
 import {
   fetchMarkEntries,
@@ -32,6 +33,7 @@ import {
   setupDefaultGradeRules,
   fetchMarkSchemes,
 } from '../../api/campusApi';
+import { TeacherMarkEntry } from '../marks/TeacherMarkEntry';
 
 const AUTH_KEY = 'chromolog-campus-auth';
 
@@ -54,8 +56,13 @@ function getTokenFromStorage(): string | null {
   }
 }
 
-export const MarksModule: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'entries' | 'review' | 'publishing' | 'scales'>('entries');
+interface MarksModuleProps {
+  /** Shows the "Enter marks" tab: staff with marks.create, for the subjects allocated to them. */
+  canEnterMarks?: boolean;
+}
+
+export const MarksModule: React.FC<MarksModuleProps> = ({ canEnterMarks = false }) => {
+  const [activeTab, setActiveTab] = useState<'enter' | 'entries' | 'review' | 'publishing' | 'scales'>(canEnterMarks ? 'enter' : 'entries');
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +105,9 @@ export const MarksModule: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      if (activeTab === 'entries') {
+      if (activeTab === 'enter') {
+        // TeacherMarkEntry loads its own data.
+      } else if (activeTab === 'entries') {
         const response = await fetchMarkEntries(token, undefined, undefined, filterStatus || undefined);
         const data = response?.data || [];
         setEntries(Array.isArray(data) ? data : []);
@@ -366,6 +375,21 @@ export const MarksModule: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200 overflow-x-auto">
+        {canEnterMarks && (
+          <button
+            onClick={() => setActiveTab('enter')}
+            className={`px-4 py-3 font-medium border-b-2 text-sm whitespace-nowrap transition ${
+              activeTab === 'enter'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Edit3 size={16} />
+              Enter Marks
+            </span>
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('entries')}
           className={`px-4 py-3 font-medium border-b-2 text-sm whitespace-nowrap transition ${
@@ -424,6 +448,8 @@ export const MarksModule: React.FC = () => {
           </span>
         </button>
       </div>
+
+      {activeTab === 'enter' && canEnterMarks && <TeacherMarkEntry />}
 
       {/* TAB 1: MARK ENTRIES */}
       {activeTab === 'entries' && (

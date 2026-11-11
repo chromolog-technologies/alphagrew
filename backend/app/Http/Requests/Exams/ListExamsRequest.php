@@ -21,6 +21,8 @@ class ListExamsRequest extends FormRequest
         return [
             'semester_id' => ['nullable', 'integer', TenantRule::exists('semesters', 'id')],
             'subject_id' => ['nullable', 'integer', TenantRule::exists('subjects', 'id')],
+            // Only exams the caller can enter marks for: subjects allocated to them that semester.
+            'mine' => ['nullable', 'boolean'],
         ];
     }
 }

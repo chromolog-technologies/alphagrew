@@ -14,7 +14,7 @@ interface TenantStateProps {
 }
 
 const statusStyles: Record<TenantStateStatus, { badge: string; icon: string }> = {
-  404: { badge: 'bg-[#eef4fa] text-[#123a66]', icon: 'text-[#0b4d88]' },
+  404: { badge: 'bg-muted text-foreground', icon: 'text-primary' },
   403: { badge: 'bg-[#fff4e5] text-[#8a4b00]', icon: 'text-[#8a4b00]' },
   401: { badge: 'bg-[#fef3f2] text-[#8a1c12]', icon: 'text-[#b42318]' },
 };
@@ -37,18 +37,18 @@ export const TenantState: React.FC<TenantStateProps> = ({ status, message, insti
   return (
     <div
       role={status === 401 ? 'alertdialog' : 'status'}
-      className="mx-auto flex max-w-md flex-col gap-3 rounded-[20px] border border-[#d5e4f2] bg-white p-7"
+      className="mx-auto flex max-w-md flex-col gap-3 rounded-[20px] border border-border bg-white p-7"
     >
       <span className={`self-start rounded-full px-2.5 py-1 font-mono text-xs font-bold ${statusStyles[status].badge}`}>
         {status}
       </span>
       <Icon size={36} className={statusStyles[status].icon} aria-hidden="true" />
-      <h2 className="text-xl font-bold text-[#0a2342]">{title}</h2>
-      <p className="text-[15px] leading-relaxed text-[#4d6d8f]">{body}</p>
+      <h2 className="text-xl font-bold text-foreground">{title}</h2>
+      <p className="text-[15px] leading-relaxed text-muted-foreground">{body}</p>
       <button
         type="button"
         onClick={onAction}
-        className="mt-2 inline-flex min-h-11 items-center self-start rounded-[10px] bg-[#0b4d88] px-4 text-[15px] font-semibold text-white transition hover:bg-[#08467a]"
+        className="mt-2 inline-flex min-h-11 items-center self-start rounded-[10px] bg-primary px-4 text-[15px] font-semibold text-white transition hover:bg-primary-hover"
       >
         {actionLabel}
       </button>

@@ -44,6 +44,11 @@ class CampusDataService
 
     public function buildForUser(User $user): array
     {
+        // Platform staff use the owner console; they get no institution records here (SRS §11.1).
+        if ($user->isPlatformUser()) {
+            return $this->buildDataset(collect([$user]), collect(), collect(), $this->loadMasterOptions(), collect(), collect(), collect());
+        }
+
         $user->loadMissing('student:id,user_id,department_code');
 
         $users = User::query()
@@ -201,6 +206,9 @@ class CampusDataService
             'email' => $user->email,
             'role' => $user->role,
             'status' => $user->statusEnum()->value,
+            'ownerPermissions' => $user->ownerPermissions(),
+            'platformRole' => $user->platformRole?->name,
+            'mfaEnabled' => $user->mfa_enabled_at !== null,
             'emailVerified' => $user->hasVerifiedEmail(),
             'institutionId' => $user->institution_id,
             'title' => $user->title,

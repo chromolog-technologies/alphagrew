@@ -177,7 +177,7 @@ export const StudentTimetableView: React.FC = () => {
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-blue-50/50 to-white">
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-linear-to-br from-blue-50/50 to-white">
           <CardHeader className="p-5 pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-700">Total Classes/Week</span>
@@ -190,7 +190,7 @@ export const StudentTimetableView: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-emerald-50/50 to-white">
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-linear-to-br from-emerald-50/50 to-white">
           <CardHeader className="p-5 pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">Faculty Members</span>
@@ -203,7 +203,7 @@ export const StudentTimetableView: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-gradient-to-br from-purple-50/50 to-white">
+        <Card className="rounded-2xl border-slate-200/90 shadow-xs bg-linear-to-br from-purple-50/50 to-white">
           <CardHeader className="p-5 pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-purple-700">Learning Hours</span>

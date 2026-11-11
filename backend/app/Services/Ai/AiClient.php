@@ -6,6 +6,7 @@ use App\Models\AiUsageLog;
 use App\Services\Ai\Providers\AiProvider;
 use App\Services\Ai\Providers\AiProviderException;
 use App\Services\Ai\Providers\AnthropicProvider;
+use App\Services\Owner\AiCreditService;
 use App\Support\Tenancy\Tenant;
 
 /**
@@ -110,7 +111,7 @@ class AiClient
     {
         [$inputPrice, $outputPrice] = config("ai.prices.{$model}", [0, 0]);
 
-        AiUsageLog::query()->create([
+        $usage = AiUsageLog::query()->create([
             'institution_id' => app(Tenant::class)->id() ?? $request->subject?->getAttribute('institution_id'),
             'user_id' => $request->userId ?? auth()->id(),
             'feature' => $request->feature,
@@ -125,5 +126,7 @@ class AiClient
             'estimated_cost_usd' => round(($promptTokens * $inputPrice + $completionTokens * $outputPrice) / 1_000_000, 6),
             'error' => $error ? mb_substr($error, 0, 255) : null,
         ]);
+
+        app(AiCreditService::class)->meterUsage($usage);
     }
 }

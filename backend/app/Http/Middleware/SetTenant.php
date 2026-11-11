@@ -23,10 +23,20 @@ class SetTenant
         /** @var User|null $user */
         $user = $request->user();
 
-        if ($user?->isSuperAdmin()) {
+        if ($user?->isPlatformUser()) {
             $this->tenant->bypass();
         } elseif ($user) {
             abort_if($user->institution_id === null, 403, 'Your account is not linked to an institution.');
+
+            // A suspended, expired or closed institution loses access at once, not at next sign-in.
+            $status = \App\Models\Institution::query()->whereKey($user->institution_id)->value('status');
+            if (! in_array($status, ['trial', 'active'], true)) {
+                return response()->json([
+                    'message' => 'Your institution’s access is '.($status ?? 'unavailable').'. Contact your institution administrator.',
+                    'code' => 'institution_inactive',
+                ], 403);
+            }
+
             $this->tenant->set($user->institution_id);
         }
 

@@ -1,5 +1,6 @@
 export type CampusRole =
   | 'super_admin'
+  | 'platform_staff'
   | 'institution_admin'
   | 'placement_officer'
   | 'staff'
@@ -11,6 +12,11 @@ export function isAdminRole(role: CampusRole | undefined): boolean {
   return role === 'super_admin' || role === 'institution_admin';
 }
 
+/** Super Admins and platform staff use the owner console instead of an institution portal. */
+export function isPlatformRole(role: CampusRole | undefined): boolean {
+  return role === 'super_admin' || role === 'platform_staff';
+}
+
 /** Institution employees: staff and placement officers use the staff portal. */
 export function isInstitutionStaffRole(role: CampusRole | undefined): boolean {
   return role === 'staff' || role === 'placement_officer';
@@ -19,6 +25,7 @@ export function isInstitutionStaffRole(role: CampusRole | undefined): boolean {
 /** Display name of each role, as used in the PRD. */
 export const campusRoleLabels: Record<CampusRole, string> = {
   super_admin: 'Super Admin',
+  platform_staff: 'Platform Staff',
   institution_admin: 'Institution Admin',
   placement_officer: 'Placement Officer',
   staff: 'Staff',
@@ -29,6 +36,7 @@ export const campusRoleLabels: Record<CampusRole, string> = {
 /** The portal each role lands in. */
 export const campusPortalLabels: Record<CampusRole, string> = {
   super_admin: 'Platform console',
+  platform_staff: 'Platform console',
   institution_admin: 'Admin portal',
   placement_officer: 'Placement portal',
   staff: 'Staff portal',
@@ -61,7 +69,10 @@ export type CampusPermission =
   | 'demo.reset'
   | 'attendance.view'
   | 'users.create'
-  | 'activity.view';
+  | 'activity.view'
+  | 'dashboards.build'
+  | 'dashboards.share'
+  | 'custom_fields.manage';
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
@@ -88,6 +99,8 @@ const campusAdminPermissions: CampusPermission[] = [
 
 export const campusRolePermissions: Record<CampusRole, CampusPermission[]> = {
   super_admin: campusAdminPermissions,
+  // Platform staff never open an institution portal (they use the owner console).
+  platform_staff: [],
   institution_admin: campusAdminPermissions,
   placement_officer: [
     'dashboard.view',
@@ -139,6 +152,9 @@ export const campusPermissionLabels: Record<CampusPermission, string> = {
   'attendance.view': 'Attendance',
   'users.create': 'Invite users',
   'activity.view': 'Audit log',
+  'dashboards.build': 'Build dashboards',
+  'dashboards.share': 'Share dashboards',
+  'custom_fields.manage': 'Manage custom fields',
 };
 
 export const campusStaffAssignablePermissions: CampusPermission[] = [
@@ -413,6 +429,10 @@ export interface CampusAccount {
   specialization?: string;
   studentId?: number;
   permissions?: CampusPermission[];
+  /** Owner console permissions (owner.*), sent for platform users only. */
+  ownerPermissions?: string[];
+  platformRole?: string | null;
+  mfaEnabled?: boolean;
 }
 
 /** The signed-in user's institution. Null for Super Admin and Recruiter. */

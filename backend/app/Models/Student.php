@@ -30,6 +30,9 @@ class Student extends Model
         'mentor',
         'fee_status',
         'placed_company',
+        'placement_opted_out_at',
+        'debarred_until',
+        'debar_reason',
         'placement_score',
         'risk_level',
         'resume_profile',
@@ -41,6 +44,8 @@ class Student extends Model
             'cgpa' => 'float',
             'attendance' => 'integer',
             'skills' => 'array',
+            'placement_opted_out_at' => 'datetime',
+            'debarred_until' => 'date',
             'resume_profile' => 'array',
         ];
     }
@@ -65,6 +70,18 @@ class Student extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(CompanyApplication::class);
+    }
+
+    /** Applications on the job-posting model (status, eligibility snapshot, offers). */
+    public function jobApplications(): HasMany
+    {
+        return $this->hasMany(JobApplication::class);
+    }
+
+    public function isDebarred(): bool
+    {
+        // Debarred through the whole of the last day.
+        return $this->debarred_until !== null && $this->debarred_until->copy()->endOfDay()->isFuture();
     }
 
     public function profile(): HasOne

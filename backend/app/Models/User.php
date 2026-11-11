@@ -30,6 +30,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
+        'platform_role_id',
         'name',
         'first_name',
         'last_name',
@@ -61,6 +62,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'mfa_secret',
     ];
 
     /**
@@ -74,6 +76,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'locked_until' => 'datetime',
+            'mfa_secret' => 'encrypted',
+            'mfa_enabled_at' => 'datetime',
+            'last_login_at' => 'datetime',
         ];
     }
 
@@ -103,6 +108,36 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isSuperAdmin(): bool
     {
         return $this->roleEnum() === UserRole::SuperAdmin;
+    }
+
+    /** Super Admin or platform staff: uses the owner console. */
+    public function isPlatformUser(): bool
+    {
+        return $this->roleEnum()?->isPlatform() ?? false;
+    }
+
+    public function platformRole(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(PlatformRole::class);
+    }
+
+    /** @return list<string> owner permissions held (none for institution users) */
+    public function ownerPermissions(): array
+    {
+        return match (true) {
+            $this->isSuperAdmin() => \App\Support\Owner\OwnerPermission::all(),
+            $this->roleEnum() === UserRole::PlatformStaff => array_values($this->platformRole?->permissions ?? []),
+            default => [],
+        };
+    }
+
+    /**
+     * Owner-console permission check. Deliberately not Gate/Spatie: Gate::before lets every
+     * institution admin through, and institution roles must never reach platform routes.
+     */
+    public function ownerCan(string $permission): bool
+    {
+        return $this->statusEnum() === \App\Enums\UserStatus::Active && in_array($permission, $this->ownerPermissions(), true);
     }
 
     public function isInstitutionStaff(): bool

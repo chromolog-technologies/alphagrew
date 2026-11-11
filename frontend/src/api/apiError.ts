@@ -6,12 +6,14 @@
 export class ApiError extends Error {
   readonly status: number;
   readonly errors: Record<string, string[]>;
+  readonly code?: string;
 
-  constructor(message: string, status: number, errors: Record<string, string[]> = {}) {
+  constructor(message: string, status: number, errors: Record<string, string[]> = {}, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.code = code;
   }
 
   /** First validation message for a field, e.g. fieldError('institutionCode'). */
@@ -24,12 +26,13 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError;
 }
 
-/** Builds an ApiError from a failed response's JSON body ({ message, errors }). */
+/** Builds an ApiError from a failed response's JSON body ({ message, errors, code }). */
 export function apiErrorFromResponse(status: number, payload: unknown, fallbackMessage: string): ApiError {
-  const body = payload && typeof payload === 'object' ? (payload as { message?: unknown; errors?: unknown }) : {};
+  const body = payload && typeof payload === 'object' ? (payload as { message?: unknown; errors?: unknown; code?: unknown }) : {};
   const message = typeof body.message === 'string' && body.message ? body.message : fallbackMessage;
   const errors =
     body.errors && typeof body.errors === 'object' ? (body.errors as Record<string, string[]>) : {};
+  const code = typeof body.code === 'string' && body.code ? body.code : undefined;
 
-  return new ApiError(message, status, errors);
+  return new ApiError(message, status, errors, code);
 }

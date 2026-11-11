@@ -96,13 +96,13 @@ export default function CampusSignUp({ onRegister, onShowLogin }: CampusSignUpPr
           <button
             type="button"
             onClick={onShowLogin}
-            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[#0b5c9e] hover:text-[#08467a]"
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-primary hover:text-[#08467a]"
           >
             <ArrowLeft size={16} aria-hidden="true" />
             Back to sign in
           </button>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#0a2342]">Create your student account</h1>
-          <p className="mt-1.5 text-[15px] leading-relaxed text-[#4d6d8f]">
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Create your student account</h1>
+          <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">
             Use the institution code your placement office or admin gave you. You can only join one institution.
           </p>
 
@@ -120,7 +120,7 @@ export default function CampusSignUp({ onRegister, onShowLogin }: CampusSignUpPr
 
               return (
                 <div key={field.name} className={`flex flex-col gap-1.5 ${wide ? 'sm:col-span-2' : ''}`}>
-                  <label htmlFor={`signup-${field.name}`} className="text-sm font-semibold text-[#123a66]">
+                  <label htmlFor={`signup-${field.name}`} className="text-sm font-semibold text-foreground">
                     {field.label}
                   </label>
                   <input
@@ -132,16 +132,16 @@ export default function CampusSignUp({ onRegister, onShowLogin }: CampusSignUpPr
                     onChange={(event) => setForm((current) => ({ ...current, [field.name]: event.target.value }))}
                     aria-invalid={message ? true : undefined}
                     aria-describedby={describedBy}
-                    className={`h-12 rounded-[12px] px-3.5 text-base text-[#0a2342] outline-none transition focus:ring-4 focus:ring-[#dff2fd] ${
+                    className={`h-12 rounded-[12px] px-3.5 text-base text-foreground outline-none transition focus:ring-4 focus:ring-[#dff2fd] ${
                       field.code ? 'uppercase tracking-[0.08em]' : ''
-                    } ${message ? 'border-2 border-[#b42318] bg-white' : 'border border-[#b9d0e6] bg-[#f8fbff] focus:border-[#67bee9] focus:bg-white'}`}
+                    } ${message ? 'border-2 border-[#b42318] bg-white' : 'border border-[#b9d0e6] bg-muted/50 focus:border-[#67bee9] focus:bg-white'}`}
                   />
                   {message ? (
                     <span id={`signup-${field.name}-error`} className="text-[13px] leading-snug text-[#b42318]">
                       {message}
                     </span>
                   ) : field.hint ? (
-                    <span id={`signup-${field.name}-hint`} className="text-[13px] leading-snug text-[#4d6d8f]">
+                    <span id={`signup-${field.name}-hint`} className="text-[13px] leading-snug text-muted-foreground">
                       {field.hint}
                     </span>
                   ) : null}
@@ -152,7 +152,7 @@ export default function CampusSignUp({ onRegister, onShowLogin }: CampusSignUpPr
             <button
               type="submit"
               disabled={submitting}
-              className="flex h-12 items-center justify-center gap-2 rounded-[12px] bg-[#0b4d88] text-base font-semibold text-white transition hover:bg-[#08467a] disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
+              className="flex h-12 items-center justify-center gap-2 rounded-[12px] bg-primary text-base font-semibold text-white transition hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
             >
               {submitting ? 'Creating account...' : 'Create account'}
               {!submitting ? <ArrowRight size={18} aria-hidden="true" /> : null}

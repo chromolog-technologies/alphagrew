@@ -29,6 +29,7 @@ import {
   ChevronLeft,
   ChevronDown,
   ChevronRight,
+  House,
   ClipboardList,
   Clock,
   FileText,
@@ -84,7 +85,20 @@ const StudentAttendanceView = lazyNamed(() => import('../student/StudentAttendan
 const StudentMarksView = lazyNamed(() => import('../student/StudentMarksView'), 'StudentMarksView');
 const StudentNotifications = lazyNamed(() => import('../student/StudentNotifications'), 'StudentNotifications');
 const StudentCareerProfile = lazyNamed(() => import('../student/StudentCareerProfile'), 'StudentCareerProfile');
-
+const DashboardHome = lazyNamed(() => import('../dashboards/DashboardHome'), 'DashboardHome');
+const CustomFieldsModule = lazyNamed(() => import('../admin/CustomFieldsModule'), 'CustomFieldsModule');
+const StudentJobsView = lazyNamed(() => import('../placement/StudentJobsView'), 'StudentJobsView');
+const PlacementWorkspace = lazyNamed(() => import('../placement/PlacementWorkspace'), 'PlacementWorkspace');
+const NotificationCenter = lazyNamed(() => import('../notifications/NotificationCenter'), 'NotificationCenter');
+const BatchesModule = lazyNamed(() => import('../admin/SetupModules'), 'BatchesModule');
+const CampusesModule = lazyNamed(() => import('../admin/SetupModules'), 'CampusesModule');
+const InstitutionSettingsModule = lazyNamed(() => import('../admin/SetupModules'), 'InstitutionSettingsModule');
+const PlacementPolicyModule = lazyNamed(() => import('../admin/SetupModules'), 'PlacementPolicyModule');
+import { NotificationBell } from '../notifications/NotificationCenter';
+import { SlidersHorizontal } from 'lucide-react';
+import { isApiConfigured } from '../../api/http';
+import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
+import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
 import { TenantState } from '../shared';
@@ -443,12 +457,13 @@ type CardTone = 'navy' | 'sky' | 'teal' | 'amber' | 'indigo' | 'emerald';
 
 // Header role chip colours from documentation/frontend/roles-tenancy-design.md (D5).
 const roleChipTone: Record<CampusRole, string> = {
-  super_admin: 'bg-[#0a2342] text-white',
-  institution_admin: 'bg-[#e6f1fb] text-[#0b4d88]',
+  super_admin: 'bg-foreground text-white',
+  platform_staff: 'bg-foreground text-white',
+  institution_admin: 'bg-primary/10 text-primary',
   placement_officer: 'bg-[#fff4e5] text-[#8a4b00]',
-  staff: 'bg-[#eef4fa] text-[#123a66]',
+  staff: 'bg-muted text-foreground',
   student: 'bg-[#ecfdf3] text-[#05603a]',
-  recruiter: 'bg-[#eef4fa] text-[#123a66]',
+  recruiter: 'bg-muted text-foreground',
 };
 
 // Same page sizes as GET /students (per_page up to 100).
@@ -468,13 +483,18 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'classes', label: 'Classes', icon: Users, permission: 'departments.create' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, permission: 'departments.create' },
     { id: 'academic_years', label: 'Academic Years', icon: Calendar, permission: 'departments.create' },
+    { id: 'batches', label: 'Batches', icon: Users, permission: 'departments.create' },
+    { id: 'campuses', label: 'Campuses', icon: Building2, permission: 'departments.create' },
     { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'departments.create' },
+    { id: 'custom_fields', label: 'Custom Fields', icon: SlidersHorizontal, permission: 'custom_fields.manage' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
     { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'departments.create' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
     { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
     { id: 'fees', label: 'Fees', icon: BriefcaseBusiness, permission: 'departments.create' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'placement_policy', label: 'Placement Policy', icon: ShieldCheck, permission: 'placement.create' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'settings', label: 'Settings', icon: Settings, permission: 'departments.create' },
@@ -491,6 +511,7 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
     { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
@@ -508,7 +529,6 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
     { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'announcements.view' },
     { id: 'profile', label: 'Career & AI Hub', icon: UserCircle2, permission: 'profile.view' },
     { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
   ],
@@ -516,12 +536,15 @@ const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
 
 const navByRole: Record<CampusRole, NavItem[]> = {
   super_admin: baseNavByRole.admin,
+  platform_staff: [],
   institution_admin: baseNavByRole.admin,
   placement_officer: [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
     { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
+    { id: 'placement_policy', label: 'Placement Policy', icon: ShieldCheck, permission: 'placement.create' },
+    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
     { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
     { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
     { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
@@ -538,12 +561,12 @@ const workspaceTabIds = new Set(Object.values(navByRole).flat().map((item) => it
 
 const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
-  { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years'] },
+  { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years', 'batches', 'campuses', 'custom_fields'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
   { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
 
   { id: 'finance', label: 'Finance', itemIds: [] },
-  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer'] },
+  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer', 'placement_policy'] },
   { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
 ];
 
@@ -886,7 +909,7 @@ function Sparkline({ points, color = '#2563eb' }: { points: number[]; color?: st
   const pathD = `M ${svgPoints.join(' L ')}`;
   
   return (
-    <svg width={width} height={height} className="flex-shrink-0 opacity-85">
+    <svg width={width} height={height} className="shrink-0 opacity-85">
       <path
         d={pathD}
         fill="none"
@@ -942,7 +965,7 @@ function MetricCard({
           <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
           <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Sparkline points={sparklineData} color={strokeColor} />
         </div>
       </div>
@@ -1028,7 +1051,7 @@ function AdminSnapshotCard({
           <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
           <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <Sparkline points={sparklineData} color={strokeColor} />
         </div>
       </div>
@@ -1329,6 +1352,13 @@ export default function CampusWorkspace({
   const [editingDesignation, setEditingDesignation] = useState<CampusDesignation | null>(null);
   const [editingStaff, setEditingStaff] = useState<CampusData['users'][number] | null>(null);
   const [studentDraft, setStudentDraft] = useState<StudentDraft>(createStudentDraft);
+  // Admin-defined student fields: definitions while the form is open, current values when editing.
+  const [studentCustomFields, setStudentCustomFields] = useState<CustomFieldValues>({});
+  const studentFieldDefinitions = useCustomFieldDefinitions('student', { enabled: showStudentModal && isApiConfigured() });
+  const studentFieldValues = useCustomFieldValues('student', showStudentModal && isApiConfigured() ? editingStudent?.id : null);
+  useEffect(() => {
+    if (studentFieldValues.data) setStudentCustomFields(studentFieldValues.data);
+  }, [studentFieldValues.data]);
   const [departmentDraft, setDepartmentDraft] = useState<DepartmentDraft>(createDepartmentDraft);
   const [companyDraft, setCompanyDraft] = useState<CompanyDraft>(createCompanyDraft);
   const [announcementDraft, setAnnouncementDraft] = useState<AnnouncementDraft>(createAnnouncementDraft);
@@ -1852,6 +1882,7 @@ export default function CampusWorkspace({
     .slice(0, 4);
   const roleSubtitle: Record<CampusRole, string> = {
     super_admin: 'Platform overview',
+    platform_staff: 'Platform overview',
     institution_admin: 'Campus overview',
     placement_officer: 'Placement overview',
     staff: 'Department overview',
@@ -2003,6 +2034,7 @@ export default function CampusWorkspace({
     setShowStudentModal(false);
     setEditingStudent(null);
     setStudentDraft(createStudentDraft());
+    setStudentCustomFields({});
   };
 
   const closeDepartmentModal = () => {
@@ -2077,6 +2109,8 @@ export default function CampusWorkspace({
       setStudentDraft(createStudentDraft());
     }
 
+    // Values for an existing student load from the API (see studentFieldValues).
+    setStudentCustomFields({});
     setShowStudentModal(true);
   };
 
@@ -2292,6 +2326,9 @@ export default function CampusWorkspace({
       feeStatus: studentDraft.feeStatus,
       password: studentDraft.password.trim() || undefined,
       skills: studentDraft.skills.split(',').map((skill) => skill.trim()).filter(Boolean),
+      ...(studentFieldDefinitions.data?.length
+        ? { customFields: toPayload(studentFieldDefinitions.data, studentCustomFields) }
+        : {}),
     };
 
     const action = editingStudent
@@ -2709,7 +2746,7 @@ export default function CampusWorkspace({
   };
 
   const dashboardHero = (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-br from-zinc-950 via-slate-900 to-zinc-900 p-6 text-white shadow-xl md:p-8">
+    <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-linear-to-br from-zinc-950 via-slate-900 to-zinc-900 p-6 text-white shadow-xl md:p-8">
       {/* Background glow */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-blue-600/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-64 rounded-full bg-indigo-600/15 blur-3xl" />
@@ -2781,14 +2818,6 @@ export default function CampusWorkspace({
 
     return (
       <div className="space-y-5">
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-          {breadcrumbItems.map((item, index) => (
-            <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-zinc-300" /> : null}
-              <span className="truncate">{item}</span>
-            </div>
-          ))}
-        </div>
         <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
           <AdminSnapshotCard
             label="Students"
@@ -2950,7 +2979,7 @@ export default function CampusWorkspace({
                 </div>
               </div>
 
-              <div className="h-[340px] px-4 py-5 sm:px-6">
+              <div className="h-85 px-4 py-5 sm:px-6">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={activeAdminAnalytics.data as any} margin={{ top: 10, right: 12, left: -18, bottom: 0 }}>
                     <CartesianGrid stroke="#ebf1f7" vertical={false} strokeDasharray="4 6" />
@@ -3175,14 +3204,6 @@ export default function CampusWorkspace({
       <div className="space-y-6">
         {dashboardHero}
 
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a93ac]">
-          {breadcrumbItems.map((item, index) => (
-            <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-[#9ab1c8]" /> : null}
-              <span className="truncate">{item}</span>
-            </div>
-          ))}
-        </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Department Students" value={scopeStudents.length} helper={user.departmentCode ?? 'Dept'} icon={Users} tone="navy" />
@@ -3272,14 +3293,6 @@ export default function CampusWorkspace({
 
     return (
       <div className="space-y-6">
-        <div className="flex min-w-0 items-center gap-2 overflow-hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a93ac]">
-          {breadcrumbItems.map((item, index) => (
-            <div key={item} className="flex min-w-0 items-center gap-2">
-              {index > 0 ? <ChevronRight size={12} className="flex-shrink-0 text-[#9ab1c8]" /> : null}
-              <span className="truncate">{item}</span>
-            </div>
-          ))}
-        </div>
 
         <Panel className="overflow-hidden bg-white border border-slate-200/80 p-6 shadow-sm">
           <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -3323,7 +3336,7 @@ export default function CampusWorkspace({
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-blue-100 bg-linear-to-br from-blue-50/80 via-white to-indigo-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
                 <Sparkles size={20} />
@@ -3346,7 +3359,7 @@ export default function CampusWorkspace({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50/80 via-white to-purple-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-indigo-100 bg-linear-to-br from-indigo-50/80 via-white to-purple-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
                 <FileText size={20} />
@@ -3369,7 +3382,7 @@ export default function CampusWorkspace({
             </button>
           </div>
 
-          <div className="rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/80 via-white to-emerald-50/50 p-5 shadow-sm">
+          <div className="rounded-2xl border border-teal-100 bg-linear-to-br from-teal-50/80 via-white to-emerald-50/50 p-5 shadow-sm">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white shadow-sm">
                 <Calendar size={20} />
@@ -3477,7 +3490,7 @@ export default function CampusWorkspace({
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
                   {visibleMasters.map((master) => (
-                    <tr key={master.id} className="hover:bg-[#fbfdff]">
+                    <tr key={master.id} className="hover:bg-muted/50">
                       <td className="px-4 py-4 font-semibold text-slate-950">{master.label}</td>
                       <td className="px-4 py-4 text-sm text-slate-500">{master.code}</td>
                       <td className="px-4 py-4 text-sm leading-6 text-slate-600">
@@ -3654,7 +3667,7 @@ export default function CampusWorkspace({
               <tbody>
                 {pagedStudents.map((student) => (
                   <tr key={student.id} className="rounded-[18px] bg-slate-50 text-sm text-slate-700">
-                    <td className="rounded-l-[24px] px-4 py-4">
+                    <td className="rounded-l-3xl px-4 py-4">
                       <div>
                         <p className="font-semibold text-slate-950">{student.name}</p>
                         <p className="mt-1 text-xs text-slate-500">{student.email}</p>
@@ -3667,7 +3680,7 @@ export default function CampusWorkspace({
                         {student.status}
                       </span>
                     </td>
-                    <td className="rounded-r-[24px] px-4 py-4 text-right">
+                    <td className="rounded-r-3xl px-4 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
@@ -3711,7 +3724,7 @@ export default function CampusWorkspace({
 
           {filteredStudents.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-[#4d6d8f]">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 <p>
                   Showing {studentPageStart + 1}–{studentPageStart + pagedStudents.length} of {filteredStudents.length}
                 </p>
@@ -3736,19 +3749,19 @@ export default function CampusWorkspace({
                     type="button"
                     onClick={() => setStudentPage(currentStudentPage - 1)}
                     disabled={currentStudentPage === 1}
-                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-[#123a66] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-foreground transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <ChevronLeft size={16} aria-hidden="true" />
                     Previous
                   </button>
-                  <span className="px-1 text-sm text-[#4d6d8f]" aria-current="page">
+                  <span className="px-1 text-sm text-muted-foreground" aria-current="page">
                     Page {currentStudentPage} of {studentPageCount}
                   </span>
                   <button
                     type="button"
                     onClick={() => setStudentPage(currentStudentPage + 1)}
                     disabled={currentStudentPage === studentPageCount}
-                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-[#123a66] transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex h-11 items-center gap-1 rounded-[10px] border border-slate-200 bg-white px-3 text-sm font-semibold text-foreground transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next
                     <ChevronRight size={16} aria-hidden="true" />
@@ -4021,7 +4034,7 @@ export default function CampusWorkspace({
             </thead>
             <tbody className="divide-y divide-[#eef2f7] bg-white">
               {filteredDesignations.map((designation) => (
-                <tr key={designation.id} className="hover:bg-[#fbfdff]">
+                <tr key={designation.id} className="hover:bg-muted/50">
                   <td className="px-4 py-4">
                     <p className="font-semibold text-slate-950">{designation.name}</p>
                     <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{designation.slug}</p>
@@ -4214,7 +4227,7 @@ export default function CampusWorkspace({
                 const hasApplied = currentStudent?.appliedCompanyIds.includes(company.id) ?? false;
 
                 return (
-                  <tr key={company.id} className="hover:bg-[#fbfdff]">
+                  <tr key={company.id} className="hover:bg-muted/50">
                     <td className="px-4 py-4">
                       <p className="font-semibold text-slate-950">{company.name}</p>
                       <p className="mt-1 text-sm text-slate-500">{company.role}</p>
@@ -4355,7 +4368,7 @@ export default function CampusWorkspace({
             {kanbanStages.map((stage) => {
               const stageCompanies = filteredPlacementCompanies.filter((company) => stage.statusFilter(company.status));
               return (
-                <div key={stage.id} className="flex flex-col rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3 shadow-sm min-h-[420px]">
+                <div key={stage.id} className="flex flex-col rounded-2xl border border-zinc-200/90 bg-zinc-50/70 p-3 shadow-sm min-h-105">
                   <div className="flex items-center justify-between pb-3 border-b border-zinc-200/80 mb-3">
                     <div className="flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.color }} />
@@ -4374,7 +4387,7 @@ export default function CampusWorkspace({
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-sm">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-sm">
                               {company.name.charAt(0)}
                             </div>
                             <div className="min-w-0">
@@ -4383,7 +4396,7 @@ export default function CampusWorkspace({
                             </div>
                           </div>
                           {can('placement.create') && (
-                            <div className="flex items-center gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button
                                 type="button"
                                 onClick={() => openCompanyEditor(company)}
@@ -4454,7 +4467,7 @@ export default function CampusWorkspace({
                 </thead>
                 <tbody className="divide-y divide-[#eef2f7] bg-white">
                   {filteredPlacementCompanies.map((company) => (
-                    <tr key={company.id} className="hover:bg-[#fbfdff]">
+                    <tr key={company.id} className="hover:bg-muted/50">
                       <td className="px-4 py-4">
                         <p className="font-semibold text-slate-950">{company.name}</p>
                         <p className="mt-1 text-sm text-slate-500">{company.role}</p>
@@ -4753,7 +4766,7 @@ export default function CampusWorkspace({
                   <div className="flex gap-4">
                     <div
                       className={classNames(
-                        'flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl',
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
                         item.type === 'Announcement' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600',
                       )}
                     >
@@ -4773,7 +4786,7 @@ export default function CampusWorkspace({
                           <h4 className="mt-3 text-lg font-bold text-slate-950">{item.title}</h4>
                           <p className="mt-2 text-sm leading-7 text-slate-600">{item.summary}</p>
                         </div>
-                        <div className="rounded-[18px] bg-white px-4 py-3 text-left shadow-[0_14px_28px_-24px_rgba(15,23,42,0.18)] lg:min-w-[116px] lg:text-right">
+                        <div className="rounded-[18px] bg-white px-4 py-3 text-left shadow-[0_14px_28px_-24px_rgba(15,23,42,0.18)] lg:min-w-29 lg:text-right">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Date</p>
                           <p className="mt-1 text-sm font-semibold text-slate-950">{formatDate(item.date)}</p>
                         </div>
@@ -5256,7 +5269,7 @@ export default function CampusWorkspace({
                 </label>
               </div>
 
-              <div className="mt-6 rounded-[18px] border border-[#dbe6f0] bg-[#f8fbff] p-5">
+              <div className="mt-6 rounded-[18px] border border-[#dbe6f0] bg-muted/50 p-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">Resume upload and score</p>
@@ -5280,7 +5293,7 @@ export default function CampusWorkspace({
                   className="mt-4 w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
                 />
                 {resumeUploadNotice ? (
-                  <p className="mt-3 text-sm font-medium text-[#0d4f88]">{resumeUploadNotice}</p>
+                  <p className="mt-3 text-sm font-medium text-primary">{resumeUploadNotice}</p>
                 ) : null}
               </div>
             </Panel>
@@ -5538,7 +5551,13 @@ export default function CampusWorkspace({
 
     switch (activeTab) {
       case 'dashboard':
+        // Live API: role templates and user-built dashboards. Offline demo mode keeps the sample dashboards.
+        if (isApiConfigured()) {
+          return <DashboardHome canBuild={can('dashboards.build')} canShare={can('dashboards.share')} designations={data.designations} />;
+        }
         return isAdminRole(user.role) ? renderAdminDashboard() : isInstitutionStaffRole(user.role) ? renderStaffDashboard() : renderStudentDashboard();
+      case 'custom_fields':
+        return <CustomFieldsModule />;
       case 'activity':
         return renderActivityTab();
       case 'masters':
@@ -5552,7 +5571,16 @@ export default function CampusWorkspace({
       case 'departments':
         return user.role === 'staff' ? <DepartmentOverview /> : <DepartmentsModule onNavigateToStaff={() => handleNavSelection('staff')} />;
       case 'placement':
+        // Live API: the job-posting model (eligibility, pipeline, offers). Offline demo: the sample drives.
+        if (isApiConfigured() && user.role === 'student') return <StudentJobsView />;
+        if (isApiConfigured() && can('placement.create')) return <PlacementWorkspace />;
         return renderPlacementTab();
+      case 'placement_policy':
+        return <PlacementPolicyModule />;
+      case 'batches':
+        return <BatchesModule />;
+      case 'campuses':
+        return <CampusesModule />;
       case 'announcements':
         return renderAnnouncementsTab();
       case 'reports':
@@ -5576,12 +5604,13 @@ export default function CampusWorkspace({
       case 'marks':
         return user.role === 'student'
           ? <StudentMarksView />
-          : <MarksModule />;
+          // Teachers enter marks for their allocated subjects; admins and reviewers have none.
+          : <MarksModule canEnterMarks={isApiConfigured() && user.role === 'staff' && can('marks.create')} />;
 
       case 'fees':
         return <FeesModule />;
       case 'settings':
-        return <SystemSettingsModule />;
+        return isApiConfigured() ? <InstitutionSettingsModule /> : <SystemSettingsModule />;
       case 'onboarding':
         return <OnboardingModule departments={data.departments} designations={data.designations} />;
       case 'audit_log':
@@ -5595,7 +5624,7 @@ export default function CampusWorkspace({
       case 'hod_reports':
         return <HODReportsAnalytics />;
       case 'placement_officer':
-        return <PlacementOfficerModule />;
+        return isApiConfigured() ? <PlacementWorkspace /> : <PlacementOfficerModule />;
       case 'exam_coordinator':
         return <ExamCoordinatorModule />;
       case 'student_timetable':
@@ -5603,7 +5632,7 @@ export default function CampusWorkspace({
       case 'student_assignments':
         return <StudentAssignmentsMaterials />;
       case 'student_notifications':
-        return <StudentNotifications />;
+        return isApiConfigured() ? <NotificationCenter onNavigate={(tab) => handleNavSelection(tab)} /> : <StudentNotifications />;
       case 'attendance':
         return user.role === 'student'
           ? <StudentAttendanceView />
@@ -5615,70 +5644,39 @@ export default function CampusWorkspace({
 
   return (
     <>
-      <div className="min-h-screen bg-[#f8fafc]">
-        {/* HeroUI CRM Sticky Navbar */}
-        <header className="fixed inset-x-0 top-0 z-40 h-16 heroui-navbar px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+      {/*
+        Admin shell: a full-height sidebar on the left; the sticky header and the page stack on the
+        right. On small screens the sidebar slides in over the page.
+      */}
+      <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[252px_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border/80 bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:col-start-2 lg:row-start-1 lg:px-5">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               onClick={() => setIsSidebarOpen((current) => !current)}
-              className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-100 lg:hidden"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/80 bg-background text-muted-foreground shadow-card transition hover:text-foreground lg:hidden"
               aria-label="Toggle sidebar navigation"
             >
               <Menu size={18} />
             </button>
 
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-sm p-1">
-                <img
-                  src="/alpha-logo.png"
-                  alt="Alpha Grew logo"
-                  className="h-7 w-7 object-contain"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-extrabold tracking-tight text-zinc-900">Alpha Grew</span>
-                <span className="hidden sm:inline-flex text-zinc-300">/</span>
-                <span className="hidden sm:inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600 capitalize">
-                  {user.role.replace('_', ' ')}
-                </span>
-                <ChevronRight size={13} className="hidden sm:inline-block text-zinc-400" />
-                <span className="hidden sm:inline-block text-xs font-semibold text-blue-600">{activeNavLabel}</span>
-
-              </div>
-
-              <div
-                className="hidden min-w-0 items-center gap-2.5 rounded-[14px] border border-[#d5e4f2] bg-[#f8fbff] py-1.5 pl-1.5 pr-3 lg:flex"
-                title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
-              >
-                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[10px] bg-[#e6f1fb] text-xs font-bold text-[#0b4d88]">
-                  {institutionInitials}
-                </span>
-                <span className="min-w-0">
-                  <span className="block max-w-[240px] truncate text-sm font-semibold text-[#0a2342]">{institutionName}</span>
-                  {institutionCode ? (
-                    <span className="block text-xs text-[#4d6d8f]">Institution code {institutionCode}</span>
-                  ) : null}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* HeroUI CRM Quick Search with ⌘K badge */}
-            <div className="relative hidden md:flex items-center">
-              <Search size={14} className="absolute left-3 text-zinc-400 pointer-events-none" />
+            <label className="relative hidden h-10 w-full max-w-xl items-center md:flex">
+              <span className="sr-only">Search</span>
+              <Search size={16} className="pointer-events-none absolute left-3 text-muted-foreground" />
               <input
                 type="text"
                 value={headerSearch}
                 onChange={(event) => setHeaderSearch(event.target.value)}
-                placeholder={headerSearchPlaceholder[activeTab] ?? 'Quick search...'}
-                className="h-9 w-44 lg:w-56 rounded-xl border border-zinc-200/90 bg-zinc-50/80 pl-9 pr-11 text-xs font-medium text-zinc-800 placeholder-zinc-400 focus:bg-white focus:border-blue-500 focus:outline-none transition"
+                placeholder={headerSearchPlaceholder[activeTab] ?? 'Search students, staff, drives…'}
+                className="h-10 w-full rounded-xl! border border-border/80 bg-background! pl-9 pr-16 text-sm text-foreground shadow-card placeholder:text-muted-foreground transition hover:border-primary/30 focus:border-primary/50"
               />
-              <kbd className="absolute right-2.5 inline-flex items-center rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[10px] font-mono text-zinc-400">
-                ⌘K
+              <kbd className="pointer-events-none absolute right-2.5 hidden rounded-md border border-border bg-muted px-1.5 py-0.5 text-2xs font-semibold text-muted-foreground sm:inline">
+                Ctrl K
               </kbd>
-            </div>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
 
             {/* Date Range Picker Pill */}
             <div className="relative" ref={calendarRef}>
@@ -5688,9 +5686,9 @@ export default function CampusWorkspace({
                   setCalendarMonth(new Date(selectedCalendarDate.getFullYear(), selectedCalendarDate.getMonth(), 1));
                   setIsCalendarOpen((current) => !current);
                 }}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border/80 bg-background px-3 text-xs font-medium text-foreground shadow-card transition hover:border-primary/30 hover:bg-primary/5"
               >
-                <CalendarDays size={14} className="text-blue-600" />
+                <CalendarDays size={14} className="text-primary" />
                 <span className="hidden sm:inline">{headerDateLabel}</span>
               </button>
 
@@ -5700,7 +5698,7 @@ export default function CampusWorkspace({
                     initial={{ opacity: 0, y: 10, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[300px] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
+                    className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-75 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl"
                   >
                     <div className="flex items-center justify-between">
                       <button
@@ -5775,94 +5773,98 @@ export default function CampusWorkspace({
             <button
               type="button"
               onClick={() => handleNavSelection(user.role === 'student' ? 'placement' : 'reports')}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 shadow-sm transition hover:from-indigo-100 hover:to-blue-100"
+              className="hidden h-9 items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 text-xs font-semibold text-primary shadow-card transition hover:bg-primary/12 sm:inline-flex"
               title="Open AI Career Assistant"
             >
               <Sparkles size={13} className="text-indigo-600 animate-pulse" />
               <span>AI Assistant</span>
             </button>
 
-            {/* Notification Bell */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsProfileMenuOpen(false);
-                  setIsNotificationOpen((current) => !current);
-                }}
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 shadow-sm transition hover:bg-zinc-50"
-                aria-label="Notifications"
-                aria-expanded={isNotificationOpen}
-              >
-                <Bell size={16} />
-                {activityFeed.length ? (
-                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white shadow-sm">
-                    {activityFeed.length}
-                  </span>
-                ) : null}
-              </button>
-
-              {isNotificationOpen ? (
-                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[350px] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
-                  <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Activity</p>
-                      <h3 className="text-base font-bold text-zinc-900">Live updates</h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsNotificationOpen(false);
-                        handleNavSelection('activity');
-                      }}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
-                    >
-                      View all
-                    </button>
-                  </div>
-
-                  <div className="mt-3 space-y-2.5 max-h-80 overflow-y-auto">
-                    {activityFeed.length ? (
-                      activityFeed.map((announcement) => (
-                        <div key={announcement.id} className="flex gap-2.5 rounded-xl border border-zinc-100 bg-zinc-50/70 p-2.5">
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                            <Bell size={14} />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="line-clamp-1 text-xs font-bold text-zinc-900">{announcement.title}</p>
-                              <span className={classNames('rounded-full px-1.5 py-0.5 text-[9px] font-bold', statusTone(announcement.priority))}>
-                                {announcement.priority}
-                              </span>
-                            </div>
-                            <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{announcement.summary}</p>
-                            <div className="mt-1.5 flex items-center justify-between text-[10px] font-medium text-zinc-400">
-                              <span>{announcement.postedBy}</span>
-                              <span>{formatDate(announcement.date)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-xs text-zinc-400">
-                        No live updates right now.
+            {/* Notifications: the real feed when the API is configured; announcements in the offline demo. */}
+            {isApiConfigured() ? (
+              <NotificationBell onOpenAll={() => handleNavSelection('student_notifications')} onNavigate={(tab) => handleNavSelection(tab)} />
+            ) : (
+              <div className="relative" ref={notificationRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileMenuOpen(false);
+                    setIsNotificationOpen((current) => !current);
+                  }}
+                  className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-background text-muted-foreground shadow-card transition hover:border-primary/30 hover:text-foreground"
+                  aria-label="Notifications"
+                  aria-expanded={isNotificationOpen}
+                >
+                  <Bell size={16} />
+                  {activityFeed.length ? (
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-card bg-destructive">
+                      <span className="sr-only">{activityFeed.length} new updates</span>
+                    </span>
+                  ) : null}
+                </button>
+  
+                {isNotificationOpen ? (
+                  <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-87.5 max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl">
+                    <div className="flex items-center justify-between gap-3 border-b border-zinc-100 pb-3">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Activity</p>
+                        <h3 className="text-base font-bold text-zinc-900">Live updates</h3>
                       </div>
-                    )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsNotificationOpen(false);
+                          handleNavSelection('activity');
+                        }}
+                        className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                      >
+                        View all
+                      </button>
+                    </div>
+  
+                    <div className="mt-3 space-y-2.5 max-h-80 overflow-y-auto">
+                      {activityFeed.length ? (
+                        activityFeed.map((announcement) => (
+                          <div key={announcement.id} className="flex gap-2.5 rounded-xl border border-zinc-100 bg-zinc-50/70 p-2.5">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                              <Bell size={14} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="line-clamp-1 text-xs font-bold text-zinc-900">{announcement.title}</p>
+                                <span className={classNames('rounded-full px-1.5 py-0.5 text-[9px] font-bold', statusTone(announcement.priority))}>
+                                  {announcement.priority}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500">{announcement.summary}</p>
+                              <div className="mt-1.5 flex items-center justify-between text-[10px] font-medium text-zinc-400">
+                                <span>{announcement.postedBy}</span>
+                                <span>{formatDate(announcement.date)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-zinc-200 px-4 py-8 text-center text-xs text-zinc-400">
+                          No live updates right now.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
+                ) : null}
+              </div>
+            )}
 
             {/* Profile Dropdown */}
             <div className="relative" ref={profileMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white p-1 pr-2.5 text-left shadow-sm transition hover:bg-zinc-50"
+                className="flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-background px-1 text-left shadow-card transition hover:border-primary/30 hover:bg-primary/5 sm:px-2"
                 aria-haspopup="menu"
                 aria-expanded={isProfileMenuOpen}
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 text-xs font-bold text-white shadow-sm">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-xs font-semibold text-primary">
                   {userInitials}
                 </span>
                 <span className="hidden min-w-0 sm:block text-left">
@@ -5910,55 +5912,58 @@ export default function CampusWorkspace({
           </div>
         </header>
 
-        {/* Mobile Backdrop */}
+        {/* Mobile backdrop */}
         <div
           className={classNames(
-            'fixed inset-0 z-30 bg-black/40 backdrop-blur-sm transition lg:hidden',
+            'fixed inset-0 z-40 bg-black/40 backdrop-blur-sm transition lg:hidden',
             isSidebarOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
           onClick={() => setIsSidebarOpen(false)}
         />
 
-        <div className="mx-auto max-w-[1640px] px-4 pb-8 pt-[80px] sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 lg:flex-row">
-            {/* HeroUI CRM Dark Enterprise Sidebar */}
+        {/* display: contents keeps the sidebar and page as direct cells of the shell grid. */}
+        <div className="contents">
+          <div className="contents">
             <aside
               className={classNames(
-                'fixed left-4 top-[80px] z-40 h-[calc(100vh-96px)] w-[268px] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-2xl border border-zinc-800 bg-[#0B0F17] p-3 shadow-2xl transition-transform duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 lg:sticky lg:top-[80px] lg:h-[calc(100vh-96px)] lg:max-w-none lg:flex-shrink-0 flex flex-col text-zinc-200',
-                isSidebarOpen ? 'translate-x-0' : '-translate-x-[120%] lg:hidden',
+                'fixed inset-y-0 left-0 z-50 flex w-63 flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200',
+                'lg:sticky lg:top-0 lg:z-auto lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-screen lg:translate-x-0',
+                isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
               )}
+              aria-label="Main navigation"
             >
-              <div className="mb-2 flex justify-end lg:hidden flex-shrink-0">
+              {/* Brand */}
+              <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg gradient-primary p-1 shadow-card">
+                  <img src="/alpha-logo.png" alt="" className="h-7 w-7 object-contain" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold tracking-tight text-foreground">Alpha Grew</span>
+                  <span
+                    className="block truncate text-2xs text-muted-foreground"
+                    title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
+                  >
+                    {institutionName}
+                  </span>
+                </span>
                 <button
                   type="button"
                   onClick={() => setIsSidebarOpen(false)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition hover:bg-white/15"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground lg:hidden"
                   aria-label="Close sidebar navigation"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
 
-              {/* Profile Card on Top */}
-              <div className="mb-3 rounded-xl border border-white/10 bg-white/5 p-2.5 flex items-center gap-2.5 flex-shrink-0">
-                <div className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 font-bold text-white text-xs shadow-md">
-                  {userInitials}
-                  <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[#0B0F17]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-xs font-bold text-white leading-tight">{user.name}</h3>
-                  <p className="truncate text-[10px] text-zinc-400 font-medium capitalize mt-0.5">{user.role.replace('_', ' ')}</p>
-                </div>
-              </div>
-
-              {/* Navigation List */}
-              <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 space-y-2">
+              {/* Navigation */}
+              <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:thin]">
                 {groupedSidebarNav.map((group) => {
                   const isOpen = sidebarDropdowns[group.id] !== false;
                   const hasActiveItem = group.items.some((item) => item.id === activeTab);
 
                   return (
-                    <div key={group.id} className="rounded-xl border border-white/5 bg-white/[0.02] p-1">
+                    <div key={group.id}>
                       <button
                         type="button"
                         onClick={() =>
@@ -5967,23 +5972,32 @@ export default function CampusWorkspace({
                             [group.id]: current[group.id] === false ? true : false,
                           }))
                         }
+                        aria-expanded={isOpen}
                         className={classNames(
-                          'flex w-full items-center justify-between px-2.5 py-1 text-left text-[10px] font-bold uppercase tracking-wider transition',
-                          hasActiveItem ? 'text-blue-400' : 'text-zinc-400 hover:text-zinc-200',
+                          'mb-1.5 flex w-full items-center justify-between px-3 text-left text-2xs font-semibold uppercase tracking-widest transition',
+                          hasActiveItem ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                         )}
                       >
                         <span>{group.label}</span>
                         <ChevronDown
                           size={12}
-                          className={classNames('flex-shrink-0 text-zinc-500 transition-transform duration-150', isOpen ? 'rotate-180' : '')}
+                          className={classNames('shrink-0 transition-transform duration-150', isOpen ? '' : '-rotate-90')}
                         />
                       </button>
 
                       {isOpen ? (
-                        <div className="mt-1 space-y-0.5">
+                        <div className="space-y-0.5">
                           {group.items.map((item) => {
                             const isLocked = isPhase1LockedTab(item.id);
                             const isActive = activeTab === item.id;
+                            const count =
+                              item.id === 'students'
+                                ? data.students.length
+                                : item.id === 'placement'
+                                  ? data.companies.length
+                                  : item.id === 'activity'
+                                    ? activityFeed.length
+                                    : 0;
 
                             return (
                               <button
@@ -5994,53 +6008,29 @@ export default function CampusWorkspace({
                                   setIsSidebarOpen(false);
                                 }}
                                 disabled={isLocked}
+                                aria-current={isActive ? 'page' : undefined}
                                 title={isLocked ? 'Complete Phase 1 setup to unlock this module.' : item.label}
                                 className={classNames(
-                                  'group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-all duration-150',
+                                  'flex w-full items-center gap-3 rounded-md px-3 py-1.75 text-left text-[13px] font-medium transition-colors duration-150',
                                   isActive
-                                    ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30'
+                                    ? 'bg-primary/8 text-primary'
                                     : isLocked
-                                      ? 'cursor-not-allowed text-zinc-600'
-                                      : 'text-zinc-300 hover:bg-white/8 hover:text-white',
+                                      ? 'cursor-not-allowed text-muted-foreground/50'
+                                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground',
                                 )}
                               >
-                                <span
-                                  className={classNames(
-                                    'flex h-6 w-6 items-center justify-center rounded-lg transition-colors',
-                                    isActive
-                                      ? 'bg-white/20 text-white'
-                                      : isLocked
-                                        ? 'bg-transparent text-zinc-600'
-                                        : 'bg-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white',
-                                  )}
-                                >
-                                  <item.icon size={13} />
-                                </span>
+                                <item.icon size={16} className="shrink-0" aria-hidden="true" />
                                 <span className="flex-1 truncate">{item.label}</span>
-                                {item.id === 'students' && data.students.length > 0 && (
-                                  <span className={classNames(
-                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                                    isActive ? 'bg-white/25 text-white' : 'bg-white/10 text-zinc-400'
-                                  )}>
-                                    {data.students.length}
+                                {count > 0 ? (
+                                  <span
+                                    className={classNames(
+                                      'rounded-full px-1.5 py-0.5 text-2xs font-semibold leading-none',
+                                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
+                                    )}
+                                  >
+                                    {count}
                                   </span>
-                                )}
-                                {item.id === 'placement' && data.companies.length > 0 && (
-                                  <span className={classNames(
-                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                                    isActive ? 'bg-white/25 text-white' : 'bg-emerald-500/20 text-emerald-400'
-                                  )}>
-                                    {data.companies.length}
-                                  </span>
-                                )}
-                                {item.id === 'activity' && activityFeed.length > 0 && (
-                                  <span className={classNames(
-                                    'rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                                    isActive ? 'bg-white/25 text-white' : 'bg-amber-500/20 text-amber-400'
-                                  )}>
-                                    {activityFeed.length}
-                                  </span>
-                                )}
+                                ) : null}
                               </button>
                             );
                           })}
@@ -6049,25 +6039,44 @@ export default function CampusWorkspace({
                     </div>
                   );
                 })}
-              </div>
+              </nav>
 
-              {/* Bottom Workspace Status Pill */}
-              <div className="mt-auto pt-2.5 border-t border-zinc-800/80 flex-shrink-0">
-                <div className="rounded-xl border border-white/5 bg-white/[0.03] p-2 text-xs">
-                  <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-0.5">
-                    <span className="font-semibold text-zinc-300">Alpha CRM</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-bold">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+              {/* Signed-in user */}
+              <div className="shrink-0 border-t border-sidebar-border p-3">
+                <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+                  <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                    {userInitials}
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-sidebar bg-success" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">{user.name}</span>
+                    <span className="block truncate text-2xs capitalize text-muted-foreground">
+                      {user.role.replace('_', ' ')}
+                      {isAdminRole(user.role) ? ` · Phase 1 ${isPhase1Complete ? 'complete' : 'in progress'}` : ''}
                     </span>
-                  </div>
-                  <p className="text-[10px] text-zinc-400 leading-tight">
-                    Phase 1: {isPhase1Complete ? 'Active & Ready' : 'In Progress'}
-                  </p>
+                  </span>
                 </div>
               </div>
             </aside>
 
-            <main className="min-w-0 flex-1 space-y-5">
+            <main className="min-w-0 space-y-5 p-4 lg:col-start-2 lg:row-start-2 lg:p-6">
+              <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => handleNavSelection('dashboard')}
+                  className="flex items-center gap-1 transition-colors hover:text-foreground"
+                >
+                  <House size={14} aria-hidden="true" />
+                  <span className="sr-only sm:not-sr-only">Home</span>
+                </button>
+                {breadcrumbItems.map((item, index) => (
+                  <span key={`${item}-${index}`} className="flex items-center gap-1">
+                    <ChevronRight size={14} aria-hidden="true" />
+                    <span className={index === breadcrumbItems.length - 1 ? 'font-medium text-foreground' : ''}>{item}</span>
+                  </span>
+                ))}
+              </nav>
+
               {isAdminRole(user.role) && !isPhase1Complete ? (
                 <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-5 py-4 text-amber-900 shadow-[0_14px_28px_-24px_rgba(217,119,6,0.35)]">
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Phase 1 Setup</p>
@@ -6075,16 +6084,16 @@ export default function CampusWorkspace({
                     Complete the foundation first before academic, reporting, and placement modules unlock.
                   </p>
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.departments ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.departments ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.departments ? 'Done' : 'Pending'}: Departments
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.courses ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.courses ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.courses ? 'Done' : 'Pending'}: Courses
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.staffAndDesignations ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.staffAndDesignations ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.staffAndDesignations ? 'Done' : 'Pending'}: Staff + Designations
                     </div>
-                    <div className={classNames('rounded-[12px] px-3 py-2', phase1Status.students ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
+                    <div className={classNames('rounded-xl px-3 py-2', phase1Status.students ? 'bg-emerald-100 text-emerald-800' : 'bg-white text-amber-900')}>
                       {phase1Status.students ? 'Done' : 'Pending'}: Students
                     </div>
                   </div>
@@ -6092,13 +6101,13 @@ export default function CampusWorkspace({
               ) : null}
 
               {phase1Notice ? (
-                <div className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
                   {phase1Notice}
                 </div>
               ) : null}
 
               {credentialNotice ? (
-                <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 px-5 py-5 text-zinc-900 shadow-sm">
+                <div className="rounded-2xl border border-blue-200 bg-linear-to-r from-blue-50/80 to-indigo-50/80 px-5 py-5 text-zinc-900 shadow-sm">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
@@ -6170,6 +6179,11 @@ export default function CampusWorkspace({
 
                 </motion.div>
               </AnimatePresence>
+
+              <footer className="flex flex-col gap-1 border-t border-border pt-4 text-2xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                <span>© {new Date().getFullYear()} Alpha Grew · {institutionName}</span>
+                <span>Campus management and career readiness</span>
+              </footer>
             </main>
           </div>
         </div>
@@ -6191,7 +6205,7 @@ export default function CampusWorkspace({
               type="button"
               onClick={closeDeleteModal}
               disabled={isDeleteSubmitting}
-              className="rounded-[16px] border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Cancel
             </button>
@@ -6199,7 +6213,7 @@ export default function CampusWorkspace({
               type="button"
               onClick={confirmDelete}
               disabled={isDeleteSubmitting}
-              className="rounded-[16px] bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+              className="rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
             >
               {isDeleteSubmitting ? 'Deleting...' : 'Delete'}
             </button>
@@ -6328,6 +6342,11 @@ export default function CampusWorkspace({
                 className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </label>
+            <CustomFieldInputs
+              definitions={studentFieldDefinitions.data ?? []}
+              values={studentCustomFields}
+              onChange={setStudentCustomFields}
+            />
             <p className="text-sm leading-6 text-slate-500 md:col-span-2">
               After saving, the workspace will show the student login details so you can share them immediately.
             </p>

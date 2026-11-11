@@ -159,6 +159,11 @@ final class CampusPermission
     public const SETTINGS_VIEW = 'settings.view';
     public const SETTINGS_MANAGE = 'settings.manage';
 
+    // Custom dashboards and custom form fields
+    public const DASHBOARDS_BUILD = 'dashboards.build';
+    public const DASHBOARDS_SHARE = 'dashboards.share';
+    public const CUSTOM_FIELDS_MANAGE = 'custom_fields.manage';
+
     public static function all(): array
     {
         return [
@@ -316,6 +321,11 @@ final class CampusPermission
             // Settings
             self::SETTINGS_VIEW,
             self::SETTINGS_MANAGE,
+
+            // Dashboards and custom fields
+            self::DASHBOARDS_BUILD,
+            self::DASHBOARDS_SHARE,
+            self::CUSTOM_FIELDS_MANAGE,
         ];
     }
 
@@ -349,6 +359,7 @@ final class CampusPermission
                 self::ANNOUNCEMENTS_VIEW,
                 self::ANNOUNCEMENTS_CREATE,
                 self::REPORTS_VIEW,
+                self::DASHBOARDS_BUILD,
             ],
             // External role; its portal and candidate sharing arrive with the Recruiter Portal phase.
             UserRole::Recruiter->value => [
@@ -367,6 +378,7 @@ final class CampusPermission
                 self::CLASSES_VIEW,
                 self::STUDENTS_VIEW,
                 self::COURSES_VIEW,
+                self::DASHBOARDS_BUILD,
             ],
             UserRole::Student->value => CampusStudentAccess::defaultPermissions(),
         ];

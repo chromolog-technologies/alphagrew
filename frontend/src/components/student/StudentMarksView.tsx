@@ -304,7 +304,7 @@ export const StudentMarksView: React.FC = () => {
 
       {error && (
         <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="text-rose-600 flex-shrink-0 mt-0.5" size={20} />
+          <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={20} />
           <div>
             <h4 className="font-semibold text-rose-900">Notification</h4>
             <p className="text-sm text-rose-800 mt-1">{error}</p>
@@ -317,7 +317,7 @@ export const StudentMarksView: React.FC = () => {
         <div className="space-y-6">
           {/* Cumulative Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-2xl p-5 shadow-sm">
+            <div className="bg-linear-to-br from-indigo-500 via-indigo-600 to-indigo-700 text-white rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between opacity-80 mb-2">
                 <span className="text-xs font-semibold tracking-wider uppercase">Cumulative CGPA</span>
                 <Award size={20} />
@@ -548,7 +548,7 @@ export const StudentMarksView: React.FC = () => {
       {activeTab === 'assessment' && (
         <div className="space-y-6">
           {/* Overall Performance Card */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
+          <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-200">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-bold text-blue-900 uppercase tracking-wider">Internal Assessment Average</p>
