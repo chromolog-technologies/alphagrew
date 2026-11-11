@@ -49,7 +49,7 @@ class MfaController extends Controller
 
         $user = User::query()->find($challenge['user'] ?? 0);
 
-        if (! $user || ($challenge['expires'] ?? 0) < now()->timestamp || $user->mfa_enabled_at === null) {
+        if (! $user || ! $user->isPlatformUser() || ($challenge['expires'] ?? 0) < now()->timestamp || $user->mfa_enabled_at === null) {
             throw BusinessRuleException::unprocessable('This sign-in has expired. Sign in again.');
         }
 

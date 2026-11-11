@@ -17,6 +17,7 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly fieldErrors: Record<string, string[]> = {},
+    public readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -78,7 +79,12 @@ async function send<T>(method: Method, path: string, body?: unknown, options: { 
     }
 
     const fallback = response.status === 429 ? 'Too many requests. Wait a minute and try again.' : `Request failed (${response.status}).`;
-    throw new ApiError(typeof payload?.message === 'string' ? payload.message : fallback, response.status, payload?.errors ?? {});
+    throw new ApiError(
+      typeof payload?.message === 'string' ? payload.message : fallback,
+      response.status,
+      payload?.errors ?? {},
+      typeof payload?.code === 'string' ? payload.code : undefined,
+    );
   }
 
   return payload as T;

@@ -22,7 +22,7 @@ class AttemptLoginAction
 
     public function __construct(private readonly AuditLogger $audit) {}
 
-    public function execute(string $email, string $password): User
+    public function execute(string $email, string $password, ?string $portal = null): User
     {
         $user = User::query()
             ->with(['student:id,user_id', 'institution'])
@@ -60,6 +60,8 @@ class AttemptLoginAction
             throw BusinessRuleException::forbidden(trim($user->statusEnum()->signInMessage().' '.($user->status_reason ?? '')));
         }
 
+        $this->enforcePortal($user, $portal);
+
         if (($user->roleEnum()?->requiresInstitution() ?? true) && ! $user->institution?->isActive()) {
             self::history($email, 'refused', $user, 'Institution '.($user->institution?->status ?? 'missing'));
             throw BusinessRuleException::forbidden('Your institution account is inactive. Contact your institution administrator.');
@@ -93,6 +95,27 @@ class AttemptLoginAction
             'ip_address' => request()?->ip(),
             'user_agent' => mb_substr((string) request()?->userAgent(), 0, 255) ?: null,
         ]);
+    }
+
+    private function enforcePortal(User $user, ?string $portal): void
+    {
+        if ($portal === 'owner' && ! $user->isPlatformUser()) {
+            $this->audit->record('auth.portal_refused', $user, [], ['portal' => 'owner'], actor: $user);
+            self::history($user->email, 'refused', $user, 'Campus user attempted owner console login');
+
+            throw new BusinessRuleException(403, 'Campus and student accounts must sign in through the campus login (/login).', [
+                'code' => 'use_campus_login',
+            ]);
+        }
+
+        if ($portal === 'campus' && $user->isPlatformUser()) {
+            $this->audit->record('auth.portal_refused', $user, [], ['portal' => 'campus'], actor: $user);
+            self::history($user->email, 'refused', $user, 'Platform user attempted campus login');
+
+            throw new BusinessRuleException(403, 'Platform owner and staff accounts must sign in through the Owner Console login (/owner/login).', [
+                'code' => 'use_owner_login',
+            ]);
+        }
     }
 
     private function recordFailure(User $user): void

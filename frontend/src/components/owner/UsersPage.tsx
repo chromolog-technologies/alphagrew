@@ -26,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui';
 import { ApiError } from '../../api/http';
-import { ownerApi, OWNER, useOwnerMutation, usePlatformRoles, usePlatformUser, usePlatformUsers, type PlatformUserDetail } from '../../api/ownerApi';
+import { ownerApi, OWNER, useOwnerMutation, usePlatformUser, usePlatformUsers, type PlatformUserDetail } from '../../api/ownerApi';
 import { campusRoleLabels, type CampusRole } from '../../campusTypes';
 import { EmptyState, ErrorState, errorMessage, Field, formatDate, formatDateTime, LoadingRows, PageHeader, Pagination, UserStatusBadge } from './ownerUi';
 import type { OwnerPageProps } from './OwnerWorkspace';
@@ -52,7 +52,7 @@ function UserList({ user, can, go }: OwnerPageProps) {
         actions={
           can(OWNER.usersInvite) ? (
             <Button size="sm" onClick={() => setInviting(true)}>
-              <UserPlus size={14} /> Invite platform staff
+              <UserPlus size={14} /> Invite platform owner
             </Button>
           ) : null
         }
@@ -72,11 +72,13 @@ function UserList({ user, can, go }: OwnerPageProps) {
             </div>
             <Select aria-label="Role" value={role} onChange={(event) => (setRole(event.target.value), setPage(1))}>
               <option value="">All roles</option>
-              {(Object.keys(campusRoleLabels) as CampusRole[]).map((value) => (
-                <option key={value} value={value}>
-                  {campusRoleLabels[value]}
-                </option>
-              ))}
+              {(Object.keys(campusRoleLabels) as CampusRole[])
+                .filter((value) => value !== 'platform_staff')
+                .map((value) => (
+                  <option key={value} value={value}>
+                    {value === 'super_admin' ? 'Platform Owner' : campusRoleLabels[value]}
+                  </option>
+                ))}
             </Select>
             <Select aria-label="Status" value={status} onChange={(event) => (setStatus(event.target.value), setPage(1))}>
               <option value="">Any status</option>
@@ -86,7 +88,7 @@ function UserList({ user, can, go }: OwnerPageProps) {
               <option value="rejected">Rejected</option>
             </Select>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={platformOnly} onChange={(event) => (setPlatformOnly(event.target.checked), setPage(1))} /> Platform staff only
+              <input type="checkbox" checked={platformOnly} onChange={(event) => (setPlatformOnly(event.target.checked), setPage(1))} /> Platform owners only
             </label>
           </div>
 
@@ -141,11 +143,8 @@ function UserList({ user, can, go }: OwnerPageProps) {
 }
 
 function InviteDialog({ canInviteOwner, onClose, onInvited }: { canInviteOwner: boolean; onClose: () => void; onInvited: (id: number) => void }) {
-  const roles = usePlatformRoles();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<'platform_staff' | 'super_admin'>('platform_staff');
-  const [platformRoleId, setPlatformRoleId] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState('');
   const invite = useOwnerMutation(ownerApi.inviteUser);
@@ -155,7 +154,7 @@ function InviteDialog({ canInviteOwner, onClose, onInvited }: { canInviteOwner: 
     setErrors({});
     setMessage('');
     try {
-      const created = await invite.mutateAsync({ name, email, role, platformRoleId: role === 'platform_staff' && platformRoleId ? Number(platformRoleId) : null });
+      const created = await invite.mutateAsync({ name, email, role: 'super_admin', platformRoleId: null });
       onInvited(created.id);
     } catch (error) {
       if (error instanceof ApiError) setErrors(error.firstFieldErrors);
@@ -168,12 +167,17 @@ function InviteDialog({ canInviteOwner, onClose, onInvited }: { canInviteOwner: 
       <DialogContent onClose={onClose}>
         <form onSubmit={(event) => void submit(event)} className="space-y-4">
           <DialogHeader>
-            <DialogTitle>Invite platform staff</DialogTitle>
-            <DialogDescription>They get an email with a link to set their password. Their platform role decides what they can open.</DialogDescription>
+            <DialogTitle>Invite platform owner</DialogTitle>
+            <DialogDescription>They will receive an email link to set their password with full Owner Console access.</DialogDescription>
           </DialogHeader>
           {message ? (
             <Alert variant="destructive">
               <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          ) : null}
+          {!canInviteOwner ? (
+            <Alert variant="destructive">
+              <AlertDescription>Only an active Platform Owner can invite another Platform Owner.</AlertDescription>
             </Alert>
           ) : null}
           <Field label="Name" htmlFor="invite-name" error={errors.name}>
@@ -182,31 +186,11 @@ function InviteDialog({ canInviteOwner, onClose, onInvited }: { canInviteOwner: 
           <Field label="Email" htmlFor="invite-email" error={errors.email}>
             <Input id="invite-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
           </Field>
-          {canInviteOwner ? (
-            <Field label="Account type" htmlFor="invite-role" error={errors.role}>
-              <Select id="invite-role" value={role} onChange={(event) => setRole(event.target.value as 'platform_staff' | 'super_admin')}>
-                <option value="platform_staff">Platform staff</option>
-                <option value="super_admin">Super Admin (every permission)</option>
-              </Select>
-            </Field>
-          ) : null}
-          {role === 'platform_staff' ? (
-            <Field label="Platform role" htmlFor="invite-platform-role" error={errors.platformRoleId}>
-              <Select id="invite-platform-role" required value={platformRoleId} onChange={(event) => setPlatformRoleId(event.target.value)}>
-                <option value="">Choose a role</option>
-                {roles.data?.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          ) : null}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={invite.isPending}>
+            <Button type="submit" disabled={!canInviteOwner || invite.isPending}>
               Send invitation
             </Button>
           </DialogFooter>
@@ -221,7 +205,6 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
   const [suspending, setSuspending] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const roles = usePlatformRoles(can(OWNER.rolesManage));
   const run = async (action: () => Promise<{ message?: string } | PlatformUserDetail>, success: string) => {
     setNotice('');
     setError('');
@@ -235,7 +218,6 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
   const activate = useOwnerMutation(() => ownerApi.changeUserStatus(id, { status: 'active' }));
   const reset = useOwnerMutation(() => ownerApi.sendPasswordReset(id));
   const revoke = useOwnerMutation(() => ownerApi.revokeUserSessions(id));
-  const setRole = useOwnerMutation((roleId: number) => ownerApi.setUserRole(id, roleId));
 
   if (detail.isPending) return <LoadingRows rows={6} />;
   if (detail.isError) return <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />;
@@ -250,7 +232,7 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
       </Button>
       <PageHeader
         title={person.name}
-        description={`${person.email} · ${person.roleLabel}${person.institution ? ` at ${person.institution}` : ''}`}
+        description={`${person.email} · ${person.role === 'super_admin' ? 'Platform Owner' : person.roleLabel}${person.institution ? ` at ${person.institution}` : ''}`}
         actions={
           <>
             {can(OWNER.usersSessions) ? (
@@ -315,32 +297,7 @@ function UserDetailView({ id, user, can, go }: OwnerPageProps & { id: number }) 
               <CardTitle className="text-sm">Platform access</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
-              {person.role === 'super_admin' ? (
-                <p className="text-muted-foreground">Super Admins hold every owner permission.</p>
-              ) : can(OWNER.rolesManage) && !self ? (
-                <Field label="Platform role" htmlFor="user-platform-role">
-                  <Select
-                    id="user-platform-role"
-                    value={person.platformRole?.id ?? ''}
-                    onChange={(event) => void run(() => setRole.mutateAsync(Number(event.target.value)), 'Platform role changed.')}
-                  >
-                    {roles.data?.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.name}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-              ) : (
-                <p>{person.platformRole?.name ?? 'No platform role'}</p>
-              )}
-              <div className="flex flex-wrap gap-1">
-                {person.ownerPermissions.map((permission) => (
-                  <Badge key={permission} variant="secondary">
-                    {permission.replace('owner.', '')}
-                  </Badge>
-                ))}
-              </div>
+              <p className="text-muted-foreground">Platform Owners hold unified full access across the Owner Console.</p>
             </CardContent>
           </Card>
         ) : null}

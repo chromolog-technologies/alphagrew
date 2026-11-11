@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
   applyToCompanyWithCampusApi,
   createAnnouncementWithCampusApi,
@@ -18,6 +18,7 @@ import {
   fetchCampusBootstrap,
   isApiError,
   isCampusApiConfigured,
+  isMfaChallenge,
   loginWithCampusApi,
   logoutFromCampusApi,
   registerWithCampusApi,
@@ -31,19 +32,23 @@ import {
   updateStaffWithCampusApi,
   updateStudentWithCampusApi,
   updateStudentResumeWithCampusApi,
+  verifyOwnerMfa,
   SESSION_EXPIRED_EVENT,
   type AuthResponse,
+  type LoginPortal,
   type StudentRecordResponse,
 } from './api/campusApi';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { resendVerificationEmail } from './api/accountApi';
 import { AcceptInvitationPage, ForgotPasswordPage, RegisterPage, ResetPasswordPage } from './components/auth/AuthPages';
 import { createCampusDemoData, departmentAccentByCode, getDepartmentAccent } from './campusDemoData';
-import { CampusLogin, type DemoAccount, type SignUpPayload } from './components/auth';
+import { OWNER } from './api/ownerApi';
+import { CampusLogin, OwnerLogin, type DemoAccount, type SignUpPayload } from './components/auth';
 import { PageLoading } from './components/shared/RouteStatus';
 
 // Loaded after sign-in, so the sign-in page doesn't download the whole workspace.
 const CampusWorkspace = lazy(() => import('./components/layouts/CampusWorkspace'));
+const OwnerWorkspace = lazy(() => import('./components/owner/OwnerWorkspace'));
 import {
   campusDefaultDesignations,
   campusDefaultMasters,
@@ -53,6 +58,7 @@ import {
   createDefaultCampusStudentResume,
   getCampusMasterLabel,
   isInstitutionStaffRole,
+  isPlatformRole,
   normalizeCampusMasterValue,
   normalizeCampusRole,
   normalizeCampusStudentResume,
@@ -238,13 +244,30 @@ function toSessionUser(account: CampusData['users'][number]): CampusSession {
 
 export default function App() {
   const apiConfigured = isCampusApiConfigured();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [data, setData] = useState<CampusData>(loadDemoData);
   const [auth, setAuth] = useState<StoredAuth | null>(loadStoredAuth);
   const [error, setError] = useState('');
+  const [loginErrorCode, setLoginErrorCode] = useState<string | undefined>(undefined);
   // Informational message on the login screen (expired session, recruiter or inactive institution).
   const [loginNotice, setLoginNotice] = useState('');
+  const [mfaChallengeToken, setMfaChallengeToken] = useState<string | null>(null);
   const [authView, setAuthView] = useState<'login' | 'signup'>('login');
   const [tenantError, setTenantError] = useState<TenantError | null>(null);
+  const prevPathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    if (prevPathnameRef.current !== location.pathname) {
+      prevPathnameRef.current = location.pathname;
+      if (!auth?.user) {
+        setError('');
+        setLoginErrorCode(undefined);
+        setLoginNotice('');
+        setMfaChallengeToken(null);
+      }
+    }
+  }, [location.pathname, auth?.user]);
 
   // 401 signs the user out; 403 and 404 replace the current tab; anything else shows the error banner.
   const reportApiError = (apiError: unknown, fallbackMessage: string) => {
@@ -253,6 +276,8 @@ export default function App() {
       setAuthView('login');
       setLoginNotice(SESSION_EXPIRED_NOTICE);
       setError('');
+      setLoginErrorCode(undefined);
+      setMfaChallengeToken(null);
       return;
     }
 
@@ -287,6 +312,8 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       setAuth(null);
+      setMfaChallengeToken(null);
+      setLoginErrorCode(undefined);
       setError('Your session has expired. Please sign in again.');
     };
 
@@ -329,25 +356,96 @@ export default function App() {
       });
   }, [apiConfigured, auth?.token]);
 
-  const handleLogin = async ({ email, password }: { email: string; password: string }) => {
+  const completeAuth = (response: AuthResponse) => {
+    setData(applyBrandAccents(response.data));
+    setAuth({ token: response.token, user: response.user });
+    setError('');
+    setLoginErrorCode(undefined);
+    setLoginNotice('');
+    setMfaChallengeToken(null);
+    setTenantError(null);
+  };
+
+  const handlePortalLogin = async (
+    portal: LoginPortal,
+    { email, password }: { email: string; password: string },
+  ) => {
     if (apiConfigured) {
       try {
-        const response = await loginWithCampusApi(email, password);
-        setData(applyBrandAccents(response.data));
-        setAuth({ token: response.token, user: response.user });
-        setError('');
-        setLoginNotice('');
-        setTenantError(null);
+        const response = await loginWithCampusApi(email, password, portal);
+        if (isMfaChallenge(response)) {
+          setMfaChallengeToken(response.challengeToken);
+          setError('');
+          setLoginErrorCode(undefined);
+          setLoginNotice('');
+          return;
+        }
+        completeAuth(response);
       } catch (apiError) {
-        // 403 at login means the account exists but has no portal yet (recruiter) or its institution is inactive.
+        // Portal-mismatch 403 renders the actionable switch link; non-portal 403s show the notice banner.
         if (isApiError(apiError) && apiError.status === 403) {
+          if (apiError.code === 'use_owner_login' || apiError.code === 'use_campus_login') {
+            setError(apiError.message);
+            setLoginErrorCode(apiError.code);
+            setLoginNotice('');
+            return;
+          }
           setLoginNotice(apiError.message);
           setError('');
+          setLoginErrorCode(undefined);
           return;
         }
         setLoginNotice('');
+        setLoginErrorCode(isApiError(apiError) ? apiError.code : undefined);
         setError(apiError instanceof Error ? apiError.message : 'Laravel API login failed.');
       }
+      return;
+    }
+
+    if (portal === 'owner') {
+      if (email.toLowerCase() === 'owner@demo.com' && password === 'demo123') {
+        setAuth({
+          user: {
+            id: 900,
+            name: 'Platform Owner',
+            email: 'owner@demo.com',
+            role: 'super_admin',
+            title: 'Platform Owner',
+            permissions: [],
+            ownerPermissions: Object.values(OWNER),
+            platformRole: 'Platform Owner',
+            mfaEnabled: false,
+            emailVerified: true,
+          },
+        });
+        setError('');
+        setLoginErrorCode(undefined);
+        setLoginNotice('');
+        setMfaChallengeToken(null);
+        setTenantError(null);
+        return;
+      }
+
+      const campusAccount = data.users.find(
+        (candidate) => candidate.email.toLowerCase() === email.toLowerCase() && candidate.password === password,
+      );
+      if (campusAccount && !isPlatformRole(campusAccount.role)) {
+        setLoginNotice('');
+        setLoginErrorCode('use_campus_login');
+        setError('Institution accounts must sign in through the Campus Workspace (/login).');
+        return;
+      }
+
+      setLoginNotice('');
+      setLoginErrorCode(undefined);
+      setError('Use the demo owner account (owner@demo.com / demo123).');
+      return;
+    }
+
+    if (email.toLowerCase() === 'owner@demo.com' && password === 'demo123') {
+      setLoginNotice('');
+      setLoginErrorCode('use_owner_login');
+      setError('Platform owner accounts must sign in through the Owner Console (/owner/login).');
       return;
     }
 
@@ -356,14 +454,36 @@ export default function App() {
     );
 
     if (!account) {
+      setLoginNotice('');
+      setLoginErrorCode(undefined);
       setError('Use one of the demo accounts and the password demo123.');
+      return;
+    }
+
+    if (isPlatformRole(account.role)) {
+      setLoginNotice('');
+      setLoginErrorCode('use_owner_login');
+      setError('Platform owner accounts must sign in through the Owner Console (/owner/login).');
       return;
     }
 
     setAuth({ user: toSessionUser(account) });
     setError('');
+    setLoginErrorCode(undefined);
     setLoginNotice('');
+    setMfaChallengeToken(null);
     setTenantError(null);
+  };
+
+  const handleVerifyMfa = async (challengeToken: string, code: string) => {
+    try {
+      const response = await verifyOwnerMfa(challengeToken, code);
+      completeAuth(response);
+    } catch (apiError) {
+      setLoginNotice('');
+      setLoginErrorCode(isApiError(apiError) ? apiError.code : undefined);
+      setError(apiError instanceof Error ? apiError.message : 'Two-factor verification failed.');
+    }
   };
 
   // Student self-registration. Field errors (422) are thrown back to the form so it can place them.
@@ -1683,6 +1803,8 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    const wasPlatform = auth?.user ? isPlatformRole(auth.user.role) : false;
+
     if (apiConfigured && auth?.token) {
       try {
         await logoutFromCampusApi(auth.token);
@@ -1692,33 +1814,91 @@ export default function App() {
     }
 
     setAuth(null);
+    setMfaChallengeToken(null);
+    setError('');
+    setLoginErrorCode(undefined);
+    setLoginNotice('');
+    navigate(wasPlatform ? '/owner/login' : '/login', { replace: true });
   };
 
   const handleInvitationAccepted = (response: AuthResponse) => {
-    setData(applyBrandAccents(response.data));
-    setAuth({ token: response.token, user: response.user });
-    setError('');
+    completeAuth(response);
   };
 
   if (!auth?.user) {
-    // Signed out: the account pages opened from emails, otherwise the sign-in page. A deep
-    // link such as /app/marks stays in the address bar and opens after signing in.
+    const campusLoginElement = (
+      <>
+        <CampusLogin
+          error={error}
+          notice={loginNotice}
+          errorCode={loginErrorCode}
+          onLogin={(credentials) => handlePortalLogin('campus', credentials)}
+        />
+        <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+      </>
+    );
+
+    const ownerLoginElement = (
+      <>
+        <OwnerLogin
+          error={error}
+          notice={loginNotice}
+          errorCode={loginErrorCode}
+          mfaChallengeToken={mfaChallengeToken}
+          onLogin={(credentials) => handlePortalLogin('owner', credentials)}
+          onVerifyMfa={handleVerifyMfa}
+          onCancelMfa={() => {
+            setMfaChallengeToken(null);
+            setError('');
+            setLoginErrorCode(undefined);
+          }}
+        />
+        <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+      </>
+    );
+
+    // Signed out: separate entry pages for Campus Workspace (/login, campus deep links)
+    // and Owner Console (/owner/login, /owner/*). Deep links stay in the address bar and open right after signing in.
     return (
       <Routes>
+        <Route path="/owner/login" element={ownerLoginElement} />
+        <Route path="/owner/*" element={ownerLoginElement} />
+        <Route path="/login" element={campusLoginElement} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/invitations/accept" element={<AcceptInvitationPage onSignedIn={handleInvitationAccepted} />} />
-        <Route
-          path="*"
-          element={
-            <>
-              <CampusLogin error={error} notice={loginNotice} onLogin={handleLogin} />
-              <AccountNotice message={notice} onDismiss={() => setNotice('')} />
-            </>
-          }
-        />
+        <Route path="*" element={campusLoginElement} />
       </Routes>
+    );
+  }
+
+  if (isPlatformRole(auth.user.role)) {
+    return (
+      <>
+        <AccountNotice message={notice} onDismiss={() => setNotice('')} />
+        <Routes>
+          <Route path="/owner/login" element={<Navigate to="/owner/overview" replace />} />
+          <Route path="/owner" element={<Navigate to="/owner/overview" replace />} />
+          <Route
+            path="/owner/:section/:id"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <OwnerWorkspace user={auth.user} onLogout={handleLogout} />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/owner/:section"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <OwnerWorkspace user={auth.user} onLogout={handleLogout} />
+              </Suspense>
+            }
+          />
+          <Route path="*" element={<Navigate to="/owner/overview" replace />} />
+        </Routes>
+      </>
     );
   }
 

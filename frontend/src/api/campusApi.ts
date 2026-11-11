@@ -18,11 +18,24 @@ export { ApiError, isApiError } from './apiError';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
+export type LoginPortal = 'campus' | 'owner';
+
 export type AuthResponse = {
   token: string;
   user: CampusSession;
   data: CampusData;
 };
+
+export type LoginMfaChallenge = {
+  mfaRequired: true;
+  challengeToken: string;
+};
+
+export type LoginResponse = AuthResponse | LoginMfaChallenge;
+
+export function isMfaChallenge(response: LoginResponse): response is LoginMfaChallenge {
+  return 'mfaRequired' in response && response.mfaRequired === true;
+}
 
 type BootstrapResponse = {
   user: CampusSession;
@@ -172,10 +185,19 @@ export function isCampusApiConfigured() {
   return Boolean(apiBaseUrl);
 }
 
-export function loginWithCampusApi(email: string, password: string) {
-  return request<AuthResponse>('/auth/login', {
+export function loginWithCampusApi(email: string, password: string, portal: LoginPortal = 'campus') {
+  const path = portal === 'owner' ? '/owner/auth/login' : '/auth/login';
+
+  return request<LoginResponse>(path, {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, portal }),
+  });
+}
+
+export function verifyOwnerMfa(challengeToken: string, code: string) {
+  return request<AuthResponse>('/auth/mfa/verify', {
+    method: 'POST',
+    body: JSON.stringify({ challengeToken, code }),
   });
 }
 

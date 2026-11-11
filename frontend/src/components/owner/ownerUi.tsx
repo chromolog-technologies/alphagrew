@@ -149,3 +149,45 @@ export function actionLabel(action: string): string {
 export function errorMessage(error: unknown, fallback = 'That did not work.'): string {
   return error instanceof Error ? error.message : fallback;
 }
+
+export function formatMoney(amount: number | null | undefined, currency = 'INR'): string {
+  const value = typeof amount === 'number' ? amount : 0;
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'INR', maximumFractionDigits: 2 }).format(value);
+  } catch {
+    return `${currency || 'INR'} ${value.toFixed(2)}`;
+  }
+}
+
+const commercialVariant: Record<string, 'success' | 'info' | 'warning' | 'destructive' | 'secondary'> = {
+  active: 'success',
+  paid: 'success',
+  succeeded: 'success',
+  executed: 'success',
+  trial: 'info',
+  issued: 'info',
+  approved: 'info',
+  partially_paid: 'warning',
+  partially_refunded: 'warning',
+  past_due: 'warning',
+  paused: 'warning',
+  requested: 'warning',
+  pending: 'warning',
+  draft: 'secondary',
+  archived: 'secondary',
+  void: 'secondary',
+  cancelled: 'destructive',
+  expired: 'destructive',
+  failed: 'destructive',
+  overdue: 'destructive',
+  rejected: 'destructive',
+  refunded: 'secondary',
+};
+
+export function CommercialStatusBadge({ status }: { status: string }) {
+  return (
+    <Badge variant={commercialVariant[status] ?? 'secondary'} className="capitalize">
+      {status.replace(/_/g, ' ')}
+    </Badge>
+  );
+}

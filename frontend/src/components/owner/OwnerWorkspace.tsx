@@ -7,15 +7,18 @@ import { Suspense, useMemo, useState, type ComponentType } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import {
   Activity,
+  Bot,
   Building2,
+  CreditCard,
   KeyRound,
+  Layers,
   LayoutDashboard,
   LogOut,
   Menu,
+  Repeat,
   ScrollText,
   Settings,
   ShieldCheck,
-  UserCog,
   Users,
   X,
 } from 'lucide-react';
@@ -29,7 +32,10 @@ import { PageLoading } from '../shared/RouteStatus';
 const OwnerOverview = lazyNamed(() => import('./OwnerOverview'), 'OwnerOverview');
 const InstitutionsPage = lazyNamed(() => import('./InstitutionsPage'), 'InstitutionsPage');
 const UsersPage = lazyNamed(() => import('./UsersPage'), 'UsersPage');
-const RolesPage = lazyNamed(() => import('./RolesPage'), 'RolesPage');
+const PlansPage = lazyNamed(() => import('./PlansPage'), 'PlansPage');
+const SubscriptionsPage = lazyNamed(() => import('./SubscriptionsPage'), 'SubscriptionsPage');
+const BillingPage = lazyNamed(() => import('./BillingPage'), 'BillingPage');
+const AiCreditsPage = lazyNamed(() => import('./AiCreditsPage'), 'AiCreditsPage');
 const SettingsPage = lazyNamed(() => import('./SettingsPage'), 'SettingsPage');
 const SecurityPage = lazyNamed(() => import('./SecurityPage'), 'SecurityPage');
 const SystemHealthPage = lazyNamed(() => import('./SystemHealthPage'), 'SystemHealthPage');
@@ -52,7 +58,7 @@ export interface OwnerPageProps {
   go: (path: string) => void;
 }
 
-/** SRS Appendix A, release-1 groups only. */
+/** Single unified Owner Console workspace (no per-role dashboard split). */
 const GROUPS: { label: string; sections: Section[] }[] = [
   {
     label: 'Platform',
@@ -63,9 +69,22 @@ const GROUPS: { label: string; sections: Section[] }[] = [
     ],
   },
   {
+    label: 'SaaS & Revenue',
+    sections: [
+      { id: 'plans', label: 'Plans & pricing', icon: Layers, anyOf: [OWNER.plansView], page: PlansPage },
+      { id: 'subscriptions', label: 'Subscriptions', icon: Repeat, anyOf: [OWNER.subscriptionsView], page: SubscriptionsPage },
+      { id: 'billing', label: 'Billing & revenue', icon: CreditCard, anyOf: [OWNER.billingView], page: BillingPage },
+    ],
+  },
+  {
+    label: 'AI & Intelligence',
+    sections: [
+      { id: 'ai', label: 'AI & credits', icon: Bot, anyOf: [OWNER.aiView], page: AiCreditsPage },
+    ],
+  },
+  {
     label: 'Administration',
     sections: [
-      { id: 'roles', label: 'Roles & permissions', icon: UserCog, anyOf: [OWNER.rolesView], page: RolesPage },
       { id: 'settings', label: 'Global settings', icon: Settings, anyOf: [OWNER.settingsView], page: SettingsPage },
     ],
   },
@@ -85,11 +104,14 @@ export default function OwnerWorkspace({ user, onLogout }: { user: CampusSession
   const [menuOpen, setMenuOpen] = useState(false);
 
   const permissions = useMemo(() => new Set(user.ownerPermissions ?? []), [user.ownerPermissions]);
-  const can = (permission: string) => permissions.has(permission);
-  const groups = GROUPS.map((group) => ({
-    ...group,
-    sections: group.sections.filter((section) => section.anyOf.length === 0 || section.anyOf.some((permission) => permissions.has(permission))),
-  })).filter((group) => group.sections.length > 0);
+  const isOwner = user.role === 'super_admin';
+  const can = (permission: string) => isOwner || permissions.has(permission);
+  const groups = isOwner
+    ? GROUPS
+    : GROUPS.map((group) => ({
+        ...group,
+        sections: group.sections.filter((section) => section.anyOf.length === 0 || section.anyOf.some((permission) => permissions.has(permission))),
+      })).filter((group) => group.sections.length > 0);
   const visible = groups.flatMap((group) => group.sections);
   const current = visible.find((section) => section.id === sectionId);
 
@@ -172,7 +194,9 @@ export default function OwnerWorkspace({ user, onLogout }: { user: CampusSession
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{initials}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-foreground">{user.name}</span>
-              <span className="block truncate text-2xs text-muted-foreground">{user.platformRole ?? campusRoleLabels[user.role]}</span>
+              <span className="block truncate text-2xs text-muted-foreground">
+                {user.role === 'super_admin' ? 'Platform Owner' : user.platformRole ?? campusRoleLabels[user.role]}
+              </span>
             </span>
             <button
               type="button"
@@ -206,7 +230,7 @@ export default function OwnerWorkspace({ user, onLogout }: { user: CampusSession
             ) : null}
           </nav>
           <span className="ml-auto hidden items-center gap-1.5 rounded-full bg-foreground px-2.5 py-1 text-2xs font-semibold text-white sm:inline-flex">
-            <ShieldCheck size={12} /> {campusRoleLabels[user.role]}
+            <ShieldCheck size={12} /> {user.role === 'super_admin' ? 'Platform Owner' : campusRoleLabels[user.role]}
           </span>
         </header>
 

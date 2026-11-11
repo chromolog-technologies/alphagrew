@@ -401,10 +401,6 @@ export interface CampusStudentResume {
   uploadedResumeText: string;
   uploadedResumeFileName: string;
   lastUpdated: string | null;
-  /** Owner console permissions (owner.*), sent for platform users only. */
-  ownerPermissions?: string[];
-  platformRole?: string | null;
-  mfaEnabled?: boolean;
 }
 
 export interface CampusAccount {
@@ -433,6 +429,10 @@ export interface CampusAccount {
   specialization?: string;
   studentId?: number;
   permissions?: CampusPermission[];
+  /** Owner console permissions (owner.*), sent for platform users only. */
+  ownerPermissions?: string[];
+  platformRole?: string | null;
+  mfaEnabled?: boolean;
 }
 
 /** The signed-in user's institution. Null for Super Admin and Recruiter. */

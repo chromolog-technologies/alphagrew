@@ -3,37 +3,31 @@
 namespace Database\Seeders;
 
 use App\Enums\UserRole;
+use App\Models\AiRateCard;
+use App\Models\Coupon;
 use App\Models\Institution;
 use App\Models\LoginHistory;
-use App\Models\PlatformRole;
+use App\Models\Plan;
+use App\Models\Subscription;
+use App\Models\TaxProfile;
 use App\Models\User;
+use App\Services\Owner\BillingService;
+use App\Services\Owner\PlanService;
+use App\Services\Owner\SubscriptionService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Owner console demo data (password demo123): owner@demo.com (Super Admin), one platform staff
- * member per built-in platform role, the default institution's profile, a second institution
- * on a trial that ends soon and a third waiting for verification, and some sign-in history.
+ * Owner console demo data (password demo123): owner@demo.com (Platform Owner / Super Admin),
+ * the default institution's profile, a second institution on a trial that ends soon and a
+ * third waiting for verification, and sample sign-in history.
  */
 class OwnerDemoSeeder extends Seeder
 {
-    private const STAFF = [
-        'platform@demo.com' => ['Priya Raman', 'platform-manager'],
-        'finance@demo.com' => ['Karan Mehta', 'finance-manager'],
-        'support@demo.com' => ['Anita George', 'support-manager'],
-        'tech@demo.com' => ['Rohan Das', 'technical-admin'],
-        'auditor@demo.com' => ['Fatima Sheikh', 'security-auditor'],
-        'sales@demo.com' => ['Vivek Iyer', 'customer-success'],
-    ];
-
     public function run(): void
     {
         DB::transaction(function (): void {
             $owner = $this->platformUser('owner@demo.com', 'Chromolog Owner', UserRole::SuperAdmin, null);
-
-            foreach (self::STAFF as $email => [$name, $role]) {
-                $this->platformUser($email, $name, UserRole::PlatformStaff, PlatformRole::query()->where('slug', $role)->value('id'));
-            }
 
             Institution::query()->where('code', Institution::DEFAULT_CODE)->update([
                 'name' => 'Brightnode Institute of Technology',
@@ -76,7 +70,153 @@ class OwnerDemoSeeder extends Seeder
                     'ip_address' => '203.0.113.'.(10 + $minutesAgo), 'user_agent' => 'Mozilla/5.0 (demo)',
                 ])->forceFill(['created_at' => now()->subMinutes($minutesAgo)])->save();
             }
+
+            $this->seedCommercialData($owner, $trial);
         });
+    }
+
+    private function seedCommercialData(User $owner, Institution $trial): void
+    {
+        TaxProfile::query()->firstOrCreate(['code' => 'GST-18'], [
+            'name' => 'India GST 18%',
+            'tax_type' => 'gst',
+            'rate_percent' => 18.00,
+            'gstin' => '29AABCC1234D1Z5',
+            'place_of_supply' => 'Karnataka',
+            'is_default' => true,
+            'is_active' => true,
+        ]);
+
+        Coupon::query()->firstOrCreate(['code' => 'LAUNCH20'], [
+            'name' => 'Launch Partner 20% Off',
+            'discount_type' => 'percent',
+            'discount_value' => 20.00,
+            'max_redemptions' => 100,
+            'is_active' => true,
+        ]);
+
+        foreach ([
+            ['resume_parse', 'anthropic', 'claude-opus-5-5', 2.00, 0.50],
+            ['resume_analysis', 'anthropic', 'claude-opus-5-5', 4.00, 1.00],
+            ['interview_plan', 'anthropic', 'claude-opus-5-5', 3.00, 0.75],
+            ['interview_turn', 'anthropic', 'claude-opus-5-5', 1.50, 0.50],
+            ['interview_turn_analysis', 'anthropic', 'claude-opus-5-5', 1.50, 0.50],
+            ['interview_evaluation', 'anthropic', 'claude-opus-5-5', 5.00, 1.00],
+        ] as [$serviceKey, $provider, $model, $perReq, $per1k]) {
+            AiRateCard::query()->firstOrCreate(
+                ['service_key' => $serviceKey, 'provider' => $provider, 'model' => $model],
+                ['credits_per_request' => $perReq, 'credits_per_1k_tokens' => $per1k, 'usd_per_1k_input_tokens' => 0.004, 'usd_per_1k_output_tokens' => 0.02, 'is_active' => true]
+            );
+        }
+
+        if (Plan::query()->exists()) {
+            return;
+        }
+
+        $planService = app(PlanService::class);
+        $subService = app(SubscriptionService::class);
+        $billing = app(BillingService::class);
+
+        $starter = $planService->create([
+            'code' => 'STARTER',
+            'name' => 'Campus Starter',
+            'description' => 'Core academic, attendance and placement workflows for growing colleges.',
+            'status' => 'active',
+            'sortOrder' => 1,
+            'billingCycle' => 'monthly',
+            'price' => 14999,
+            'setupFee' => 0,
+            'currency' => 'INR',
+            'trialDays' => 14,
+            'studentLimit' => 1000,
+            'facultyLimit' => 100,
+            'campusLimit' => 1,
+            'departmentLimit' => 10,
+            'recruiterLimit' => 25,
+            'storageLimitMb' => 10240,
+            'apiRequestsLimit' => 50000,
+            'aiCreditAllocation' => 2500,
+            'aiCreditResetPeriod' => 'monthly',
+            'features' => ['placement' => true, 'assessments' => true, 'resume_ai' => true, 'ai_interviews' => false, 'analytics' => true, 'api_access' => false, 'custom_branding' => false],
+        ], $owner);
+
+        $growth = $planService->create([
+            'code' => 'GROWTH',
+            'name' => 'Career Intelligence Growth',
+            'description' => 'Full AI interviews, resume intelligence and custom dashboards for autonomous campuses.',
+            'status' => 'active',
+            'sortOrder' => 2,
+            'billingCycle' => 'monthly',
+            'price' => 39999,
+            'setupFee' => 5000,
+            'currency' => 'INR',
+            'trialDays' => 30,
+            'studentLimit' => 5000,
+            'facultyLimit' => 400,
+            'campusLimit' => 5,
+            'departmentLimit' => 30,
+            'recruiterLimit' => 150,
+            'storageLimitMb' => 51200,
+            'apiRequestsLimit' => 250000,
+            'aiCreditAllocation' => 12000,
+            'aiCreditResetPeriod' => 'monthly',
+            'features' => ['placement' => true, 'assessments' => true, 'resume_ai' => true, 'ai_interviews' => true, 'analytics' => true, 'api_access' => true, 'custom_branding' => true],
+        ], $owner);
+
+        $planService->create([
+            'code' => 'ENTERPRISE',
+            'name' => 'University Enterprise',
+            'description' => 'Unlimited multi-campus scale, priority inference and dedicated SLAs.',
+            'status' => 'active',
+            'sortOrder' => 3,
+            'billingCycle' => 'yearly',
+            'price' => 450000,
+            'setupFee' => 25000,
+            'currency' => 'INR',
+            'trialDays' => 30,
+            'studentLimit' => null,
+            'facultyLimit' => null,
+            'campusLimit' => null,
+            'departmentLimit' => null,
+            'recruiterLimit' => null,
+            'storageLimitMb' => 256000,
+            'apiRequestsLimit' => null,
+            'aiCreditAllocation' => 60000,
+            'aiCreditResetPeriod' => 'monthly',
+            'features' => ['placement' => true, 'assessments' => true, 'resume_ai' => true, 'ai_interviews' => true, 'analytics' => true, 'api_access' => true, 'custom_branding' => true],
+        ], $owner);
+
+        $defaultInst = Institution::query()->where('code', Institution::DEFAULT_CODE)->first();
+        if ($defaultInst && ! Subscription::query()->where('institution_id', $defaultInst->id)->exists()) {
+            $sub = $subService->assign([
+                'institutionId' => $defaultInst->id,
+                'planId' => $growth->id,
+                'status' => 'active',
+                'generateInvoice' => true,
+            ], $owner);
+
+            $inv = $sub->invoices()->first();
+            if ($inv) {
+                $billing->recordPayment([
+                    'invoiceId' => $inv->id,
+                    'amount' => $inv->total,
+                    'gateway' => 'razorpay',
+                    'method' => 'upi_emandate',
+                    'status' => 'succeeded',
+                    'gatewayEventId' => 'evt_demo_default_paid_1',
+                ], $owner);
+            }
+        }
+
+        if (! Subscription::query()->where('institution_id', $trial->id)->exists()) {
+            $subService->assign([
+                'institutionId' => $trial->id,
+                'planId' => $starter->id,
+                'status' => 'trial',
+                'trialDays' => 9,
+                'generateInvoice' => false,
+            ], $owner);
+        }
     }
 
     private function platformUser(string $email, string $name, UserRole $role, ?int $platformRoleId): User

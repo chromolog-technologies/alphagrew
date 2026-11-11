@@ -23,8 +23,31 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request, AttemptLoginAction $attemptLogin): JsonResponse
     {
-        $user = $attemptLogin->execute($request->validated('email'), $request->validated('password'));
+        $user = $attemptLogin->execute(
+            $request->validated('email'),
+            $request->validated('password'),
+            $request->portal(),
+        );
 
+        return $this->completeLogin($request, $user);
+    }
+
+    /**
+     * Dedicated Owner Console login endpoint (/owner/login): rejects campus and student accounts.
+     */
+    public function ownerLogin(LoginRequest $request, AttemptLoginAction $attemptLogin): JsonResponse
+    {
+        $user = $attemptLogin->execute(
+            $request->validated('email'),
+            $request->validated('password'),
+            'owner',
+        );
+
+        return $this->completeLogin($request, $user);
+    }
+
+    private function completeLogin(Request $request, User $user): JsonResponse
+    {
         // Platform staff with two-step verification finish signing in at /auth/mfa/verify.
         if ($user->isPlatformUser() && $user->mfa_enabled_at !== null) {
             return response()->json(['mfaRequired' => true, 'challengeToken' => \App\Http\Controllers\Api\V1\Auth\MfaController::challengeFor($user)]);

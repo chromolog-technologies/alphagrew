@@ -394,6 +394,26 @@ function InstitutionDetailView({ id, can, go }: OwnerPageProps & { id: number })
             <KpiCard label="Admins" value={institution.counts.admins} />
             <KpiCard label="AI requests (30 days)" value={institution.aiUsage30d.calls} hint={`≈ $${institution.aiUsage30d.estimatedCostUsd.toFixed(2)}`} />
           </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <KpiCard
+              label="Active subscription"
+              value={institution.subscription ? (institution.subscription.planName ?? institution.subscription.planCode ?? 'Assigned') : 'No subscription'}
+              hint={
+                institution.subscription
+                  ? `${institution.subscription.status.replace('_', ' ')} · ${institution.subscription.currency ?? ''} ${(institution.subscription.amount ?? 0).toLocaleString()} / ${institution.subscription.billingCycle}${institution.subscription.renewalAt ? ` · Renews ${new Date(institution.subscription.renewalAt).toLocaleDateString()}` : ''}`
+                  : 'Assign a plan under SaaS & Revenue → Subscriptions'
+              }
+            />
+            <KpiCard
+              label="AI credit wallet"
+              value={institution.aiCreditWallet ? `${institution.aiCreditWallet.balance.toLocaleString()} credits` : 'Not funded'}
+              hint={
+                institution.aiCreditWallet
+                  ? `${institution.aiCreditWallet.consumedTotal.toLocaleString()} consumed of ${institution.aiCreditWallet.allocatedTotal.toLocaleString()} allocated`
+                  : 'Manage credit grants and quotas under AI & Intelligence → AI & credits'
+              }
+            />
+          </div>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Institution admins</CardTitle>

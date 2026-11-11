@@ -29,6 +29,7 @@ export interface CampusLoginProps {
   error: string;
   /** Information rather than a failure: expired session, recruiter portal not open, inactive institution. */
   notice?: string;
+  errorCode?: string;
   demoAccounts?: DemoAccount[];
   onLogin: (credentials: { email: string; password: string }) => Promise<void> | void;
   onShowSignUp?: () => void;
@@ -37,7 +38,7 @@ export interface CampusLoginProps {
 // Demo accounts are offered only in the dev server or a build made with VITE_DEMO_MODE=true.
 const showDemoAccess = import.meta.env.DEV || import.meta.env.VITE_DEMO_MODE === 'true';
 
-export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: CampusLoginProps) {
+export default function CampusLogin({ error, notice, errorCode, onLogin, onShowSignUp }: CampusLoginProps) {
   const [email, setEmail] = useState(showDemoAccess ? 'admin@demo.com' : '');
   const [password, setPassword] = useState(showDemoAccess ? 'demo123' : '');
   const [showPassword, setShowPassword] = useState(false);
@@ -95,14 +96,14 @@ export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: Ca
                       {campusBrand.companyName}
                     </span>
                     <Badge variant="info" className="gap-1 py-0 px-1.5 text-[9px] font-bold rounded-full">
-                      <Sparkles size={9} /> CRM
+                      <Sparkles size={9} /> CAMPUS
                     </Badge>
                   </div>
                   <CardTitle className="truncate text-xl font-black tracking-tight text-slate-900 mt-0.5">
                     {campusBrand.campusName}
                   </CardTitle>
                   <CardDescription className="text-xs text-slate-500 font-medium">
-                    Sign in to your enterprise workspace
+                    Sign in to your institution workspace
                   </CardDescription>
                 </div>
               </div>
@@ -206,8 +207,13 @@ export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: Ca
 
                 {error ? (
                   <Alert variant="destructive" className="py-2.5 px-3.5 rounded-xl">
-                    <AlertDescription className="text-xs font-medium">
-                      {error}
+                    <AlertDescription className="space-y-1.5 text-xs font-medium">
+                      <p>{error}</p>
+                      {errorCode === 'use_owner_login' ? (
+                        <Link to="/owner/login" className="inline-flex items-center gap-1 font-semibold underline">
+                          Go to Owner Console Sign-In <ArrowRight size={12} />
+                        </Link>
+                      ) : null}
                     </AlertDescription>
                   </Alert>
                 ) : null}
@@ -248,7 +254,9 @@ export default function CampusLogin({ error, notice, onLogin, onShowSignUp }: Ca
                 <ShieldCheck size={13} className="text-emerald-500" />
                 Tenant Protected
               </span>
-              <span>Version 2.4.0</span>
+              <Link to="/owner/login" className="font-semibold text-slate-500 hover:text-blue-600 transition-colors">
+                Owner Console &rarr;
+              </Link>
             </CardFooter>
           </Card>
 

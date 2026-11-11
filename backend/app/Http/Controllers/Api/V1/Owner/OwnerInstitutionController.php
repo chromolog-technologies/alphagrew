@@ -267,6 +267,8 @@ class OwnerInstitutionController extends Controller
         $ai = DB::table('ai_usage_logs')->where('institution_id', $institution->id)->where('created_at', '>=', now()->subDays(30))
             ->selectRaw('count(*) as calls, coalesce(sum(estimated_cost_usd), 0) as cost')->first();
         $pending = $institution->statusEvents()->where('applied', false)->first();
+        $subscription = $institution->currentSubscription()->with('plan:id,code,name')->first();
+        $wallet = $institution->aiCreditWallet;
 
         return [
             ...$this->summary($institution),
@@ -292,6 +294,21 @@ class OwnerInstitutionController extends Controller
             'admins' => (clone $users)->where('role', UserRole::InstitutionAdmin->value)->get(['id', 'name', 'email', 'status', 'last_login_at'])
                 ->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'status' => $user->status ?? 'active', 'lastLoginAt' => $user->last_login_at?->toIso8601String()]),
             'aiUsage30d' => ['calls' => (int) ($ai->calls ?? 0), 'estimatedCostUsd' => round((float) ($ai->cost ?? 0), 2)],
+            'subscription' => $subscription ? [
+                'id' => $subscription->id,
+                'planCode' => $subscription->plan?->code,
+                'planName' => $subscription->plan?->name,
+                'status' => $subscription->status,
+                'billingCycle' => $subscription->billing_cycle,
+                'amount' => $subscription->amount,
+                'currency' => $subscription->currency,
+                'renewalAt' => $subscription->renewal_at?->toIso8601String(),
+            ] : null,
+            'aiCreditWallet' => $wallet ? [
+                'balance' => $wallet->balance,
+                'allocatedTotal' => $wallet->allocated_total,
+                'consumedTotal' => $wallet->consumed_total,
+            ] : null,
         ];
     }
 }

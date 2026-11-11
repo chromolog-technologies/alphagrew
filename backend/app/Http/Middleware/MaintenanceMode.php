@@ -26,7 +26,7 @@ class MaintenanceMode
         }
 
         // Platform staff must still be able to sign in to turn maintenance off.
-        if ($request->is('api/v1/auth/login', 'api/v1/auth/mfa/verify') && $this->isPlatformEmail((string) $request->input('email'), (string) $request->input('challengeToken'))) {
+        if ($request->is('api/v1/auth/login', 'api/v1/owner/auth/login', 'api/v1/auth/mfa/verify') && $this->isPlatformEmail((string) $request->input('email'), (string) $request->input('challengeToken'))) {
             return $next($request);
         }
 

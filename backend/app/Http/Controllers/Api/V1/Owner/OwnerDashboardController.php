@@ -4,11 +4,16 @@ namespace App\Http\Controllers\Api\V1\Owner;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\AiCreditWallet;
 use App\Models\AuditLog;
 use App\Models\Institution;
 use App\Models\InstitutionStatusEvent;
+use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Student;
+use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Owner\BillingService;
 use App\Services\Owner\SystemHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,21 +21,25 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Owner overview (SRS FR-OV). Platform-wide aggregates only; no student records. AI figures
- * come from the metered usage log and the cost is a provider estimate. Subscriptions, MRR and
- * credits arrive with billing (release 2).
+ * Owner overview (SRS FR-OV / §6). Platform-wide aggregates only; no student records.
+ * Includes Release 2 commercial KPIs (MRR, ARR, subscriptions, collections) and
+ * ledger-backed AI credit balances alongside metered AI usage.
  */
 class OwnerDashboardController extends Controller
 {
-    public function summary(Request $request, SystemHealth $health): JsonResponse
+    public function summary(Request $request, SystemHealth $health, BillingService $billing): JsonResponse
     {
         [$from, $to] = $this->period($request);
 
         $institutions = Institution::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
         $users = User::query()->withoutGlobalScopes()->whereNull('deleted_at')->selectRaw('role, count(*) as total')->groupBy('role')->pluck('total', 'role');
         $ai = DB::table('ai_usage_logs')->whereBetween('created_at', [$from, $to])
-            ->selectRaw("count(*) as calls, sum(case when status = 'success' then 0 else 1 end) as failures, coalesce(sum(prompt_tokens), 0) + coalesce(sum(completion_tokens), 0) as tokens, coalesce(sum(estimated_cost_usd), 0) as cost")
+            ->selectRaw("count(*) as calls, sum(case when status = 'success' then 0 else 1 end) as failures, coalesce(sum(prompt_tokens), 0) + coalesce(sum(completion_tokens), 0) as tokens, coalesce(sum(estimated_cost_usd), 0) as cost, coalesce(sum(credits_charged), 0) as credits_used")
             ->first();
+        $wallets = DB::table('ai_credit_wallets')
+            ->selectRaw('coalesce(sum(allocated_total), 0) as allocated, coalesce(sum(consumed_total), 0) as consumed, coalesce(sum(balance), 0) as remaining')
+            ->first();
+        $revenue = $billing->revenueSummary($from, $to);
         $snapshot = $health->snapshot();
 
         return response()->json(['data' => [
@@ -47,19 +56,33 @@ class OwnerDashboardController extends Controller
                 'studentRecords' => Student::query()->withoutGlobalScopes()->whereNull('deleted_at')->count(),
                 'activeInPeriod' => User::query()->withoutGlobalScopes()->whereBetween('last_login_at', [$from, $to])->count(),
             ],
+            'commercial' => [
+                'currency' => $revenue['currency'],
+                'mrr' => $revenue['mrr'],
+                'arr' => $revenue['arr'],
+                'invoiced' => $revenue['invoiced'],
+                'collectedRevenue' => $revenue['collected'],
+                'outstandingBalance' => $revenue['outstanding'],
+                'subscriptions' => $revenue['subscriptions'],
+                'planDistribution' => $revenue['byPlan'],
+            ],
             'ai' => [
                 'calls' => (int) ($ai->calls ?? 0),
                 'failures' => (int) ($ai->failures ?? 0),
                 'tokens' => (int) ($ai->tokens ?? 0),
                 'estimatedCostUsd' => round((float) ($ai->cost ?? 0), 2),
-                'note' => 'Estimated from metered usage; credits and billing arrive in release 2.',
+                'creditsAllocated' => round((float) ($wallets->allocated ?? 0), 2),
+                'creditsConsumed' => round((float) ($wallets->consumed ?? 0), 2),
+                'creditsRemaining' => round((float) ($wallets->remaining ?? 0), 2),
+                'creditsUsedInPeriod' => round((float) ($ai->credits_used ?? 0), 2),
+                'note' => 'Ledger-backed AI credit balances; provider USD cost is metered estimate.',
             ],
             'system' => ['status' => $snapshot['status'], 'checkedAt' => $snapshot['checkedAt'], 'checks' => $snapshot['checks']],
             'generatedAt' => now()->toIso8601String(),
         ]]);
     }
 
-    /** Monthly series for the last 12 months: new institutions, new users, AI calls and cost. */
+    /** Monthly series for the last 12 months: institutions, users, revenue, AI calls & cost. */
     public function trends(): JsonResponse
     {
         $start = now()->startOfMonth()->subMonths(11);
@@ -68,22 +91,32 @@ class OwnerDashboardController extends Controller
 
         $institutions = $bucket(Institution::query()->where('created_at', '>=', $start)->pluck('created_at'));
         $users = $bucket(User::query()->withoutGlobalScopes()->where('created_at', '>=', $start)->pluck('created_at'));
-        $ai = DB::table('ai_usage_logs')->where('created_at', '>=', $start)->get(['created_at', 'estimated_cost_usd'])
+        $ai = DB::table('ai_usage_logs')->where('created_at', '>=', $start)->get(['created_at', 'estimated_cost_usd', 'credits_charged'])
             ->groupBy(fn ($row) => Carbon::parse($row->created_at)->format('Y-m'));
+        $payments = Payment::query()
+            ->whereIn('status', ['succeeded', 'partially_refunded'])
+            ->where('paid_at', '>=', $start)
+            ->get(['paid_at', 'amount', 'refunded_amount'])
+            ->groupBy(fn (Payment $p) => $p->paid_at?->format('Y-m') ?? '');
         $before = Institution::query()->where('created_at', '<', $start)->count();
 
         $running = $before;
 
-        return response()->json(['data' => $months->map(function (string $month) use ($institutions, $users, $ai, &$running) {
+        return response()->json(['data' => $months->map(function (string $month) use ($institutions, $users, $ai, $payments, &$running) {
             $running += $institutions[$month] ?? 0;
+            $collected = isset($payments[$month])
+                ? round((float) $payments[$month]->sum(fn (Payment $p) => max(0, $p->amount - $p->refunded_amount)), 2)
+                : 0.0;
 
             return [
                 'month' => $month,
                 'newInstitutions' => $institutions[$month] ?? 0,
                 'totalInstitutions' => $running,
                 'newUsers' => $users[$month] ?? 0,
+                'revenueCollected' => $collected,
                 'aiCalls' => isset($ai[$month]) ? $ai[$month]->count() : 0,
                 'aiCostUsd' => isset($ai[$month]) ? round((float) $ai[$month]->sum('estimated_cost_usd'), 2) : 0,
+                'aiCreditsUsed' => isset($ai[$month]) ? round((float) $ai[$month]->sum('credits_charged'), 2) : 0,
             ];
         })->values()]);
     }
@@ -123,6 +156,34 @@ class OwnerDashboardController extends Controller
             ->get(['id', 'name']);
         foreach ($withoutAdmin as $institution) {
             $add('warning', 'institution.no_admin', "{$institution->name} has no active institution admin.", "institutions/{$institution->id}");
+        }
+
+        // Release 2 commercial & AI alerts (SRS FR-SUB-006, FR-AI-007).
+        $expiringSubs = Subscription::query()->with(['institution:id,name', 'plan:id,name'])
+            ->whereIn('status', ['active', 'trial'])
+            ->whereNotNull('renewal_at')
+            ->where('renewal_at', '<=', now()->addDays(14))
+            ->get();
+        foreach ($expiringSubs as $sub) {
+            $days = (int) max(0, ceil(now()->diffInDays($sub->renewal_at, false)));
+            $add($days <= 3 ? 'warning' : 'info', 'subscription.expiring', "{$sub->institution?->name}'s {$sub->plan?->name} subscription renews/expires in {$days} days.", 'subscriptions');
+        }
+
+        $overdueInvoices = Invoice::query()->with('institution:id,name')
+            ->whereIn('status', ['issued', 'partially_paid', 'overdue'])
+            ->whereDate('due_at', '<', now()->toDateString())
+            ->limit(10)
+            ->get();
+        foreach ($overdueInvoices as $inv) {
+            $add('warning', 'billing.invoice_overdue', "Invoice {$inv->invoice_number} for {$inv->institution?->name} ({$inv->currency} {$inv->balance}) is past due.", 'billing');
+        }
+
+        $wallets = AiCreditWallet::query()->with('institution:id,name')->where('allocated_total', '>', 0)->get();
+        foreach ($wallets as $wallet) {
+            $pct = $wallet->usedPercent();
+            if ($pct >= $wallet->warning_threshold_percent) {
+                $add($wallet->balance <= 0 ? 'critical' : 'warning', 'ai.credits_threshold', "{$wallet->institution?->name} has used {$pct}% of allocated AI credits (remaining: {$wallet->balance}).", 'ai');
+            }
         }
 
         $order = ['critical' => 0, 'warning' => 1, 'info' => 2];

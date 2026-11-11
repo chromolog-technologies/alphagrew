@@ -4,7 +4,8 @@
  * server; the client uses the same list only to hide what the person cannot open.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { http } from './http';
+import { ApiError, http, isApiConfigured } from './http';
+import { ownerDemoApi } from './ownerDemoData';
 
 export type InstitutionStatus = 'prospect' | 'trial' | 'active' | 'suspended' | 'expired' | 'closed';
 export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'requires_information';
@@ -35,7 +36,27 @@ export interface OwnerSummary {
   period: { from: string; to: string };
   institutions: { total: number; byStatus: Record<InstitutionStatus, number>; pendingVerification: number; newInPeriod: number };
   users: { total: number; byRole: Record<string, number>; studentRecords: number; activeInPeriod: number };
-  ai: { calls: number; failures: number; tokens: number; estimatedCostUsd: number; note: string };
+  commercial?: {
+    currency: string;
+    mrr: number;
+    arr: number;
+    invoiced: number;
+    collectedRevenue: number;
+    outstandingBalance: number;
+    subscriptions: { active: number; trial: number; pastDue: number; total: number; trialConversionRate: number; churnRate: number };
+    planDistribution: { planId: number; planCode: string; planName: string; subscriptions: number; mrr: number }[];
+  };
+  ai: {
+    calls: number;
+    failures: number;
+    tokens: number;
+    estimatedCostUsd: number;
+    creditsAllocated?: number;
+    creditsConsumed?: number;
+    creditsRemaining?: number;
+    creditsUsedInPeriod?: number;
+    note: string;
+  };
   system: SystemHealthSnapshot;
   generatedAt: string;
 }
@@ -45,8 +66,10 @@ export interface TrendPoint {
   newInstitutions: number;
   totalInstitutions: number;
   newUsers: number;
+  revenueCollected?: number;
   aiCalls: number;
   aiCostUsd: number;
+  aiCreditsUsed?: number;
 }
 
 export interface OwnerAlert {
@@ -98,6 +121,21 @@ export interface InstitutionDetail extends InstitutionSummary {
   counts: { campuses: number; departments: number; students: number; staff: number; admins: number; users: number };
   admins: { id: number; name: string; email: string; status: string; lastLoginAt: string | null }[];
   aiUsage30d: { calls: number; estimatedCostUsd: number };
+  subscription?: {
+    id: number;
+    planCode: string | null;
+    planName: string | null;
+    status: SubscriptionStatus;
+    billingCycle: BillingCycle;
+    amount: number;
+    currency: string;
+    renewalAt: string | null;
+  } | null;
+  aiCreditWallet?: {
+    balance: number;
+    allocatedTotal: number;
+    consumedTotal: number;
+  } | null;
 }
 
 export interface InstitutionHistory {
@@ -226,6 +264,292 @@ export interface SessionEntry {
   current: boolean;
 }
 
+export type PlanStatus = 'draft' | 'active' | 'archived';
+export type BillingCycle = 'monthly' | 'quarterly' | 'yearly';
+export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'paused' | 'cancelled' | 'expired';
+export type InvoiceStatus = 'draft' | 'issued' | 'partially_paid' | 'paid' | 'overdue' | 'void';
+export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'refunded' | 'partially_refunded';
+export type RefundStatus = 'requested' | 'approved' | 'rejected' | 'executed';
+
+export interface PlanVersion {
+  id: number;
+  versionNumber: number;
+  billingCycle: BillingCycle;
+  price: number;
+  setupFee: number;
+  currency: string;
+  trialDays: number;
+  studentLimit: number | null;
+  facultyLimit: number | null;
+  campusLimit: number | null;
+  departmentLimit: number | null;
+  recruiterLimit: number | null;
+  storageLimitMb: number;
+  apiRequestsLimit: number | null;
+  aiCreditAllocation: number;
+  aiCreditResetPeriod: 'monthly' | 'quarterly' | 'yearly' | 'none';
+  features: Record<string, boolean>;
+  isCurrent: boolean;
+  publishedAt: string | null;
+}
+
+export interface Plan {
+  id: number;
+  code: string;
+  name: string;
+  description: string | null;
+  status: PlanStatus;
+  sortOrder: number;
+  isPublic: boolean;
+  subscriptionsCount: number;
+  activeSubscriptionsCount: number;
+  currentVersion: PlanVersion | null;
+  versions?: PlanVersion[];
+  updatedAt: string | null;
+}
+
+export interface PlanInput {
+  code?: string;
+  name: string;
+  description?: string;
+  status?: PlanStatus;
+  sortOrder?: number;
+  isPublic?: boolean;
+  billingCycle: BillingCycle;
+  price: number;
+  setupFee: number;
+  currency: string;
+  trialDays: number;
+  studentLimit?: number | null;
+  facultyLimit?: number | null;
+  campusLimit?: number | null;
+  departmentLimit?: number | null;
+  recruiterLimit?: number | null;
+  storageLimitMb: number;
+  apiRequestsLimit?: number | null;
+  aiCreditAllocation: number;
+  aiCreditResetPeriod: 'monthly' | 'quarterly' | 'yearly' | 'none';
+  features: Record<string, boolean>;
+}
+
+export interface SubscriptionEvent {
+  id: number;
+  eventType: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  reason: string | null;
+  actor: string | null;
+  at: string;
+}
+
+export interface Subscription {
+  id: number;
+  institution: { id: number; name: string; code: string; status: string } | null;
+  plan: { id: number; code: string; name: string } | null;
+  planVersionId: number;
+  planVersionNumber: number | null;
+  status: SubscriptionStatus;
+  billingCycle: BillingCycle;
+  amount: number;
+  currency: string;
+  mrr: number;
+  startAt: string;
+  endAt: string;
+  trialStartAt: string | null;
+  trialEndAt: string | null;
+  renewalAt: string | null;
+  graceEndsAt: string | null;
+  graceDays: number;
+  expiryBehavior: 'grace_then_readonly' | 'grace_then_suspend' | 'immediate_suspend';
+  autoRenew: boolean;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  pausedAt: string | null;
+  entitlementSnapshot: {
+    limits?: Record<string, number | string | null>;
+    features?: Record<string, boolean>;
+  } | null;
+  events?: SubscriptionEvent[];
+}
+
+export interface InvoiceItem {
+  id?: number;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  amount?: number;
+  itemType?: 'subscription' | 'setup_fee' | 'ai_credits' | 'addon' | 'adjustment';
+}
+
+export interface Payment {
+  id: number;
+  invoiceId: number;
+  invoiceNumber: string | null;
+  institution: { id: number; name: string; code: string } | null;
+  paymentReference: string | null;
+  gateway: string;
+  method: string;
+  amount: number;
+  refundedAmount: number;
+  refundableAmount: number;
+  currency: string;
+  status: PaymentStatus;
+  gatewayEventId: string | null;
+  failureReason: string | null;
+  paidAt: string | null;
+  createdAt: string | null;
+}
+
+export interface Refund {
+  id: number;
+  paymentId: number;
+  paymentReference: string | null;
+  invoiceId: number;
+  invoiceNumber: string | null;
+  institution: { id: number; name: string; code: string } | null;
+  amount: number;
+  currency: string;
+  reason: string;
+  status: RefundStatus;
+  gatewayRefundReference: string | null;
+  requestedBy: string | null;
+  rejectionReason: string | null;
+  approvedAt: string | null;
+  executedAt: string | null;
+  createdAt: string | null;
+}
+
+export interface Invoice {
+  id: number;
+  invoiceNumber: string;
+  institution: { id: number; name: string; code: string } | null;
+  subscriptionId: number | null;
+  status: InvoiceStatus;
+  currency: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  issuedAt: string | null;
+  dueAt: string;
+  subtotal: number;
+  discountAmount: number;
+  taxRatePercent: number;
+  taxAmount: number;
+  total: number;
+  paidAmount: number;
+  balance: number;
+  gstin: string | null;
+  placeOfSupply: string | null;
+  notes: string | null;
+  items: InvoiceItem[];
+  payments?: Payment[];
+  refunds?: Refund[];
+  createdAt: string | null;
+}
+
+export interface TaxProfile {
+  id: number;
+  code: string;
+  name: string;
+  taxType: 'gst' | 'vat' | 'sales_tax' | 'none';
+  ratePercent: number;
+  gstin: string | null;
+  placeOfSupply: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
+export interface Coupon {
+  id: number;
+  code: string;
+  name: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  currency: string | null;
+  maxRedemptions: number | null;
+  redemptionsCount: number;
+  validFrom: string | null;
+  validUntil: string | null;
+  isActive: boolean;
+}
+
+export interface RevenueSummary {
+  currency: string;
+  period: { from: string; to: string };
+  mrr: number;
+  arr: number;
+  invoiced: number;
+  collected: number;
+  refunded: number;
+  outstanding: number;
+  subscriptions: { active: number; trial: number; pastDue: number; total: number; trialConversionRate: number; churnRate: number };
+  byPlan: { planId: number; planCode: string; planName: string; subscriptions: number; mrr: number }[];
+  byInstitution: { institutionId: number; institutionName: string; code: string; invoiced: number; paid: number; outstanding: number }[];
+}
+
+export interface AiCreditWallet {
+  id: number;
+  institution: { id: number; name: string; code: string; status: string } | null;
+  balance: number;
+  allocatedTotal: number;
+  consumedTotal: number;
+  usedPercent: number;
+  monthlyQuota: number | null;
+  warningThresholdPercent: number;
+  hardStopOnExhaustion: boolean;
+  chargeFailedRequests: boolean;
+  thresholdExceeded: boolean;
+  lastActivityAt: string | null;
+}
+
+export interface AiCreditTransaction {
+  id: number;
+  type: string;
+  creditsDelta: number;
+  balanceAfter: number;
+  reason: string | null;
+  expiresAt: string | null;
+  actor: string;
+  at: string;
+}
+
+export interface AiUsageLogEntry {
+  id: number;
+  institution: { id: number; name: string; code: string } | null;
+  user: { id: number; name: string } | null;
+  feature: string;
+  provider: string;
+  model: string;
+  status: string;
+  promptTokens: number;
+  completionTokens: number;
+  latencyMs: number;
+  estimatedCostUsd: number;
+  creditsCharged: number | null;
+  error: string | null;
+  at: string;
+}
+
+export interface AiRateCard {
+  id: number;
+  serviceKey: string;
+  provider: string;
+  model: string;
+  creditsPerRequest: number;
+  creditsPer1kTokens: number;
+  usdPer1kInputTokens: number;
+  usdPer1kOutputTokens: number;
+  rateLimitPerMinute: number | null;
+  warningThresholdPercent: number;
+  chargeOnFailure: boolean;
+  isActive: boolean;
+}
+
+export interface AiProvidersResponse {
+  providers: { key: string; name: string; configured: boolean; maskedKey: string | null; models: string[]; chain: string[]; timeoutSeconds: number | null }[];
+  rateCards: AiRateCard[];
+  services: string[];
+}
+
 export interface MfaStatus {
   enabled: boolean;
   enabledAt: string | null;
@@ -236,31 +560,41 @@ export interface MfaStatus {
 type Query = Record<string, string | number | boolean | null | undefined>;
 type Page<T> = { data: T[]; meta: PageMeta };
 
+const offlineMfaError = () =>
+  Promise.reject(new ApiError('Two-factor setup requires a connected Laravel API.', 400));
+
 export const ownerApi = {
-  summary: () => http.get<{ data: OwnerSummary }>('/owner/dashboard/summary').then((r) => r.data),
-  trends: () => http.get<{ data: TrendPoint[] }>('/owner/dashboard/trends').then((r) => r.data),
-  alerts: () => http.get<{ data: OwnerAlert[] }>('/owner/dashboard/alerts').then((r) => r.data),
-  activity: () => http.get<{ data: ActivityEntry[] }>('/owner/dashboard/activity').then((r) => r.data),
+  summary: () => (isApiConfigured() ? http.get<{ data: OwnerSummary }>('/owner/dashboard/summary').then((r) => r.data) : ownerDemoApi.summary()),
+  trends: () => (isApiConfigured() ? http.get<{ data: TrendPoint[] }>('/owner/dashboard/trends').then((r) => r.data) : ownerDemoApi.trends()),
+  alerts: () => (isApiConfigured() ? http.get<{ data: OwnerAlert[] }>('/owner/dashboard/alerts').then((r) => r.data) : ownerDemoApi.alerts()),
+  activity: () => (isApiConfigured() ? http.get<{ data: ActivityEntry[] }>('/owner/dashboard/activity').then((r) => r.data) : ownerDemoApi.activity()),
 
-  institutions: (query: Query) => http.get<Page<InstitutionSummary>>('/owner/institutions', query),
-  institution: (id: number) => http.get<{ data: InstitutionDetail }>(`/owner/institutions/${id}`).then((r) => r.data),
-  institutionHistory: (id: number) => http.get<{ data: InstitutionHistory }>(`/owner/institutions/${id}/history`).then((r) => r.data),
-  createInstitution: (input: CreateInstitutionInput) => http.post<{ data: InstitutionDetail }>('/owner/institutions', input).then((r) => r.data),
-  updateInstitution: (id: number, input: Partial<InstitutionProfileInput>) => http.patch<{ data: InstitutionDetail }>(`/owner/institutions/${id}`, input).then((r) => r.data),
+  institutions: (query: Query) => (isApiConfigured() ? http.get<Page<InstitutionSummary>>('/owner/institutions', query) : ownerDemoApi.institutions(query)),
+  institution: (id: number) => (isApiConfigured() ? http.get<{ data: InstitutionDetail }>(`/owner/institutions/${id}`).then((r) => r.data) : ownerDemoApi.institution(id)),
+  institutionHistory: (id: number) =>
+    isApiConfigured() ? http.get<{ data: InstitutionHistory }>(`/owner/institutions/${id}/history`).then((r) => r.data) : ownerDemoApi.institutionHistory(id),
+  createInstitution: (input: CreateInstitutionInput) =>
+    isApiConfigured() ? http.post<{ data: InstitutionDetail }>('/owner/institutions', input).then((r) => r.data) : ownerDemoApi.createInstitution(input),
+  updateInstitution: (id: number, input: Partial<InstitutionProfileInput>) =>
+    isApiConfigured() ? http.patch<{ data: InstitutionDetail }>(`/owner/institutions/${id}`, input).then((r) => r.data) : ownerDemoApi.updateInstitution(id, input),
   verifyInstitution: (id: number, input: { status: VerificationStatus; note?: string }) =>
-    http.post<{ data: InstitutionDetail }>(`/owner/institutions/${id}/verify`, input).then((r) => r.data),
+    isApiConfigured() ? http.post<{ data: InstitutionDetail }>(`/owner/institutions/${id}/verify`, input).then((r) => r.data) : ownerDemoApi.verifyInstitution(id, input),
   changeInstitutionStatus: (id: number, input: { status: InstitutionStatus; reason?: string; effectiveAt?: string }) =>
-    http.post<{ data: InstitutionDetail; scheduled: boolean }>(`/owner/institutions/${id}/status`, input),
+    isApiConfigured()
+      ? http.post<{ data: InstitutionDetail; scheduled: boolean }>(`/owner/institutions/${id}/status`, input)
+      : ownerDemoApi.changeInstitutionStatus(id, input),
 
-  users: (query: Query) => http.get<Page<PlatformUserSummary>>('/owner/users', query),
-  user: (id: number) => http.get<{ data: PlatformUserDetail }>(`/owner/users/${id}`).then((r) => r.data),
+  users: (query: Query) => (isApiConfigured() ? http.get<Page<PlatformUserSummary>>('/owner/users', query) : ownerDemoApi.users(query)),
+  user: (id: number) => (isApiConfigured() ? http.get<{ data: PlatformUserDetail }>(`/owner/users/${id}`).then((r) => r.data) : ownerDemoApi.user(id)),
   inviteUser: (input: { name: string; email: string; role: 'platform_staff' | 'super_admin'; platformRoleId?: number | null }) =>
-    http.post<{ data: PlatformUserDetail }>('/owner/users/invitations', input).then((r) => r.data),
+    isApiConfigured() ? http.post<{ data: PlatformUserDetail }>('/owner/users/invitations', input).then((r) => r.data) : ownerDemoApi.inviteUser(input),
   setUserRole: (id: number, platformRoleId: number) => http.patch<{ data: PlatformUserDetail }>(`/owner/users/${id}`, { platformRoleId }).then((r) => r.data),
   changeUserStatus: (id: number, input: { status: 'active' | 'suspended'; reason?: string }) =>
-    http.post<{ data: PlatformUserDetail }>(`/owner/users/${id}/status`, input).then((r) => r.data),
-  sendPasswordReset: (id: number) => http.post<{ message: string }>(`/owner/users/${id}/password-reset`),
-  revokeUserSessions: (id: number) => http.delete<{ message: string }>(`/owner/users/${id}/sessions`),
+    isApiConfigured() ? http.post<{ data: PlatformUserDetail }>(`/owner/users/${id}/status`, input).then((r) => r.data) : ownerDemoApi.changeUserStatus(id, input),
+  sendPasswordReset: (id: number) =>
+    isApiConfigured() ? http.post<{ message: string }>(`/owner/users/${id}/password-reset`) : ownerDemoApi.sendPasswordReset(),
+  revokeUserSessions: (id: number) =>
+    isApiConfigured() ? http.delete<{ message: string }>(`/owner/users/${id}/sessions`) : ownerDemoApi.revokeUserSessions(id),
 
   permissions: () => http.get<{ data: PermissionGroup[] }>('/owner/permissions').then((r) => r.data),
   roles: () => http.get<{ data: PlatformRole[] }>('/owner/roles').then((r) => r.data),
@@ -270,18 +604,143 @@ export const ownerApi = {
     http.patch<{ data: PlatformRole }>(`/owner/roles/${id}`, input).then((r) => r.data),
   deleteRole: (id: number) => http.delete<{ message: string }>(`/owner/roles/${id}`),
 
-  settings: () => http.get<{ data: PlatformSettings }>('/owner/settings').then((r) => r.data),
-  saveSettings: (input: Partial<PlatformSettings>) => http.put<{ data: PlatformSettings }>('/owner/settings', input).then((r) => r.data),
-  auditLogs: (query: Query) => http.get<Page<AuditEntry>>('/owner/audit-logs', query),
-  loginHistory: (query: Query) => http.get<Page<LoginEntry> & { summary: Record<string, number> }>('/owner/login-history', query),
-  sessions: () => http.get<{ data: SessionEntry[] }>('/owner/sessions').then((r) => r.data),
-  revokeSession: (id: number) => http.delete<{ message: string }>(`/owner/sessions/${id}`),
-  health: () => http.get<{ data: SystemHealthSnapshot }>('/owner/system/health').then((r) => r.data),
+  settings: () => (isApiConfigured() ? http.get<{ data: PlatformSettings }>('/owner/settings').then((r) => r.data) : ownerDemoApi.settings()),
+  saveSettings: (input: Partial<PlatformSettings>) =>
+    isApiConfigured() ? http.put<{ data: PlatformSettings }>('/owner/settings', input).then((r) => r.data) : ownerDemoApi.saveSettings(input),
+  auditLogs: (query: Query) => (isApiConfigured() ? http.get<Page<AuditEntry>>('/owner/audit-logs', query) : ownerDemoApi.auditLogs(query)),
+  loginHistory: (query: Query) =>
+    isApiConfigured() ? http.get<Page<LoginEntry> & { summary: Record<string, number> }>('/owner/login-history', query) : ownerDemoApi.loginHistory(query),
+  sessions: () => (isApiConfigured() ? http.get<{ data: SessionEntry[] }>('/owner/sessions').then((r) => r.data) : ownerDemoApi.sessions()),
+  revokeSession: (id: number) => (isApiConfigured() ? http.delete<{ message: string }>(`/owner/sessions/${id}`) : ownerDemoApi.revokeSession(id)),
+  health: () => (isApiConfigured() ? http.get<{ data: SystemHealthSnapshot }>('/owner/system/health').then((r) => r.data) : ownerDemoApi.health()),
 
-  mfaStatus: () => http.get<{ data: MfaStatus }>('/auth/mfa').then((r) => r.data),
-  mfaSetup: () => http.post<{ data: { secret: string; otpauthUri: string } }>('/auth/mfa/setup').then((r) => r.data),
-  mfaConfirm: (code: string) => http.post<{ data: MfaStatus }>('/auth/mfa/confirm', { code }).then((r) => r.data),
-  mfaDisable: (code: string) => http.post<{ data: MfaStatus }>('/auth/mfa/disable', { code }).then((r) => r.data),
+  mfaStatus: () => (isApiConfigured() ? http.get<{ data: MfaStatus }>('/auth/mfa').then((r) => r.data) : ownerDemoApi.mfaStatus()),
+  mfaSetup: () => (isApiConfigured() ? http.post<{ data: { secret: string; otpauthUri: string } }>('/auth/mfa/setup').then((r) => r.data) : offlineMfaError()),
+  mfaConfirm: (code: string) => (isApiConfigured() ? http.post<{ data: MfaStatus }>('/auth/mfa/confirm', { code }).then((r) => r.data) : offlineMfaError()),
+  mfaDisable: (code: string) => (isApiConfigured() ? http.post<{ data: MfaStatus }>('/auth/mfa/disable', { code }).then((r) => r.data) : offlineMfaError()),
+
+  // Release 2: Plans & Entitlements
+  plans: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: Plan[] }>('/owner/plans', query).then((r) => r.data) : ownerDemoApi.plans(query)),
+  createPlan: (input: PlanInput) => (isApiConfigured() ? http.post<{ data: Plan }>('/owner/plans', input).then((r) => r.data) : ownerDemoApi.createPlan(input)),
+  updatePlan: (id: number, input: Partial<PlanInput>) =>
+    isApiConfigured() ? http.patch<{ data: Plan }>(`/owner/plans/${id}`, input).then((r) => r.data) : ownerDemoApi.updatePlan(id, input),
+  clonePlan: (id: number, input: { code?: string; name?: string } = {}) =>
+    isApiConfigured() ? http.post<{ data: Plan }>(`/owner/plans/${id}/clone`, input).then((r) => r.data) : ownerDemoApi.clonePlan(id, input),
+  publishPlan: (id: number) => (isApiConfigured() ? http.post<{ data: Plan }>(`/owner/plans/${id}/publish`).then((r) => r.data) : ownerDemoApi.publishPlan(id)),
+  archivePlan: (id: number) => (isApiConfigured() ? http.post<{ data: Plan }>(`/owner/plans/${id}/archive`).then((r) => r.data) : ownerDemoApi.archivePlan(id)),
+  deletePlan: (id: number) => (isApiConfigured() ? http.delete<{ message: string }>(`/owner/plans/${id}`) : ownerDemoApi.deletePlan(id)),
+
+  // Release 2: Subscriptions & Trials
+  subscriptions: (query: Query = {}) =>
+    isApiConfigured() ? http.get<Page<Subscription>>('/owner/subscriptions', query) : ownerDemoApi.subscriptions(query),
+  subscription: (id: number) =>
+    isApiConfigured() ? http.get<{ data: Subscription }>(`/owner/subscriptions/${id}`).then((r) => r.data) : ownerDemoApi.subscription(id),
+  assignSubscription: (input: {
+    institutionId: number;
+    planId: number;
+    status?: 'trial' | 'active';
+    trialDays?: number;
+    graceDays?: number;
+    expiryBehavior?: string;
+    autoRenew?: boolean;
+    generateInvoice?: boolean;
+  }) => (isApiConfigured() ? http.post<{ data: Subscription }>('/owner/subscriptions', input).then((r) => r.data) : ownerDemoApi.assignSubscription(input)),
+  changeSubscriptionPlan: (id: number, input: { planId: number; reason?: string; generateInvoice?: boolean }) =>
+    isApiConfigured()
+      ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/change-plan`, input).then((r) => r.data)
+      : ownerDemoApi.changeSubscriptionPlan(id, input),
+  renewSubscription: (id: number, generateInvoice = true) =>
+    isApiConfigured()
+      ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/renew`, { generateInvoice }).then((r) => r.data)
+      : ownerDemoApi.renewSubscription(id, generateInvoice),
+  pauseSubscription: (id: number, reason: string) =>
+    isApiConfigured() ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/pause`, { reason }).then((r) => r.data) : ownerDemoApi.pauseSubscription(id, reason),
+  resumeSubscription: (id: number) =>
+    isApiConfigured() ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/resume`).then((r) => r.data) : ownerDemoApi.resumeSubscription(id),
+  extendSubscription: (id: number, input: { days: number; reason: string }) =>
+    isApiConfigured() ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/extend`, input).then((r) => r.data) : ownerDemoApi.extendSubscription(id, input),
+  cancelSubscription: (id: number, input: { reason: string; immediate?: boolean }) =>
+    isApiConfigured() ? http.post<{ data: Subscription }>(`/owner/subscriptions/${id}/cancel`, input).then((r) => r.data) : ownerDemoApi.cancelSubscription(id, input),
+
+  // Release 2: Billing, Invoices, Payments, Refunds, Tax & Coupons
+  invoices: (query: Query = {}) => (isApiConfigured() ? http.get<Page<Invoice>>('/owner/invoices', query) : ownerDemoApi.invoices(query)),
+  createInvoice: (input: {
+    institutionId: number;
+    subscriptionId?: number | null;
+    taxProfileId?: number | null;
+    couponCode?: string;
+    currency?: string;
+    dueAt?: string;
+    notes?: string;
+    issueImmediately?: boolean;
+    items: InvoiceItem[];
+  }) => (isApiConfigured() ? http.post<{ data: Invoice }>('/owner/invoices', input).then((r) => r.data) : ownerDemoApi.createInvoice(input)),
+  issueInvoice: (id: number) =>
+    isApiConfigured() ? http.post<{ data: Invoice }>(`/owner/invoices/${id}/issue`).then((r) => r.data) : ownerDemoApi.issueInvoice(id),
+  voidInvoice: (id: number, reason?: string) =>
+    isApiConfigured() ? http.post<{ data: Invoice }>(`/owner/invoices/${id}/void`, { reason }).then((r) => r.data) : ownerDemoApi.voidInvoice(id),
+  payments: (query: Query = {}) => (isApiConfigured() ? http.get<Page<Payment>>('/owner/payments', query) : ownerDemoApi.payments(query)),
+  recordPayment: (input: {
+    invoiceId: number;
+    amount?: number;
+    gateway?: string;
+    method?: string;
+    status?: 'pending' | 'succeeded' | 'failed';
+    paymentReference?: string;
+    gatewayEventId?: string;
+  }) => (isApiConfigured() ? http.post<{ data: Payment; duplicate: boolean }>('/owner/payments', input) : ownerDemoApi.recordPayment(input)),
+  refunds: (query: Query = {}) => (isApiConfigured() ? http.get<Page<Refund>>('/owner/refunds', query) : ownerDemoApi.refunds(query)),
+  requestRefund: (input: { paymentId: number; amount: number; reason: string }) =>
+    isApiConfigured() ? http.post<{ data: Refund }>('/owner/refunds', input).then((r) => r.data) : ownerDemoApi.requestRefund(input),
+  approveRefund: (id: number) =>
+    isApiConfigured() ? http.post<{ data: Refund }>(`/owner/refunds/${id}/approve`).then((r) => r.data) : ownerDemoApi.approveRefund(id),
+  rejectRefund: (id: number, reason: string) =>
+    isApiConfigured() ? http.post<{ data: Refund }>(`/owner/refunds/${id}/reject`, { reason }).then((r) => r.data) : ownerDemoApi.rejectRefund(id, reason),
+  executeRefund: (id: number) =>
+    isApiConfigured() ? http.post<{ data: Refund }>(`/owner/refunds/${id}/execute`).then((r) => r.data) : ownerDemoApi.executeRefund(id),
+  revenueSummary: () =>
+    isApiConfigured() ? http.get<{ data: RevenueSummary }>('/owner/revenue/summary').then((r) => r.data) : ownerDemoApi.revenueSummary(),
+  taxProfiles: () => (isApiConfigured() ? http.get<{ data: TaxProfile[] }>('/owner/tax-profiles').then((r) => r.data) : ownerDemoApi.taxProfiles()),
+  createTaxProfile: (input: { code: string; name: string; taxType: string; ratePercent: number; gstin?: string; placeOfSupply?: string; isDefault?: boolean }) =>
+    isApiConfigured() ? http.post<{ data: TaxProfile }>('/owner/tax-profiles', input).then((r) => r.data) : ownerDemoApi.createTaxProfile(input),
+  coupons: () => (isApiConfigured() ? http.get<{ data: Coupon[] }>('/owner/coupons').then((r) => r.data) : ownerDemoApi.coupons()),
+  createCoupon: (input: { code: string; name: string; discountType: 'percent' | 'fixed'; discountValue: number; currency?: string; maxRedemptions?: number | null }) =>
+    isApiConfigured() ? http.post<{ data: Coupon }>('/owner/coupons', input).then((r) => r.data) : ownerDemoApi.createCoupon(input),
+
+  // Release 2: AI Usage, Credit Wallets, Ledger & Providers
+  aiUsage: (query: Query = {}) =>
+    isApiConfigured()
+      ? http.get<Page<AiUsageLogEntry> & { summary: { calls: number; failures: number; tokens: number; estimatedCostUsd: number; creditsCharged: number } }>('/owner/ai/usage', query)
+      : ownerDemoApi.aiUsage(query),
+  aiCredits: (query: Query = {}) =>
+    isApiConfigured()
+      ? http.get<{ data: AiCreditWallet[]; summary: { allocated: number; consumed: number; remaining: number } }>('/owner/ai/credits', query)
+      : ownerDemoApi.aiCredits(query),
+  aiCreditLedger: (institutionId: number) =>
+    isApiConfigured()
+      ? http.get<Page<AiCreditTransaction> & { wallet: AiCreditWallet }>(`/owner/ai/credits/${institutionId}/ledger`)
+      : ownerDemoApi.aiCreditLedger(institutionId),
+  adjustAiCredits: (input: { institutionId: number; transactionType: string; creditsDelta: number; reason: string; expiresAt?: string }) =>
+    isApiConfigured()
+      ? http.post<{ data: { transactionId: number; wallet: AiCreditWallet } }>('/owner/ai/credits/adjustments', input).then((r) => r.data)
+      : ownerDemoApi.adjustAiCredits(input),
+  updateAiWalletPolicy: (institutionId: number, input: { monthlyQuota?: number | null; warningThresholdPercent?: number; hardStopOnExhaustion?: boolean; chargeFailedRequests?: boolean }) =>
+    isApiConfigured()
+      ? http.patch<{ data: AiCreditWallet }>(`/owner/ai/credits/${institutionId}/policy`, input).then((r) => r.data)
+      : ownerDemoApi.updateAiWalletPolicy(institutionId, input),
+  aiProviders: () =>
+    isApiConfigured() ? http.get<{ data: AiProvidersResponse }>('/owner/ai/providers').then((r) => r.data) : ownerDemoApi.aiProviders(),
+  saveAiRateCard: (input: {
+    serviceKey: string;
+    provider: string;
+    model: string;
+    creditsPerRequest: number;
+    creditsPer1kTokens?: number;
+    rateLimitPerMinute?: number | null;
+    warningThresholdPercent?: number;
+    chargeOnFailure?: boolean;
+  }) =>
+    isApiConfigured() ? http.post<{ data: AiRateCard }>('/owner/ai/rate-cards', input).then((r) => r.data) : ownerDemoApi.saveAiRateCard(input),
 };
 
 export const ownerKeys = {
@@ -303,6 +762,19 @@ export const ownerKeys = {
   sessions: ['owner', 'sessions'] as const,
   health: ['owner', 'health'] as const,
   mfa: ['owner', 'mfa'] as const,
+  plans: (query: Query) => ['owner', 'plans', query] as const,
+  subscriptions: (query: Query) => ['owner', 'subscriptions', query] as const,
+  subscription: (id: number) => ['owner', 'subscription', id] as const,
+  invoices: (query: Query) => ['owner', 'invoices', query] as const,
+  payments: (query: Query) => ['owner', 'payments', query] as const,
+  refunds: (query: Query) => ['owner', 'refunds', query] as const,
+  revenue: ['owner', 'revenue'] as const,
+  taxProfiles: ['owner', 'taxProfiles'] as const,
+  coupons: ['owner', 'coupons'] as const,
+  aiUsage: (query: Query) => ['owner', 'aiUsage', query] as const,
+  aiCredits: (query: Query) => ['owner', 'aiCredits', query] as const,
+  aiLedger: (institutionId: number) => ['owner', 'aiLedger', institutionId] as const,
+  aiProviders: ['owner', 'aiProviders'] as const,
 };
 
 export const useOwnerSummary = () => useQuery({ queryKey: ownerKeys.summary, queryFn: ownerApi.summary, refetchInterval: 120_000 });
@@ -326,6 +798,26 @@ export const useLoginHistory = (query: Query) =>
 export const useSessions = () => useQuery({ queryKey: ownerKeys.sessions, queryFn: ownerApi.sessions });
 export const useSystemHealth = () => useQuery({ queryKey: ownerKeys.health, queryFn: ownerApi.health, refetchInterval: 60_000 });
 export const useMfaStatus = () => useQuery({ queryKey: ownerKeys.mfa, queryFn: ownerApi.mfaStatus });
+
+export const usePlans = (query: Query = {}) => useQuery({ queryKey: ownerKeys.plans(query), queryFn: () => ownerApi.plans(query) });
+export const useSubscriptions = (query: Query = {}) =>
+  useQuery({ queryKey: ownerKeys.subscriptions(query), queryFn: () => ownerApi.subscriptions(query), placeholderData: (p) => p });
+export const useSubscription = (id: number) => useQuery({ queryKey: ownerKeys.subscription(id), queryFn: () => ownerApi.subscription(id) });
+export const useInvoices = (query: Query = {}) =>
+  useQuery({ queryKey: ownerKeys.invoices(query), queryFn: () => ownerApi.invoices(query), placeholderData: (p) => p });
+export const usePayments = (query: Query = {}) =>
+  useQuery({ queryKey: ownerKeys.payments(query), queryFn: () => ownerApi.payments(query), placeholderData: (p) => p });
+export const useRefunds = (query: Query = {}) =>
+  useQuery({ queryKey: ownerKeys.refunds(query), queryFn: () => ownerApi.refunds(query), placeholderData: (p) => p });
+export const useRevenueSummary = () => useQuery({ queryKey: ownerKeys.revenue, queryFn: ownerApi.revenueSummary });
+export const useTaxProfiles = () => useQuery({ queryKey: ownerKeys.taxProfiles, queryFn: ownerApi.taxProfiles });
+export const useCoupons = () => useQuery({ queryKey: ownerKeys.coupons, queryFn: ownerApi.coupons });
+export const useAiUsage = (query: Query = {}) =>
+  useQuery({ queryKey: ownerKeys.aiUsage(query), queryFn: () => ownerApi.aiUsage(query), placeholderData: (p) => p });
+export const useAiCredits = (query: Query = {}) => useQuery({ queryKey: ownerKeys.aiCredits(query), queryFn: () => ownerApi.aiCredits(query) });
+export const useAiCreditLedger = (institutionId: number | null) =>
+  useQuery({ queryKey: ownerKeys.aiLedger(institutionId ?? 0), queryFn: () => ownerApi.aiCreditLedger(institutionId!), enabled: Boolean(institutionId) });
+export const useAiProviders = () => useQuery({ queryKey: ownerKeys.aiProviders, queryFn: ownerApi.aiProviders });
 
 /** A mutation that refreshes every owner query afterwards (counts, alerts and lists all move together). */
 export function useOwnerMutation<TVariables, TResult>(mutationFn: (variables: TVariables) => Promise<TResult>) {
@@ -353,6 +845,16 @@ export const OWNER = {
   auditView: 'owner.audit.view',
   securityView: 'owner.security.view',
   systemView: 'owner.system.view',
+  plansView: 'owner.plans.view',
+  plansManage: 'owner.plans.manage',
+  subscriptionsView: 'owner.subscriptions.view',
+  subscriptionsManage: 'owner.subscriptions.manage',
+  billingView: 'owner.billing.view',
+  billingManage: 'owner.billing.manage',
+  billingRefund: 'owner.billing.refund',
+  aiView: 'owner.ai.view',
+  aiManage: 'owner.ai.manage',
+  aiCredits: 'owner.ai.credits',
 } as const;
 
 export const institutionStatusLabels: Record<InstitutionStatus, string> = {

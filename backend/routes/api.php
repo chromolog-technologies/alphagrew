@@ -33,10 +33,14 @@ use App\Http\Controllers\Api\V1\CampusSiteController;
 use App\Http\Controllers\Api\V1\InstitutionSettingsController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Auth\MfaController;
+use App\Http\Controllers\Api\V1\Owner\OwnerAiController;
+use App\Http\Controllers\Api\V1\Owner\OwnerBillingController;
 use App\Http\Controllers\Api\V1\Owner\OwnerDashboardController;
 use App\Http\Controllers\Api\V1\Owner\OwnerInstitutionController;
+use App\Http\Controllers\Api\V1\Owner\OwnerPlanController;
 use App\Http\Controllers\Api\V1\Owner\OwnerPlatformController;
 use App\Http\Controllers\Api\V1\Owner\OwnerRoleController;
+use App\Http\Controllers\Api\V1\Owner\OwnerSubscriptionController;
 use App\Http\Controllers\Api\V1\Owner\OwnerUserController;
 use App\Support\Owner\OwnerPermission as OP;
 use App\Http\Controllers\Api\V1\Placement\PlacementJobController;
@@ -85,6 +89,7 @@ Route::model('registration', User::class);
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('/owner/auth/login', [AuthController::class, 'ownerLogin'])->middleware('throttle:login');
     Route::post('/auth/mfa/verify', [MfaController::class, 'verify'])->middleware('throttle:login');
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
     Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:password-reset');
@@ -499,6 +504,61 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/sessions', [OwnerPlatformController::class, 'sessions'])->middleware('owner:'.OP::SECURITY_VIEW);
             Route::delete('/sessions/{session}', [OwnerPlatformController::class, 'revokeSession'])->whereNumber('session')->middleware('owner:'.OP::USERS_SESSIONS);
             Route::get('/system/health', [OwnerPlatformController::class, 'health'])->middleware('owner:'.OP::SYSTEM_VIEW);
+
+            // Release 2: Plans & Entitlements (SRS §5.6)
+            Route::get('/plans', [OwnerPlanController::class, 'index'])->middleware('owner:'.OP::PLANS_VIEW);
+            Route::post('/plans', [OwnerPlanController::class, 'store'])->middleware('owner:'.OP::PLANS_MANAGE);
+            Route::get('/plans/{plan}', [OwnerPlanController::class, 'show'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_VIEW);
+            Route::patch('/plans/{plan}', [OwnerPlanController::class, 'update'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_MANAGE);
+            Route::post('/plans/{plan}/clone', [OwnerPlanController::class, 'clonePlan'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_MANAGE);
+            Route::post('/plans/{plan}/publish', [OwnerPlanController::class, 'publish'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_MANAGE);
+            Route::post('/plans/{plan}/archive', [OwnerPlanController::class, 'archive'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_MANAGE);
+            Route::delete('/plans/{plan}', [OwnerPlanController::class, 'destroy'])->whereNumber('plan')->middleware('owner:'.OP::PLANS_MANAGE);
+
+            // Release 2: Subscriptions & Trials (SRS §5.7)
+            Route::get('/subscriptions', [OwnerSubscriptionController::class, 'index'])->middleware('owner:'.OP::SUBSCRIPTIONS_VIEW);
+            Route::post('/subscriptions', [OwnerSubscriptionController::class, 'store'])->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::get('/subscriptions/{subscription}', [OwnerSubscriptionController::class, 'show'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_VIEW);
+            Route::post('/subscriptions/{subscription}/change-plan', [OwnerSubscriptionController::class, 'changePlan'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::post('/subscriptions/{subscription}/renew', [OwnerSubscriptionController::class, 'renew'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::post('/subscriptions/{subscription}/pause', [OwnerSubscriptionController::class, 'pause'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::post('/subscriptions/{subscription}/resume', [OwnerSubscriptionController::class, 'resume'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::post('/subscriptions/{subscription}/extend', [OwnerSubscriptionController::class, 'extend'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::post('/subscriptions/{subscription}/cancel', [OwnerSubscriptionController::class, 'cancel'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_MANAGE);
+            Route::get('/subscriptions/{subscription}/events', [OwnerSubscriptionController::class, 'events'])->whereNumber('subscription')->middleware('owner:'.OP::SUBSCRIPTIONS_VIEW);
+
+            // Release 2: Billing, Invoices, Payments, Refunds, Tax & Coupons (SRS §5.8)
+            Route::get('/invoices', [OwnerBillingController::class, 'invoices'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/invoices', [OwnerBillingController::class, 'storeInvoice'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::get('/invoices/{invoice}', [OwnerBillingController::class, 'showInvoice'])->whereNumber('invoice')->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/invoices/{invoice}/issue', [OwnerBillingController::class, 'issueInvoice'])->whereNumber('invoice')->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::post('/invoices/{invoice}/void', [OwnerBillingController::class, 'voidInvoice'])->whereNumber('invoice')->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::get('/invoices/{invoice}/download', [OwnerBillingController::class, 'downloadInvoice'])->whereNumber('invoice')->middleware('owner:'.OP::BILLING_VIEW);
+            Route::get('/payments', [OwnerBillingController::class, 'payments'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/payments', [OwnerBillingController::class, 'recordPayment'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::post('/payments/webhook', [OwnerBillingController::class, 'handleWebhook'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::get('/refunds', [OwnerBillingController::class, 'refunds'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/refunds', [OwnerBillingController::class, 'requestRefund'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::post('/refunds/{refund}/approve', [OwnerBillingController::class, 'approveRefund'])->whereNumber('refund')->middleware('owner:'.OP::BILLING_REFUND);
+            Route::post('/refunds/{refund}/reject', [OwnerBillingController::class, 'rejectRefund'])->whereNumber('refund')->middleware('owner:'.OP::BILLING_REFUND);
+            Route::post('/refunds/{refund}/execute', [OwnerBillingController::class, 'executeRefund'])->whereNumber('refund')->middleware('owner:'.OP::BILLING_REFUND);
+            Route::get('/revenue/summary', [OwnerBillingController::class, 'revenueSummary'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::get('/tax-profiles', [OwnerBillingController::class, 'taxProfiles'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/tax-profiles', [OwnerBillingController::class, 'storeTaxProfile'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::patch('/tax-profiles/{taxProfile}', [OwnerBillingController::class, 'updateTaxProfile'])->whereNumber('taxProfile')->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::get('/coupons', [OwnerBillingController::class, 'coupons'])->middleware('owner:'.OP::BILLING_VIEW);
+            Route::post('/coupons', [OwnerBillingController::class, 'storeCoupon'])->middleware('owner:'.OP::BILLING_MANAGE);
+            Route::patch('/coupons/{coupon}', [OwnerBillingController::class, 'updateCoupon'])->whereNumber('coupon')->middleware('owner:'.OP::BILLING_MANAGE);
+
+            // Release 2: AI Usage, Credit Wallets, Ledger & Providers (SRS §5.9)
+            Route::get('/ai/usage', [OwnerAiController::class, 'usage'])->middleware('owner:'.OP::AI_VIEW);
+            Route::get('/ai/credits', [OwnerAiController::class, 'credits'])->middleware('owner:'.OP::AI_VIEW);
+            Route::get('/ai/credits/{institution}/ledger', [OwnerAiController::class, 'ledger'])->whereNumber('institution')->middleware('owner:'.OP::AI_VIEW);
+            Route::post('/ai/credits/adjustments', [OwnerAiController::class, 'adjustCredits'])->middleware('owner:'.OP::AI_CREDITS);
+            Route::patch('/ai/credits/{institution}/policy', [OwnerAiController::class, 'updateWalletPolicy'])->whereNumber('institution')->middleware('owner:'.OP::AI_MANAGE);
+            Route::get('/ai/providers', [OwnerAiController::class, 'providers'])->middleware('owner:'.OP::AI_VIEW);
+            Route::post('/ai/rate-cards', [OwnerAiController::class, 'storeRateCard'])->middleware('owner:'.OP::AI_MANAGE);
+            Route::patch('/ai/rate-cards/{rateCard}', [OwnerAiController::class, 'updateRateCard'])->whereNumber('rateCard')->middleware('owner:'.OP::AI_MANAGE);
         });
 
         // In-app notifications and preferences, for every role.
