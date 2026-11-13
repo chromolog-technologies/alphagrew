@@ -138,6 +138,43 @@ class CustomFieldService
             ->all();
     }
 
+    /**
+     * valuesFor() for many records of one entity in a single query.
+     *
+     * @param  iterable<int, Model>  $records
+     * @return array<int, array<string, mixed>> Record id → `{key: value}`.
+     */
+    public function valuesForMany(iterable $records, string $entity): array
+    {
+        $ids = [];
+        foreach ($records as $record) {
+            $ids[] = $record->getKey();
+        }
+
+        $definitions = $this->definitions($entity);
+        if ($ids === []) {
+            return [];
+        }
+
+        $stored = $definitions->isEmpty() ? collect() : CustomFieldValue::query()
+            ->whereIn('definition_id', $definitions->pluck('id'))
+            ->whereIn('entity_id', $ids)
+            ->get()
+            ->groupBy('entity_id');
+
+        $result = [];
+        foreach ($ids as $id) {
+            $values = $stored->get($id, collect())->keyBy('definition_id');
+            $result[$id] = $definitions
+                ->mapWithKeys(fn (CustomFieldDefinition $definition) => [
+                    $definition->key => $this->decode($definition, $values->get($definition->id)),
+                ])
+                ->all();
+        }
+
+        return $result;
+    }
+
     /** @return array<int, mixed> */
     private function typeRules(CustomFieldDefinition $definition): array
     {

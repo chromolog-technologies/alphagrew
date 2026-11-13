@@ -22,6 +22,8 @@ use App\Http\Controllers\Api\V1\CampusController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\CustomFieldController;
+use App\Http\Controllers\Api\V1\CustomModuleController;
+use App\Http\Controllers\Api\V1\CustomModuleRecordController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DepartmentController;
 use App\Http\Controllers\Api\V1\DesignationController;
@@ -31,6 +33,7 @@ use App\Http\Controllers\Api\V1\Interviews\InterviewController;
 use App\Http\Controllers\Api\V1\BatchController;
 use App\Http\Controllers\Api\V1\CampusSiteController;
 use App\Http\Controllers\Api\V1\InstitutionSettingsController;
+use App\Http\Controllers\Api\V1\SidebarLayoutController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Auth\MfaController;
 use App\Http\Controllers\Api\V1\Owner\OwnerAiController;
@@ -155,6 +158,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/institution', [InstitutionSettingsController::class, 'show']);
         $settings = 'permission:'.CampusPermission::SETTINGS_MANAGE.',sanctum';
         Route::put('/institution/settings', [InstitutionSettingsController::class, 'update'])->middleware($settings);
+        Route::get('/institution/sidebar-layout', [SidebarLayoutController::class, 'show']);
+        Route::put('/institution/sidebar-layout', [SidebarLayoutController::class, 'update'])->middleware($settings);
         Route::post('/institution/logo', [InstitutionSettingsController::class, 'uploadLogo'])->middleware([$settings, 'throttle:uploads']);
 
         $viewStructure = 'permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum';
@@ -394,9 +399,25 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/custom-fields/{customField}', [CustomFieldController::class, 'update'])->whereNumber('customField')->middleware($manageFields);
         Route::delete('/custom-fields/{customField}', [CustomFieldController::class, 'destroy'])->whereNumber('customField')->middleware($manageFields);
         Route::get('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'showValues'])
-            ->whereIn('entity', ['student', 'staff', 'subject', 'exam'])->whereNumber('id');
+            ->whereIn('entity', ['student', 'staff', 'subject', 'exam', 'company', 'department', 'course', 'designation'])->whereNumber('id');
         Route::put('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'updateValues'])
-            ->whereIn('entity', ['student', 'staff', 'subject', 'exam'])->whereNumber('id');
+            ->whereIn('entity', ['student', 'staff', 'subject', 'exam', 'company', 'department', 'course', 'designation'])->whereNumber('id');
+
+        // Modules admins create, and their records. Managing modules needs custom_fields.manage;
+        // record access follows each module's view/edit roles (checked in the controllers).
+        Route::get('/custom-modules', [CustomModuleController::class, 'index']);
+        Route::post('/custom-modules', [CustomModuleController::class, 'store'])->middleware($manageFields);
+        Route::put('/custom-modules/order', [CustomModuleController::class, 'reorder'])->middleware($manageFields);
+        Route::get('/custom-modules/{customModule}', [CustomModuleController::class, 'show'])->whereNumber('customModule');
+        Route::patch('/custom-modules/{customModule}', [CustomModuleController::class, 'update'])->whereNumber('customModule')->middleware($manageFields);
+        Route::delete('/custom-modules/{customModule}', [CustomModuleController::class, 'destroy'])->whereNumber('customModule')->middleware($manageFields);
+        Route::scopeBindings()->whereNumber(['customModule', 'record'])->group(function (): void {
+            Route::get('/custom-modules/{customModule}/records', [CustomModuleRecordController::class, 'index']);
+            Route::post('/custom-modules/{customModule}/records', [CustomModuleRecordController::class, 'store']);
+            Route::get('/custom-modules/{customModule}/records/{record}', [CustomModuleRecordController::class, 'show']);
+            Route::patch('/custom-modules/{customModule}/records/{record}', [CustomModuleRecordController::class, 'update']);
+            Route::delete('/custom-modules/{customModule}/records/{record}', [CustomModuleRecordController::class, 'destroy']);
+        });
 
         // Dashboards: role templates, user-built dashboards and the widget query engine.
         // Every query runs within the caller's own data scope (App\Services\Dashboards\DashboardScope).

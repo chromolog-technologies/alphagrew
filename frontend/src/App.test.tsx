@@ -271,6 +271,29 @@ describe('App routing (signed in role isolation)', () => {
     expect(nameMatches.length).toBeGreaterThan(0);
     expect(screen.queryByLabelText(/owner console navigation/i)).not.toBeInTheDocument();
   }, 15000);
+
+  it('allows signed-in owner to access the reset-password verification page', async () => {
+    const ownerUser = {
+      id: 1,
+      name: 'Platform Owner',
+      email: 'owner@demo.com',
+      role: 'super_admin',
+      permissions: [],
+      ownerPermissions: ['owner.overview.view'],
+      platformRole: 'super_admin',
+    };
+    localStorage.setItem('chromolog-campus-auth', JSON.stringify({ token: '1|owner-tok', user: ownerUser }));
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse(200, { user: ownerUser, data: emptyDataset })),
+    );
+
+    renderAt('/reset-password?token=demo-token&email=admin@lakeside.test&mode=verify');
+
+    expect(await screen.findByRole('heading', { name: /verify your account & set password/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /verify account/i })).toBeInTheDocument();
+  });
 });
 
 describe('Owner Console Release 2 (SaaS commercial & AI credits)', () => {

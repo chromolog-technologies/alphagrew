@@ -48,6 +48,8 @@ import {
   UserCircle2,
   Users,
   X,
+  Layers,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { lazyNamed } from '../../lib/lazyNamed';
@@ -83,6 +85,7 @@ const StudentNotifications = lazyNamed(() => import('../student/StudentNotificat
 const StudentCareerProfile = lazyNamed(() => import('../student/StudentCareerProfile'), 'StudentCareerProfile');
 const DashboardHome = lazyNamed(() => import('../dashboards/DashboardHome'), 'DashboardHome');
 const CustomFieldsModule = lazyNamed(() => import('../admin/CustomFieldsModule'), 'CustomFieldsModule');
+const CustomModuleRecordsView = lazyNamed(() => import('../modules/CustomModuleRecordsView'), 'CustomModuleRecordsView');
 const StudentJobsView = lazyNamed(() => import('../placement/StudentJobsView'), 'StudentJobsView');
 const PlacementWorkspace = lazyNamed(() => import('../placement/PlacementWorkspace'), 'PlacementWorkspace');
 const NotificationCenter = lazyNamed(() => import('../notifications/NotificationCenter'), 'NotificationCenter');
@@ -94,6 +97,15 @@ import { NotificationBell } from '../notifications/NotificationCenter';
 import { isApiConfigured } from '../../api/http';
 import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
 import { CustomFieldInputs } from '../shared/CustomFieldInputs';
+import { customModuleIdFromTab, customModuleTabId, useCustomModules, useReorderCustomModules } from '../../api/customModulesApi';
+import {
+  arrangeItems,
+  EMPTY_SIDEBAR_LAYOUT,
+  useSaveSidebarLayout,
+  useSidebarLayout,
+  type SidebarGroupLayout,
+} from '../../api/sidebarLayoutApi';
+import { SidebarNavList, type SidebarEntry } from './workspace/SidebarNavList';
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
 import { SampleDataNotice, TenantState } from '../shared';
@@ -223,6 +235,24 @@ export default function CampusWorkspace({
 
   const can = (permission: CampusPermission) => user.permissions.includes(permission);
   const availableNav = navByRole[user.role];
+  // Modules the institution created and this user can view (the API filters by role), in their
+  // saved order. Each opens /app/module_{id}; switched-off modules stay out of the sidebar.
+  const hasInstitutionModules = isApiConfigured() && user.role !== 'super_admin' && user.role !== 'platform_staff';
+  const customModules = useCustomModules({ enabled: hasInstitutionModules });
+  // An unexpected response must not take the whole workspace down; the sidebar then just has no modules.
+  const sidebarModules = (Array.isArray(customModules.data) ? customModules.data : []).filter((module) => module.isActive);
+  const moduleTabIds = sidebarModules.map((module) => customModuleTabId(module.id));
+  const reorderModules = useReorderCustomModules();
+  // The institution's sidebar arrangement (order and hidden items per group); admins edit it in place.
+  const sidebarLayoutQuery = useSidebarLayout({ enabled: hasInstitutionModules });
+  const saveSidebarLayout = useSaveSidebarLayout();
+  const sidebarLayout =
+    sidebarLayoutQuery.data && typeof sidebarLayoutQuery.data.groups === 'object' && sidebarLayoutQuery.data.groups !== null
+      ? sidebarLayoutQuery.data
+      : EMPTY_SIDEBAR_LAYOUT;
+  // Saving needs settings.manage, which admins hold (the frontend permission list does not carry it).
+  const canArrangeSidebar = hasInstitutionModules && isAdminRole(user.role);
+  const [arrangingGroupId, setArrangingGroupId] = useState<string | null>(null);
   const linkedStudent = user.studentId ? data.students.find((student) => student.id === user.studentId) ?? null : null;
   const asArray = <T,>(response: unknown): T[] => {
     if (Array.isArray(response)) {
@@ -1007,6 +1037,18 @@ export default function CampusWorkspace({
       items: availableNav.filter((item) => group.itemIds.includes(item.id)),
     }))
     .filter((group) => group.items.length > 0);
+  // The institution's own modules get their own group, right after Master Data.
+  const customModulesGroupIndex = groupedSidebarNav.findIndex((group) => group.id === 'master_data') + 1;
+  // Admins always see the group (empty: a shortcut to create the first module); others once a module exists.
+  const canManageModules = hasInstitutionModules && (can('custom_fields.manage') || isAdminRole(user.role));
+  const sidebarGroups: { id: string; label: string; items: typeof availableNav; isCustomModules?: boolean }[] =
+    sidebarModules.length > 0 || canManageModules
+      ? [
+          ...groupedSidebarNav.slice(0, customModulesGroupIndex),
+          { id: 'custom_modules', label: 'Modules', items: [], isCustomModules: true },
+          ...groupedSidebarNav.slice(customModulesGroupIndex),
+        ]
+      : groupedSidebarNav;
   const phase1Status = {
     departments: data.departments.length > 0,
     courses: phase1CoursesConfigured,
@@ -1031,7 +1073,8 @@ export default function CampusWorkspace({
     'placement',
   ]);
   const isPhase1LockedTab = (tabId: string) => isAdminRole(user.role) && !isPhase1Complete && phase1LockedTabIds.has(tabId);
-  const activeNavLabel = availableNav.find((item) => item.id === activeTab)?.label ?? 'Dashboard';
+  const activeModule = sidebarModules.find((module) => customModuleTabId(module.id) === activeTab) ?? null;
+  const activeNavLabel = activeModule?.pluralLabel ?? availableNav.find((item) => item.id === activeTab)?.label ?? 'Dashboard';
   const breadcrumbItems = activeTab === 'dashboard' ? ['Dashboard'] : ['Dashboard', activeNavLabel];
   // The institution comes from the session (workflow ticket F2); until the backend sends it,
   // institution users see the demo campus name.
@@ -4429,7 +4472,13 @@ export default function CampusWorkspace({
 
   const renderTabContent = () => {
     // Route guard: a page outside the role's menu is refused, an unknown one is not found.
-    const access = workspaceAccess(activeTab, availableNav.map((item) => item.id), workspaceTabIds);
+    // Module pages (/app/module_{id}) exist once the module list has loaded.
+    if (customModuleIdFromTab(activeTab) !== null && hasInstitutionModules) {
+      if (customModules.isLoading) return <PageLoading />;
+      if (activeModule) return <CustomModuleRecordsView module={activeModule} />;
+    }
+
+    const access = workspaceAccess(activeTab, [...availableNav.map((item) => item.id), ...moduleTabIds], workspaceTabIds);
     if (access !== 'allowed') {
       return access === 'forbidden' ? <AccessDenied homePath={workspacePath(homeTab)} /> : <NotFound homePath={workspacePath(homeTab)} />;
     }
@@ -4442,7 +4491,15 @@ export default function CampusWorkspace({
         }
         return isAdminRole(user.role) ? renderAdminDashboard() : isInstitutionStaffRole(user.role) ? renderStaffDashboard() : renderStudentDashboard();
       case 'custom_fields':
-        return <CustomFieldsModule />;
+        return (
+          <CustomFieldsModule
+            departments={data.departments}
+            designations={data.designations}
+            studentsCount={data.students.length}
+            staffCount={data.users.length}
+            companiesCount={data.companies.length}
+          />
+        );
       case 'activity':
         return renderActivityTab();
       case 'masters':
@@ -4534,7 +4591,7 @@ export default function CampusWorkspace({
         right. On small screens the sidebar slides in over the page.
       */}
       <div className="min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[252px_minmax(0,1fr)] lg:grid-rows-[auto_1fr]">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border/80 bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:col-start-2 lg:row-start-1 lg:px-5">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border/80 bg-card/95 px-4 backdrop-blur supports-backdrop-filter:bg-card/85 lg:col-start-2 lg:row-start-1 lg:px-5">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
@@ -4843,83 +4900,155 @@ export default function CampusWorkspace({
 
               {/* Navigation */}
               <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4 [scrollbar-width:thin]">
-                {groupedSidebarNav.map((group) => {
-                  const isOpen = sidebarDropdowns[group.id] !== false;
-                  const hasActiveItem = group.items.some((item) => item.id === activeTab);
+                {sidebarGroups.map((group) => {
+                  const arranging = arrangingGroupId === group.id;
+                  const groupLayout = sidebarLayout.groups[group.id];
+                  const entries: SidebarEntry[] = group.isCustomModules
+                    ? sidebarModules.map((module) => ({
+                        id: customModuleTabId(module.id),
+                        label: module.pluralLabel,
+                        icon: Layers,
+                        count: module.recordsCount,
+                      }))
+                    : group.items.map((item) => ({
+                        id: item.id,
+                        label: item.label,
+                        icon: item.icon,
+                        count:
+                          item.id === 'students'
+                            ? data.students.length
+                            : item.id === 'placement'
+                              ? data.companies.length
+                              : item.id === 'activity'
+                                ? activityFeed.length
+                                : 0,
+                        locked: isPhase1LockedTab(item.id),
+                        lockedTitle: 'Complete Phase 1 setup to unlock this module.',
+                      }));
+                  // Module order is the modules' own saved order; other groups use the sidebar layout.
+                  const visibleEntries = arrangeItems(entries, groupLayout, {
+                    includeHidden: arranging,
+                    keepOrder: group.isCustomModules,
+                  });
+                  // A group whose items are all hidden disappears, except for admins (to bring them back).
+                  if (visibleEntries.length === 0 && !(canArrangeSidebar && entries.length > 0) && !group.isCustomModules) {
+                    return null;
+                  }
+                  if (group.isCustomModules && visibleEntries.length === 0 && !canManageModules) {
+                    return null;
+                  }
+                  const isOpen = arranging || sidebarDropdowns[group.id] !== false;
+                  const hasActiveItem = visibleEntries.some((entry) => entry.id === activeTab);
+
+                  const saveGroup = (next: Partial<SidebarGroupLayout>) =>
+                    saveSidebarLayout.mutate({
+                      groups: {
+                        ...sidebarLayout.groups,
+                        [group.id]: {
+                          order: next.order ?? groupLayout?.order ?? [],
+                          hidden: next.hidden ?? groupLayout?.hidden ?? [],
+                        },
+                      },
+                    });
 
                   return (
                     <div key={group.id}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSidebarDropdowns((current) => ({
-                            ...current,
-                            [group.id]: current[group.id] === false ? true : false,
-                          }))
-                        }
-                        aria-expanded={isOpen}
-                        className={classNames(
-                          'mb-1.5 flex w-full items-center justify-between px-3 text-left text-2xs font-semibold uppercase tracking-widest transition',
-                          hasActiveItem ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        <span>{group.label}</span>
-                        <ChevronDown
-                          size={12}
-                          className={classNames('shrink-0 transition-transform duration-150', isOpen ? '' : '-rotate-90')}
+                      <div className="mb-1.5 flex items-center gap-1 pr-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSidebarDropdowns((current) => ({
+                              ...current,
+                              [group.id]: current[group.id] === false ? true : false,
+                            }))
+                          }
+                          disabled={arranging}
+                          aria-expanded={isOpen}
+                          className={classNames(
+                            'flex min-w-0 flex-1 items-center justify-between px-3 text-left text-2xs font-semibold uppercase tracking-widest transition',
+                            hasActiveItem || arranging ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          <span className="truncate">{group.label}</span>
+                          {arranging ? null : (
+                            <ChevronDown
+                              size={12}
+                              className={classNames('shrink-0 transition-transform duration-150', isOpen ? '' : '-rotate-90')}
+                            />
+                          )}
+                        </button>
+                        {canArrangeSidebar && entries.length > 1 ? (
+                          arranging ? (
+                            <button
+                              type="button"
+                              onClick={() => setArrangingGroupId(null)}
+                              className="rounded-md bg-primary px-2 py-0.5 text-2xs font-semibold text-primary-foreground hover:bg-primary/90"
+                            >
+                              Done
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setArrangingGroupId(group.id)}
+                              aria-label={`Arrange ${group.label}`}
+                              title={`Arrange ${group.label}: drag to reorder, hide items`}
+                              className="rounded-md p-1 text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+                            >
+                              <SlidersHorizontal size={13} aria-hidden="true" />
+                            </button>
+                          )
+                        ) : null}
+                      </div>
+                      {arranging ? (
+                        <p className="mb-1.5 px-3 text-2xs text-muted-foreground">
+                          Drag or use the arrows to reorder; the eye hides an item for everyone.
+                        </p>
+                      ) : null}
+
+                      {!isOpen ? null : group.isCustomModules && entries.length === 0 ? (
+                        canManageModules ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleNavSelection('custom_fields');
+                              setIsSidebarOpen(false);
+                            }}
+                            className="flex w-full items-center gap-3 rounded-md border border-dashed border-sidebar-border px-3 py-1.75 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                          >
+                            <Plus size={16} className="shrink-0" aria-hidden="true" />
+                            <span className="flex-1 truncate">Create a module</span>
+                          </button>
+                        ) : null
+                      ) : (
+                        <SidebarNavList
+                          label={group.label}
+                          items={visibleEntries}
+                          activeTab={activeTab}
+                          arranging={arranging}
+                          hiddenIds={groupLayout?.hidden ?? []}
+                          onSelect={(id) => {
+                            handleNavSelection(id);
+                            setIsSidebarOpen(false);
+                          }}
+                          onReorder={(ids) => {
+                            if (group.isCustomModules) {
+                              reorderModules.mutate(ids.map((id) => customModuleIdFromTab(id)).filter((id): id is number => id !== null));
+                            } else {
+                              saveGroup({ order: ids });
+                            }
+                          }}
+                          onToggleHidden={(id) => {
+                            const hidden = new Set(groupLayout?.hidden ?? []);
+                            if (hidden.has(id)) hidden.delete(id);
+                            else hidden.add(id);
+                            saveGroup({ hidden: [...hidden] });
+                          }}
                         />
-                      </button>
-
-                      {isOpen ? (
-                        <div className="space-y-0.5">
-                          {group.items.map((item) => {
-                            const isLocked = isPhase1LockedTab(item.id);
-                            const isActive = activeTab === item.id;
-                            const count =
-                              item.id === 'students'
-                                ? data.students.length
-                                : item.id === 'placement'
-                                  ? data.companies.length
-                                  : item.id === 'activity'
-                                    ? activityFeed.length
-                                    : 0;
-
-                            return (
-                              <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                  handleNavSelection(item.id);
-                                  setIsSidebarOpen(false);
-                                }}
-                                disabled={isLocked}
-                                aria-current={isActive ? 'page' : undefined}
-                                title={isLocked ? 'Complete Phase 1 setup to unlock this module.' : item.label}
-                                className={classNames(
-                                  'flex w-full items-center gap-3 rounded-md px-3 py-1.75 text-left text-[13px] font-medium transition-colors duration-150',
-                                  isActive
-                                    ? 'bg-primary/8 text-primary'
-                                    : isLocked
-                                      ? 'cursor-not-allowed text-muted-foreground/50'
-                                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground',
-                                )}
-                              >
-                                <item.icon size={16} className="shrink-0" aria-hidden="true" />
-                                <span className="flex-1 truncate">{item.label}</span>
-                                {count > 0 ? (
-                                  <span
-                                    className={classNames(
-                                      'rounded-full px-1.5 py-0.5 text-2xs font-semibold leading-none',
-                                      isActive ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
-                                    )}
-                                  >
-                                    {count}
-                                  </span>
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
+                      )}
+                      {arranging && (saveSidebarLayout.isError || reorderModules.isError) ? (
+                        <p role="alert" className="mt-1 px-3 text-2xs text-destructive">
+                          The change could not be saved.
+                        </p>
                       ) : null}
                     </div>
                   );

@@ -38,6 +38,7 @@ class PasswordResetController extends Controller
             function (User $user, string $password): void {
                 $user->forceFill([
                     'password' => $password,
+                    'email_verified_at' => $user->email_verified_at ?? now(),
                     'failed_login_attempts' => 0,
                     'locked_until' => null,
                 ])->save();

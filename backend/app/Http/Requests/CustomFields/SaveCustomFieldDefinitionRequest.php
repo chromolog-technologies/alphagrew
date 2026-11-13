@@ -36,7 +36,11 @@ class SaveCustomFieldDefinitionRequest extends FormRequest
 
         return [
             ...($this->isCreating() ? [
-                'entity' => ['required', Rule::in(array_keys(CustomFieldDefinition::ENTITIES))],
+                'entity' => ['required', 'string', function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! CustomFieldDefinition::isKnownEntity($value)) {
+                        $fail('The selected record type is invalid.');
+                    }
+                }],
                 'key' => [
                     'required', 'string', 'max:50', 'regex:/^[a-z][a-z0-9_]*$/',
                     TenantRule::unique('custom_field_definitions', 'key')->where('entity', $this->input('entity')),

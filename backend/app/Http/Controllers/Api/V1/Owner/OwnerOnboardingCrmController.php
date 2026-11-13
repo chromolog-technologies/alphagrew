@@ -13,10 +13,12 @@ use App\Models\OnboardingChecklist;
 use App\Models\OnboardingRequest;
 use App\Models\SalesActivity;
 use App\Models\User;
+use App\Notifications\VerifyAccountNotification;
 use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -384,7 +386,12 @@ class OwnerOnboardingCrmController extends Controller
             return [$institution, $admin];
         });
 
-        Password::broker()->sendResetLink(['email' => $admin->email]);
+        try {
+            $token = Password::broker()->createToken($admin);
+            $admin->notify(new VerifyAccountNotification($token, $institution->name));
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send welcome verification link to {$admin->email}: {$e->getMessage()}");
+        }
         $this->audit->record('owner.onboarding_converted', $onboardingRequest, [], ['institutionId' => $institution->id, 'code' => $institution->code], $request->user(), $institution->id);
 
         return response()->json([

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\CustomFields\SaveCustomFieldDefinitionRequest;
 use App\Http\Resources\CustomFieldDefinitionResource;
 use App\Models\CustomFieldDefinition;
+use App\Models\CustomModule;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Audit\AuditLogger;
@@ -17,7 +18,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -31,6 +31,10 @@ class CustomFieldController extends Controller
         CustomFieldDefinition::ENTITY_STAFF => CampusPermission::DEPARTMENTS_CREATE,
         CustomFieldDefinition::ENTITY_SUBJECT => CampusPermission::DEPARTMENTS_CREATE,
         CustomFieldDefinition::ENTITY_EXAM => CampusPermission::EXAMS_EDIT,
+        CustomFieldDefinition::ENTITY_COMPANY => CampusPermission::PLACEMENT_CREATE,
+        CustomFieldDefinition::ENTITY_DEPARTMENT => CampusPermission::DEPARTMENTS_CREATE,
+        CustomFieldDefinition::ENTITY_COURSE => CampusPermission::DEPARTMENTS_CREATE,
+        CustomFieldDefinition::ENTITY_DESIGNATION => CampusPermission::DEPARTMENTS_CREATE,
     ];
 
     public function __construct(private readonly AuditLogger $audit) {}
@@ -42,15 +46,27 @@ class CustomFieldController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'entity' => ['nullable', Rule::in(array_keys(CustomFieldDefinition::ENTITIES))],
+            'entity' => ['nullable', 'string', function (string $attribute, mixed $value, \Closure $fail): void {
+                if (! CustomFieldDefinition::isKnownEntity($value)) {
+                    $fail('The selected record type is invalid.');
+                }
+            }],
             'includeInactive' => ['nullable', 'boolean'],
         ]);
 
-        $includeInactive = ($validated['includeInactive'] ?? false)
-            && $request->user()->can(CampusPermission::CUSTOM_FIELDS_MANAGE);
+        $user = $request->user();
+        $isManager = $user->can(CampusPermission::CUSTOM_FIELDS_MANAGE);
+        $includeInactive = ($validated['includeInactive'] ?? false) && $isManager;
+        $entity = $validated['entity'] ?? null;
+
+        // A custom module's fields are only listed to those who can see the module.
+        if (($moduleId = CustomFieldDefinition::moduleIdFromEntity($entity)) !== null) {
+            abort_unless(CustomModule::query()->findOrFail($moduleId)->canView($user), 403, 'You cannot view this module.');
+        }
 
         $definitions = CustomFieldDefinition::query()
-            ->when($validated['entity'] ?? null, fn ($query, $entity) => $query->where('entity', $entity))
+            ->when($entity, fn ($query, $entity) => $query->where('entity', $entity))
+            ->when(! $entity && ! $isManager, fn ($query) => $query->where('entity', 'not like', CustomFieldDefinition::MODULE_ENTITY_PREFIX.'%'))
             ->unless($includeInactive, fn ($query) => $query->where('is_active', true))
             ->orderBy('entity')
             ->orderBy('sort_order')
@@ -141,6 +157,10 @@ class CustomFieldController extends Controller
             CustomFieldDefinition::ENTITY_STAFF => $user->can(CampusPermission::DEPARTMENTS_VIEW) || $record->getKey() === $user->id,
             CustomFieldDefinition::ENTITY_SUBJECT => $user->can(CampusPermission::DEPARTMENTS_VIEW) || $user->can(CampusPermission::MARKS_VIEW),
             CustomFieldDefinition::ENTITY_EXAM => $user->can(CampusPermission::EXAMS_VIEW) || $user->can(CampusPermission::MARKS_VIEW),
+            CustomFieldDefinition::ENTITY_COMPANY => $user->can(CampusPermission::PLACEMENT_VIEW),
+            CustomFieldDefinition::ENTITY_DEPARTMENT,
+            CustomFieldDefinition::ENTITY_COURSE,
+            CustomFieldDefinition::ENTITY_DESIGNATION => $user->can(CampusPermission::DEPARTMENTS_VIEW),
             default => false,
         };
 

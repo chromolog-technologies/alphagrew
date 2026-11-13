@@ -10,12 +10,14 @@ use App\Models\Institution;
 use App\Models\LoginHistory;
 use App\Models\PlatformRole;
 use App\Models\User;
+use App\Notifications\VerifyAccountNotification;
 use App\Services\Audit\AuditLogger;
 use App\Support\Owner\OwnerPermission;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -103,7 +105,12 @@ class OwnerUserController extends Controller
         $user->institution_id = null;
         $user->save();
 
-        Password::broker()->sendResetLink(['email' => $user->email]);
+        try {
+            $token = Password::broker()->createToken($user);
+            $user->notify(new VerifyAccountNotification($token, null, false));
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send platform user invite link to {$user->email}: {$e->getMessage()}");
+        }
         $this->audit->record('owner.platform_user_invited', $user, [], ['email' => $user->email, 'role' => $user->role, 'platformRoleId' => $user->platform_role_id]);
 
         return response()->json(['data' => $this->summary($user->load('platformRole'), null)], 201);
@@ -161,7 +168,12 @@ class OwnerUserController extends Controller
     public function sendPasswordReset(int $user): JsonResponse
     {
         $model = $this->find($user);
-        Password::broker()->sendResetLink(['email' => $model->email]);
+        try {
+            Password::broker()->sendResetLink(['email' => $model->email]);
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send password reset link to {$model->email}: {$e->getMessage()}");
+            throw BusinessRuleException::unprocessable("Failed to send email via SMTP ({$e->getMessage()}). Please check MAIL_USERNAME and MAIL_PASSWORD in .env.");
+        }
         $this->audit->record('owner.password_reset_sent', $model, institutionId: $model->institution_id);
 
         return response()->json(['message' => "A password reset link was sent to {$model->email}."]);
@@ -175,10 +187,17 @@ class OwnerUserController extends Controller
             throw BusinessRuleException::conflict('Reactivate this suspended account before resending an invitation.');
         }
 
-        Password::broker()->sendResetLink(['email' => $model->email]);
+        try {
+            $institutionName = $model->institution?->name;
+            $token = Password::broker()->createToken($model);
+            $model->notify(new VerifyAccountNotification($token, $institutionName, true));
+        } catch (\Throwable $e) {
+            Log::warning("Failed to resend invite to {$model->email}: {$e->getMessage()}");
+            throw BusinessRuleException::unprocessable("Failed to send email via SMTP ({$e->getMessage()}). Please check MAIL_USERNAME and MAIL_PASSWORD in .env.");
+        }
         $this->audit->record('owner.user_invite_resent', $model, institutionId: $model->institution_id);
 
-        return response()->json(['message' => "Invitation / setup link resent to {$model->email}."]);
+        return response()->json(['message' => "Invitation / verification link resent to {$model->email}."]);
     }
 
     public function revokeSessions(Request $request, int $user): JsonResponse

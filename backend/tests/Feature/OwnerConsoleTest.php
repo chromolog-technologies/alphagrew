@@ -9,8 +9,8 @@ use App\Models\LoginHistory;
 use App\Models\PlatformRole;
 use App\Models\User;
 use App\Notifications\InstitutionStatusChanged;
+use App\Notifications\VerifyAccountNotification;
 use App\Services\Owner\Totp;
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
@@ -73,7 +73,7 @@ class OwnerConsoleTest extends TestCase
         $admin = User::query()->withoutGlobalScopes()->where('email', 'principal@lakeside.test')->firstOrFail();
         $this->assertSame($id, $admin->institution_id);
         $this->assertSame(UserRole::InstitutionAdmin->value, $admin->role);
-        Notification::assertSentTo($admin, ResetPassword::class);
+        Notification::assertSentTo($admin, VerifyAccountNotification::class);
         $this->assertNotNull(Institution::query()->find($id)->trial_ends_at);
 
         $this->as('owner@test.dev')->postJson('/api/v1/owner/institutions', $this->institutionPayload())->assertUnprocessable()->assertJsonValidationErrors(['code', 'adminEmail']);
@@ -142,7 +142,7 @@ class OwnerConsoleTest extends TestCase
         // Only a Super Admin can add a Super Admin; staff invitations send a password link.
         $roleId = PlatformRole::query()->where('slug', 'support-manager')->value('id');
         $this->as('owner@test.dev')->postJson('/api/v1/owner/users/invitations', ['name' => 'New Staff', 'email' => 'new@test.dev', 'role' => 'platform_staff', 'platformRoleId' => $roleId])->assertCreated();
-        Notification::assertSentTo(User::query()->withoutGlobalScopes()->where('email', 'new@test.dev')->first(), ResetPassword::class);
+        Notification::assertSentTo(User::query()->withoutGlobalScopes()->where('email', 'new@test.dev')->first(), VerifyAccountNotification::class);
 
         // Suspending signs the user out; the last Super Admin cannot be suspended.
         $student = User::query()->where('email', 'student@demo.com')->value('id');

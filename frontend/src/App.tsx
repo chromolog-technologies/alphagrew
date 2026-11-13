@@ -1707,6 +1707,9 @@ export default function App() {
       <>
         <AccountNotice message={notice} onDismiss={() => setNotice('')} />
         <Routes>
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/invitations/accept" element={<AcceptInvitationPage onSignedIn={handleInvitationAccepted} />} />
           <Route path="/owner/login" element={<Navigate to="/owner/overview" replace />} />
           <Route path="/owner" element={<Navigate to="/owner/overview" replace />} />
           <Route
@@ -1774,6 +1777,9 @@ export default function App() {
   // Signed in: every page lives at /app/<page>; anything else opens the dashboard.
   return (
     <Routes>
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/invitations/accept" element={<AcceptInvitationPage onSignedIn={handleInvitationAccepted} />} />
       <Route path="/app/:tab" element={<Suspense fallback={<PageLoading />}>{workspace}</Suspense>} />
       <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
     </Routes>

@@ -9,7 +9,7 @@ use App\Models\Institution;
 use App\Models\PlatformRole;
 use App\Models\SecurityEvent;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\VerifyAccountNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -78,7 +78,7 @@ class OwnerOperationsTest extends TestCase
         // Resend invite sends password setup notification & rejects suspended accounts
         $admin = User::query()->withoutGlobalScopes()->where('email', 'admin@demo.com')->firstOrFail();
         $this->as('owner@test.dev')->postJson("/api/v1/owner/users/{$admin->id}/resend-invite")->assertOk();
-        Notification::assertSentTo($admin, ResetPassword::class);
+        Notification::assertSentTo($admin, VerifyAccountNotification::class);
 
         $admin->forceFill(['status' => 'suspended'])->save();
         $this->as('owner@test.dev')->postJson("/api/v1/owner/users/{$admin->id}/resend-invite")->assertConflict();
@@ -158,7 +158,7 @@ class OwnerOperationsTest extends TestCase
         $this->assertSame('HORIZON01', $converted['onboarding']['institution']['code']);
         $provisionedAdmin = User::query()->withoutGlobalScopes()->where('email', 'meera@horizon.edu')->firstOrFail();
         $this->assertSame($converted['institutionId'], $provisionedAdmin->institution_id);
-        Notification::assertSentTo($provisionedAdmin, ResetPassword::class);
+        Notification::assertSentTo($provisionedAdmin, VerifyAccountNotification::class);
 
         $this->as('owner@test.dev')->postJson("/api/v1/owner/onboarding/{$onboarding['id']}/convert-institution")
             ->assertConflict();
