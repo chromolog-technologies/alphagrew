@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Companies;
 
+use App\Models\CustomFieldDefinition;
+use App\Services\CustomFields\CustomFieldService;
 use App\Support\Campus\CampusMasterCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,7 +35,20 @@ class SaveCompanyRequest extends FormRequest
             'type' => ['required', Rule::in(CampusMasterCatalog::optionsFor(CampusMasterCatalog::COMPANY_DRIVE_TYPE))],
             'eligibleDepartments' => ['required', 'array', 'min:1'],
             'eligibleDepartments.*' => ['string', TenantRule::exists('departments', 'code')],
+            // Required custom fields only on create; on update, fields left out keep their value.
+            ...app(CustomFieldService::class)->rules(CustomFieldDefinition::ENTITY_COMPANY, creating: $this->route('company') === null),
         ];
+    }
+
+    public function attributes(): array
+    {
+        return app(CustomFieldService::class)->attributes(CustomFieldDefinition::ENTITY_COMPANY);
+    }
+
+    /** @return array<string, mixed> */
+    public function customFields(): array
+    {
+        return $this->validated('customFields') ?? [];
     }
 
     /**

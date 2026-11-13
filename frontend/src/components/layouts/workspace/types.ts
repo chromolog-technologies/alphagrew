@@ -1,5 +1,6 @@
 /** Props and form-draft types for CampusWorkspace. */
 import { LayoutDashboard } from 'lucide-react';
+import type { CustomFieldValues } from '../../../api/customFieldsApi';
 import type {
   AnnouncementAudience,
   AnnouncementPriority,
@@ -140,6 +141,7 @@ export interface CampusWorkspaceProps {
     departmentCode?: string;
     description?: string;
     permissions: CampusPermission[];
+    customFields?: CustomFieldValues;
   }) => Promise<void> | void;
   onUpdateDesignation: (
     designationId: number,
@@ -148,6 +150,7 @@ export interface CampusWorkspaceProps {
       departmentCode?: string;
       description?: string;
       permissions: CampusPermission[];
+      customFields?: CustomFieldValues;
     },
   ) => Promise<void> | void;
   onDeleteDesignation: (designationId: number) => Promise<void> | void;
@@ -167,6 +170,7 @@ export interface CampusWorkspaceProps {
     imageFile?: File;
     password?: string;
     permissions: CampusPermission[];
+    customFields?: CustomFieldValues;
   }) => Promise<void> | void;
   onUpdateStaff: (
     staffId: number,
@@ -186,6 +190,7 @@ export interface CampusWorkspaceProps {
       imageFile?: File;
       password?: string;
       permissions: CampusPermission[];
+      customFields?: CustomFieldValues;
     },
   ) => Promise<void> | void;
   onDeleteStaff: (staffId: number) => Promise<void> | void;

@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Concerns\HandlesCustomFields;
 use App\Http\Controllers\Controller;
+use App\Models\CustomFieldDefinition;
 use App\Models\DesignationModuleMap;
 use App\Models\Designation;
 use App\Models\ModulePermission;
@@ -17,6 +19,10 @@ use App\Support\Tenancy\TenantRule;
 
 class DesignationController extends Controller
 {
+    use HandlesCustomFields;
+
+    private const ENTITY = CustomFieldDefinition::ENTITY_DESIGNATION;
+
     /**
      * Get all designations with permissions
      */
@@ -45,7 +51,8 @@ class DesignationController extends Controller
         }
 
         $designations = $query->paginate($request->per_page ?? 50);
-        $designations->getCollection()->transform(fn (Designation $designation) => $this->transformDesignation($designation));
+        $values = $this->customFieldService()->valuesForMany($designations->getCollection(), self::ENTITY);
+        $designations->getCollection()->transform(fn (Designation $designation) => $this->transformDesignation($designation, $values[$designation->id] ?? []));
 
         return response()->json($designations);
     }
@@ -62,7 +69,7 @@ class DesignationController extends Controller
         ]);
 
         return response()->json([
-            'data' => $this->transformDesignation($designation),
+            'data' => $this->transformDesignation($designation, $this->customFieldService()->valuesFor($designation, self::ENTITY)),
         ]);
     }
 
@@ -71,7 +78,7 @@ class DesignationController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        [$validated, $customFields] = $this->validateWithCustomFields($request, [
             'name' => ['required', 'string', 'max:255', TenantRule::unique('designations', 'name')],
             'slug' => ['nullable', 'string', 'max:255', TenantRule::unique('designations', 'slug')],
             'department_id' => ['nullable', 'integer', TenantRule::exists('departments', 'id')],
@@ -83,14 +90,14 @@ class DesignationController extends Controller
             'module_access.*.module_name' => 'required|string|max:100',
             'module_access.*.permissions' => 'required|array',
             'module_access.*.permissions.*' => 'required|string|in:view,create,edit,delete',
-        ]);
+        ], self::ENTITY, creating: true);
 
         // Generate slug if not provided
         if (!isset($validated['slug'])) {
             $validated['slug'] = str()->slug($validated['name']);
         }
 
-        $designation = DB::transaction(function () use ($validated): Designation {
+        $designation = DB::transaction(function () use ($validated, $customFields): Designation {
             $designationData = collect($validated)
                 ->except(['permissions', 'module_access'])
                 ->toArray();
@@ -104,6 +111,7 @@ class DesignationController extends Controller
 
             $designation->update(['permissions' => $normalizedPermissions]);
             $this->syncModuleAccess($designation, $moduleAccess);
+            $this->customFieldService()->save($designation, self::ENTITY, $customFields);
 
             return $designation;
         });
@@ -112,7 +120,7 @@ class DesignationController extends Controller
 
         return response()->json([
             'message' => 'Designation created successfully',
-            'data' => $this->transformDesignation($designation),
+            'data' => $this->transformDesignation($designation, $this->customFieldService()->valuesFor($designation, self::ENTITY)),
         ], 201);
     }
 
@@ -121,7 +129,7 @@ class DesignationController extends Controller
      */
     public function update(Request $request, Designation $designation): JsonResponse
     {
-        $validated = $request->validate([
+        [$validated, $customFields] = $this->validateWithCustomFields($request, [
             'name' => [
                 'sometimes',
                 'string',
@@ -143,7 +151,7 @@ class DesignationController extends Controller
             'module_access.*.module_name' => 'required|string|max:100',
             'module_access.*.permissions' => 'required|array',
             'module_access.*.permissions.*' => 'required|string|in:view,create,edit,delete',
-        ]);
+        ], self::ENTITY, creating: false);
 
         // Generate slug if provided
         if (isset($validated['slug']) && $validated['slug']) {
@@ -152,7 +160,7 @@ class DesignationController extends Controller
             $validated['slug'] = str()->slug($validated['name']);
         }
 
-        DB::transaction(function () use ($designation, $validated): void {
+        DB::transaction(function () use ($designation, $validated, $customFields): void {
             $designationData = collect($validated)
                 ->except(['permissions', 'module_access'])
                 ->toArray();
@@ -169,13 +177,15 @@ class DesignationController extends Controller
                 $designation->update(['permissions' => $permissionNames]);
                 $this->syncModuleAccess($designation, $this->moduleAccessFromPermissionNames($permissionNames));
             }
+
+            $this->customFieldService()->save($designation, self::ENTITY, $customFields);
         });
 
         $designation->load(['department:id,name', 'moduleAccesses.module:id,module_name']);
 
         return response()->json([
             'message' => 'Designation updated successfully',
-            'data' => $this->transformDesignation($designation),
+            'data' => $this->transformDesignation($designation, $this->customFieldService()->valuesFor($designation, self::ENTITY)),
         ]);
     }
 
@@ -313,7 +323,10 @@ class DesignationController extends Controller
         ]);
     }
 
-    private function transformDesignation(Designation $designation): array
+    /**
+     * @param  array<string, mixed>|null  $customFields  Included as `customFields` when given (lists pass batched values).
+     */
+    private function transformDesignation(Designation $designation, ?array $customFields = null): array
     {
         $permissions = CampusStaffAccess::normalize($designation->permissions ?? []);
 
@@ -330,6 +343,7 @@ class DesignationController extends Controller
             'users' => $designation->relationLoaded('users') ? $designation->users : null,
             'created_at' => $designation->created_at,
             'updated_at' => $designation->updated_at,
+            ...($customFields === null ? [] : ['customFields' => $customFields]),
         ];
     }
 

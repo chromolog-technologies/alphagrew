@@ -139,6 +139,34 @@ class CustomFieldService
     }
 
     /**
+     * A record's JSON with its custom field values under `customFields`, for controllers that
+     * return plain models.
+     *
+     * @return array<string, mixed>
+     */
+    public function present(Model $record, string $entity): array
+    {
+        return [...$record->toArray(), 'customFields' => $this->valuesFor($record, $entity)];
+    }
+
+    /**
+     * present() for a list of records, reading all values in one query.
+     *
+     * @param  iterable<int, Model>  $records
+     * @return list<array<string, mixed>>
+     */
+    public function presentMany(iterable $records, string $entity): array
+    {
+        $records = collect($records);
+        $values = $this->valuesForMany($records, $entity);
+
+        return $records
+            ->map(fn (Model $record) => [...$record->toArray(), 'customFields' => $values[$record->getKey()] ?? []])
+            ->values()
+            ->all();
+    }
+
+    /**
      * valuesFor() for many records of one entity in a single query.
      *
      * @param  iterable<int, Model>  $records

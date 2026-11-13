@@ -1,3 +1,4 @@
+import type { CustomFieldValues } from './customFieldsApi';
 import type {
   AnnouncementAudience,
   AnnouncementPriority,
@@ -92,6 +93,7 @@ type StaffPayload = {
   specialization?: string;
   imageFile?: File;
   permissions: CampusPermission[];
+  customFields?: CustomFieldValues;
 };
 
 type DesignationPayload = {
@@ -99,6 +101,7 @@ type DesignationPayload = {
   description?: string;
   department_id?: number | null;
   permissions: CampusPermission[];
+  customFields?: CustomFieldValues;
 };
 
 type MasterPayload = {
@@ -309,6 +312,24 @@ export function deleteMasterWithCampusApi(token: string, masterId: number) {
   );
 }
 
+/**
+ * Custom field values in a multipart body, as Laravel reads them back into an array:
+ * customFields[key] (empty = clear), customFields[key][] for several choices, 1/0 for yes/no.
+ */
+function appendCustomFields(body: FormData, customFields?: CustomFieldValues) {
+  if (!customFields) return;
+  Object.entries(customFields).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      if (value.length === 0) body.append(`customFields[${key}]`, '');
+      value.forEach((choice) => body.append(`customFields[${key}][]`, choice));
+    } else if (typeof value === 'boolean') {
+      body.append(`customFields[${key}]`, value ? '1' : '0');
+    } else {
+      body.append(`customFields[${key}]`, value === null ? '' : String(value));
+    }
+  });
+}
+
 export function createStaffWithCampusApi(token: string, payload: StaffPayload) {
   const body = new FormData();
   body.append('name', payload.name);
@@ -326,6 +347,7 @@ export function createStaffWithCampusApi(token: string, payload: StaffPayload) {
   if (payload.specialization) body.append('specialization', payload.specialization);
   if (payload.imageFile) body.append('image', payload.imageFile);
   payload.permissions.forEach((permission) => body.append('permissions[]', permission));
+  appendCustomFields(body, payload.customFields);
 
   return request<DataResponse>(
     '/staff',
@@ -355,6 +377,7 @@ export function updateStaffWithCampusApi(token: string, staffId: number, payload
   if (payload.specialization) body.append('specialization', payload.specialization);
   if (payload.imageFile) body.append('image', payload.imageFile);
   payload.permissions.forEach((permission) => body.append('permissions[]', permission));
+  appendCustomFields(body, payload.customFields);
 
   return request<DataResponse>(
     `/staff/${staffId}`,

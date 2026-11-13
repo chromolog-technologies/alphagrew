@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Concerns\HandlesCustomFields;
 use App\Http\Controllers\Controller;
+use App\Models\CustomFieldDefinition;
 use App\Models\Subject;
 use App\Models\Course;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Support\Tenancy\TenantRule;
 
 class SubjectController extends Controller
 {
+    use HandlesCustomFields;
+
+    private const ENTITY = CustomFieldDefinition::ENTITY_SUBJECT;
+
     /**
      * Get all subjects
      */
@@ -28,7 +35,7 @@ class SubjectController extends Controller
             })
             ->get();
 
-        return response()->json($subjects);
+        return response()->json($this->customFieldService()->presentMany($subjects, self::ENTITY));
     }
 
     /**
@@ -37,7 +44,8 @@ class SubjectController extends Controller
     public function show(Subject $subject): JsonResponse
     {
         $subject->load('course.department');
-        return response()->json($subject);
+
+        return response()->json($this->customFieldService()->present($subject, self::ENTITY));
     }
 
     /**
@@ -45,7 +53,7 @@ class SubjectController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $payload = $request->validate([
+        [$payload, $customFields] = $this->validateWithCustomFields($request, [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', TenantRule::unique('subjects', 'code'), 'max:50'],
             'course_id' => ['required', TenantRule::exists('courses', 'id')],
@@ -57,12 +65,17 @@ class SubjectController extends Controller
             'description' => ['nullable', 'string'],
             'is_mandatory' => ['boolean'],
             'is_active' => ['boolean'],
-        ]);
+        ], self::ENTITY, creating: true);
 
-        $subject = Subject::create($payload);
+        $subject = DB::transaction(function () use ($payload, $customFields): Subject {
+            $subject = Subject::create($payload);
+            $this->customFieldService()->save($subject, self::ENTITY, $customFields);
+
+            return $subject;
+        });
         $subject->load('course.department');
 
-        return response()->json($subject, 201);
+        return response()->json($this->customFieldService()->present($subject, self::ENTITY), 201);
     }
 
     /**
@@ -70,7 +83,7 @@ class SubjectController extends Controller
      */
     public function update(Request $request, Subject $subject): JsonResponse
     {
-        $payload = $request->validate([
+        [$payload, $customFields] = $this->validateWithCustomFields($request, [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', TenantRule::unique('subjects', 'code')->ignore($subject->id), 'max:50'],
             'course_id' => ['required', TenantRule::exists('courses', 'id')],
@@ -82,12 +95,15 @@ class SubjectController extends Controller
             'description' => ['nullable', 'string'],
             'is_mandatory' => ['boolean'],
             'is_active' => ['boolean'],
-        ]);
+        ], self::ENTITY, creating: false);
 
-        $subject->update($payload);
+        DB::transaction(function () use ($subject, $payload, $customFields): void {
+            $subject->update($payload);
+            $this->customFieldService()->save($subject, self::ENTITY, $customFields);
+        });
         $subject->load('course.department');
 
-        return response()->json($subject);
+        return response()->json($this->customFieldService()->present($subject, self::ENTITY));
     }
 
     /**

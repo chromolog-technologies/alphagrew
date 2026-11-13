@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, AlertCircle } from 'lucide-react';
 import { apiCall } from '../../api/apiClient';
+import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
+import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 
 interface Course {
   id: number;
@@ -46,6 +48,7 @@ export const SubjectsModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const customFields = useRecordCustomFields('subject', editingId, showForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedCourseSemesters, setSelectedCourseSemesters] = useState<number>(0);
@@ -152,6 +155,7 @@ export const SubjectsModule: React.FC = () => {
         credit_hours: Number(formData.credit_hours),
         lecture_hours: Number(formData.lecture_hours),
         practical_hours: Number(formData.practical_hours),
+        ...customFields.payload(),
       };
 
       if (editingId) {
@@ -165,6 +169,7 @@ export const SubjectsModule: React.FC = () => {
       setShowForm(false);
       setError('');
     } catch (err: any) {
+      customFields.captureErrors(err);
       setError(err.message || 'Failed to save subject');
     }
   };
@@ -340,6 +345,14 @@ export const SubjectsModule: React.FC = () => {
               <span className="text-sm text-slate-700">Active</span>
             </label>
           </div>
+          <CustomFieldInputs
+            definitions={customFields.fields}
+            values={customFields.values}
+            onChange={customFields.setValues}
+            errors={customFields.errors}
+            className="mt-4 grid gap-4 md:grid-cols-2"
+          />
+
           <div className="flex gap-2 mt-4">
             <button
               onClick={handleAddSubject}

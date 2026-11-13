@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Concerns\HandlesCustomFields;
 use App\Http\Controllers\Controller;
+use App\Models\CustomFieldDefinition;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use App\Support\Tenancy\TenantRule;
 
 class DepartmentController extends Controller
 {
+    use HandlesCustomFields;
+
+    private const ENTITY = CustomFieldDefinition::ENTITY_DEPARTMENT;
+
     /**
      * Get all departments with HOD and staff count
      */
@@ -40,6 +47,8 @@ class DepartmentController extends Controller
             $dept->staff_count = $dept->staff()->count();
         }
 
+        $departments->setCollection(collect($this->customFieldService()->presentMany($departments->getCollection(), self::ENTITY)));
+
         return response()->json($departments);
     }
 
@@ -54,7 +63,7 @@ class DepartmentController extends Controller
         $department->courses_count = $department->courses()->count();
 
         return response()->json([
-            'data' => $department,
+            'data' => $this->customFieldService()->present($department, self::ENTITY),
         ]);
     }
 
@@ -63,7 +72,7 @@ class DepartmentController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        [$validated, $customFields] = $this->validateWithCustomFields($request, [
             'name' => 'required|string|max:255',
             'code' => ['required', 'string', 'max:50', TenantRule::unique('departments', 'code')],
             'description' => 'nullable|string|max:1000',
@@ -72,14 +81,19 @@ class DepartmentController extends Controller
             'phone' => 'nullable|string|max:20',
             'intake_capacity' => 'nullable|integer|min:0',
             'status' => 'nullable|in:active,inactive',
-        ]);
+        ], self::ENTITY, creating: true);
 
-        $department = Department::create($validated);
+        $department = DB::transaction(function () use ($validated, $customFields): Department {
+            $department = Department::create($validated);
+            $this->customFieldService()->save($department, self::ENTITY, $customFields);
+
+            return $department;
+        });
         $department->load('hod:id,first_name,last_name,email');
 
         return response()->json([
             'message' => 'Department created successfully',
-            'data' => $department,
+            'data' => $this->customFieldService()->present($department, self::ENTITY),
         ], 201);
     }
 
@@ -88,7 +102,7 @@ class DepartmentController extends Controller
      */
     public function update(Request $request, Department $department): JsonResponse
     {
-        $validated = $request->validate([
+        [$validated, $customFields] = $this->validateWithCustomFields($request, [
             'name' => 'sometimes|string|max:255',
             'code' => [
                 'sometimes',
@@ -102,14 +116,17 @@ class DepartmentController extends Controller
             'phone' => 'nullable|string|max:20',
             'intake_capacity' => 'nullable|integer|min:0',
             'status' => 'nullable|in:active,inactive',
-        ]);
+        ], self::ENTITY, creating: false);
 
-        $department->update($validated);
+        DB::transaction(function () use ($department, $validated, $customFields): void {
+            $department->update($validated);
+            $this->customFieldService()->save($department, self::ENTITY, $customFields);
+        });
         $department->load('hod:id,first_name,last_name,email');
 
         return response()->json([
             'message' => 'Department updated successfully',
-            'data' => $department,
+            'data' => $this->customFieldService()->present($department, self::ENTITY),
         ]);
     }
 

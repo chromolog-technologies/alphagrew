@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Exams\ListExamsRequest;
+use App\Models\CustomFieldDefinition;
 use App\Models\Exam;
+use App\Services\CustomFields\CustomFieldService;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -13,7 +15,7 @@ use Illuminate\Http\JsonResponse;
  */
 class ExamController extends Controller
 {
-    public function index(ListExamsRequest $request): JsonResponse
+    public function index(ListExamsRequest $request, CustomFieldService $customFields): JsonResponse
     {
         $exams = Exam::query()
             ->with(['subject:id,name,code', 'examType:id,name', 'semester:id,name,is_active'])
@@ -29,6 +31,6 @@ class ExamController extends Controller
             ->orderByDesc('exam_date')
             ->get(['id', 'name', 'subject_id', 'exam_type_id', 'semester_id', 'exam_date', 'max_marks', 'status']);
 
-        return response()->json(['data' => $exams]);
+        return response()->json(['data' => $customFields->presentMany($exams, CustomFieldDefinition::ENTITY_EXAM)]);
     }
 }
