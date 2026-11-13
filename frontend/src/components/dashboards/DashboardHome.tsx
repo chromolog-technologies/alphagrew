@@ -100,8 +100,8 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
 
   const current: Dashboard | undefined = useMemo(() => {
     if (selection.kind === 'home') return home.data;
-    if (selection.kind === 'template') return list.data?.templates.find((item) => item.key === selection.key);
-    return list.data?.data.find((item) => item.id === selection.id);
+    if (selection.kind === 'template') return list.data?.templates?.find((item) => item.key === selection.key);
+    return Array.isArray(list.data?.data) ? list.data.data.find((item) => item.id === selection.id) : undefined;
   }, [selection, home.data, list.data]);
 
   // Switching dashboards (or a refetch after saving) leaves edit mode, except for a
@@ -195,8 +195,9 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
 
   const move = (id: string, action: LayoutAction) => setWorking((items) => adjustLayout(items, id, action));
 
-  const ownDashboards = list.data?.data.filter((item) => item.isOwner) ?? [];
-  const sharedDashboards = list.data?.data.filter((item) => !item.isOwner) ?? [];
+  const rawList = Array.isArray(list.data?.data) ? list.data.data : [];
+  const ownDashboards = rawList.filter((item) => item.isOwner);
+  const sharedDashboards = rawList.filter((item) => !item.isOwner);
   const selectValue = selection.kind === 'home' ? 'home' : selection.kind === 'template' ? `t:${selection.key}` : `d:${selection.id}`;
 
   return (
@@ -237,7 +238,7 @@ export function DashboardHome({ canBuild, canShare, designations }: DashboardHom
                 </optgroup>
               ) : null}
               <optgroup label="Templates">
-                {(list.data?.templates ?? []).map((item) => <option key={item.key} value={`t:${item.key}`}>{item.name}</option>)}
+                {(Array.isArray(list.data?.templates) ? list.data.templates : []).map((item) => <option key={item.key} value={`t:${item.key}`}>{item.name}</option>)}
               </optgroup>
             </Select>
           </div>

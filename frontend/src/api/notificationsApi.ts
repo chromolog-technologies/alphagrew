@@ -30,7 +30,15 @@ export interface NotificationPreference {
 
 export const notificationsApi = {
   list: (params: { unread?: boolean; page?: number; perPage?: number } = {}) =>
-    http.get<NotificationPage>('/notifications', { unread: params.unread ? 1 : undefined, page: params.page, perPage: params.perPage }),
+    http.get<NotificationPage>('/notifications', { unread: params.unread ? 1 : undefined, page: params.page, perPage: params.perPage }).then((res) => ({
+      data: Array.isArray(res?.data) ? res.data : [],
+      meta: {
+        currentPage: res?.meta?.currentPage ?? 1,
+        lastPage: res?.meta?.lastPage ?? 1,
+        total: res?.meta?.total ?? 0,
+        unreadCount: res?.meta?.unreadCount ?? 0,
+      },
+    })),
   markRead: (id: string) => http.post<{ unreadCount: number }>(`/notifications/${id}/read`),
   markAllRead: () => http.post<{ unreadCount: number }>('/notifications/read-all'),
   remove: (id: string) => http.delete<{ unreadCount: number }>(`/notifications/${id}`),

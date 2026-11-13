@@ -690,10 +690,10 @@ const offlineMfaError = () =>
   Promise.reject(new ApiError('Two-factor setup requires a connected Laravel API.', 400));
 
 export const ownerApi = {
-  summary: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: OwnerSummary }>('/owner/dashboard/summary', query).then((r) => r.data) : ownerDemoApi.summary(query)),
-  trends: () => (isApiConfigured() ? http.get<{ data: TrendPoint[] }>('/owner/dashboard/trends').then((r) => r.data) : ownerDemoApi.trends()),
-  alerts: () => (isApiConfigured() ? http.get<{ data: OwnerAlert[] }>('/owner/dashboard/alerts').then((r) => r.data) : ownerDemoApi.alerts()),
-  activity: () => (isApiConfigured() ? http.get<{ data: ActivityEntry[] }>('/owner/dashboard/activity').then((r) => r.data) : ownerDemoApi.activity()),
+  summary: (query: Query = {}) => (isApiConfigured() ? http.get<{ data: OwnerSummary }>('/owner/dashboard/summary', query).then((r) => r?.data ?? null) : ownerDemoApi.summary(query)),
+  trends: () => (isApiConfigured() ? http.get<{ data: TrendPoint[] }>('/owner/dashboard/trends').then((r) => r?.data ?? []) : ownerDemoApi.trends()),
+  alerts: () => (isApiConfigured() ? http.get<{ data: OwnerAlert[] }>('/owner/dashboard/alerts').then((r) => r?.data ?? []) : ownerDemoApi.alerts()),
+  activity: () => (isApiConfigured() ? http.get<{ data: ActivityEntry[] }>('/owner/dashboard/activity').then((r) => r?.data ?? []) : ownerDemoApi.activity()),
 
   institutions: (query: Query) => (isApiConfigured() ? http.get<Page<InstitutionSummary>>('/owner/institutions', query) : ownerDemoApi.institutions(query)),
   institution: (id: number) => (isApiConfigured() ? http.get<{ data: InstitutionDetail }>(`/owner/institutions/${id}`).then((r) => r.data) : ownerDemoApi.institution(id)),

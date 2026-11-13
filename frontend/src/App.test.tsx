@@ -142,6 +142,12 @@ describe('App routing (signed out)', () => {
           recentLogins: [],
         });
       }
+      if (url.includes('/owner/dashboard/summary')) {
+        return jsonResponse(200, { data: null });
+      }
+      if (url.includes('/owner/dashboard/trends') || url.includes('/owner/dashboard/alerts') || url.includes('/owner/dashboard/activity')) {
+        return jsonResponse(200, { data: [] });
+      }
       return jsonResponse(200, {});
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -180,6 +186,12 @@ describe('App routing (signed in role isolation)', () => {
         const url = typeof input === 'string' ? input : input.toString();
         if (url.endsWith('/campus/bootstrap')) {
           return jsonResponse(200, { user: ownerUser, data: emptyDataset });
+        }
+        if (url.includes('/owner/dashboard/summary')) {
+          return jsonResponse(200, { data: null });
+        }
+        if (url.includes('/owner/dashboard/trends') || url.includes('/owner/dashboard/alerts') || url.includes('/owner/dashboard/activity')) {
+          return jsonResponse(200, { data: [] });
         }
         return jsonResponse(200, {
           counts: { institutions: 0, activeInstitutions: 0, suspendedInstitutions: 0, users: 0, students: 0, activeSessions: 0 },
@@ -401,9 +413,19 @@ describe('browser storage of campus records (live API mode)', () => {
     localStorage.setItem('chromolog-campus-data', JSON.stringify({ students: [{ id: 1, name: 'Old copy' }] }));
     const staffUser = { id: 7, name: 'Admin', email: 'admin@demo.com', role: 'institution_admin', permissions: [] };
     localStorage.setItem('chromolog-campus-auth', JSON.stringify({ token: '1|tok', user: staffUser }));
-    const bootstrap = vi.fn(async () =>
-      jsonResponse(200, { user: staffUser, data: { ...emptyDataset, students: [{ id: 99, name: 'Real Student' }] } }),
-    );
+    const bootstrap = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/notifications')) {
+        return jsonResponse(200, { data: [], meta: { unreadCount: 0, total: 0 } });
+      }
+      if (url.endsWith('/dashboards')) {
+        return jsonResponse(200, { data: [], templates: [], defaultTemplate: 'student' });
+      }
+      if (url.endsWith('/dashboards/home')) {
+        return jsonResponse(200, { data: null });
+      }
+      return jsonResponse(200, { user: staffUser, data: { ...emptyDataset, students: [{ id: 99, name: 'Real Student' }] } });
+    });
     vi.stubGlobal('fetch', bootstrap);
 
     renderAt('/app/dashboard');
