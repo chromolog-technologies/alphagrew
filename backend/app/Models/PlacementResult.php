@@ -11,6 +11,24 @@ class PlacementResult extends Model
 {
     use BelongsToInstitution, LogsActivity;
 
+    public const STATUS_PASSED = 'passed';
+    public const STATUS_FAILED = 'failed';
+    public const STATUS_ABSENT = 'absent';
+    public const STATUS_CLEARED = 'cleared';
+    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_WAITLIST = 'waitlist';
+
+    public const STATUSES = [
+        self::STATUS_PASSED,
+        self::STATUS_FAILED,
+        self::STATUS_ABSENT,
+        self::STATUS_CLEARED,
+        self::STATUS_REJECTED,
+        self::STATUS_PENDING,
+        self::STATUS_WAITLIST,
+    ];
+
     protected $table = 'placement_results';
 
     protected $fillable = [
