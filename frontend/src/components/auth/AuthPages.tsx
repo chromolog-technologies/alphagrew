@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, EyeOff, Loader2, X } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LOGIN_BASE_PATH } from '../../routes';
 import {
@@ -65,26 +65,90 @@ function Field({
   readOnly?: boolean;
   hint?: string;
 }) {
+  const isPassword = type === 'password';
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <div className="space-y-1.5">
       <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-slate-600">
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        readOnly={readOnly}
-        autoComplete={autoComplete}
-        onChange={(event) => onChange?.(event.target.value)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
-        className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-blue-500/30 ${
-          readOnly ? 'bg-slate-100 text-slate-600' : 'bg-white'
-        } ${error ? 'border-rose-400' : 'border-slate-200 focus:border-blue-500'}`}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={isPassword ? (showPassword ? 'text' : 'password') : type}
+          value={value}
+          readOnly={readOnly}
+          autoComplete={autoComplete}
+          onChange={(event) => onChange?.(event.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+          className={`w-full rounded-xl border px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-blue-500/30 ${
+            isPassword ? 'pr-10' : ''
+          } ${readOnly ? 'bg-slate-100 text-slate-600' : 'bg-white'} ${
+            error ? 'border-rose-400' : 'border-slate-200 focus:border-blue-500'
+          }`}
+        />
+        {isPassword && !readOnly ? (
+          <button
+            type="button"
+            onClick={() => setShowPassword((prev) => !prev)}
+            aria-label={showPassword ? `Hide ${label}` : `Show ${label}`}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
+          >
+            {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+          </button>
+        ) : null}
+      </div>
       {hint && !error ? <p id={`${id}-hint`} className="text-xs text-slate-500">{hint}</p> : null}
       {error ? <p id={`${id}-error`} className="text-xs font-medium text-rose-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function PasswordRequirements({ password, confirmation }: { password: string; confirmation?: string }) {
+  const rules = [
+    { label: 'At least 8 characters', met: password.length >= 8 },
+    { label: 'One uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
+    { label: 'One lowercase letter (a-z)', met: /[a-z]/.test(password) },
+    { label: 'One number (0-9)', met: /[0-9]/.test(password) },
+    { label: 'One special character (!@#$%...)', met: /[^A-Za-z0-9]/.test(password) },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 text-xs">
+      <p className="font-semibold text-slate-700">Password requirements:</p>
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+        {rules.map((rule) => (
+          <div
+            key={rule.label}
+            className={`flex items-center gap-1.5 transition-colors ${
+              rule.met ? 'text-emerald-700 font-medium' : 'text-slate-500'
+            }`}
+          >
+            {rule.met ? (
+              <CheckCircle2 size={13} className="text-emerald-600 shrink-0" aria-hidden="true" />
+            ) : (
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-slate-300 ml-1 mr-0.5 shrink-0" aria-hidden="true" />
+            )}
+            <span>{rule.label}</span>
+          </div>
+        ))}
+      </div>
+      {confirmation !== undefined && confirmation.length > 0 ? (
+        <div
+          className={`pt-1.5 border-t border-slate-200/70 flex items-center gap-1.5 ${
+            password === confirmation ? 'text-emerald-700 font-medium' : 'text-rose-600 font-medium'
+          }`}
+        >
+          {password === confirmation ? (
+            <CheckCircle2 size={13} className="text-emerald-600 shrink-0" aria-hidden="true" />
+          ) : (
+            <X size={13} className="text-rose-500 shrink-0" aria-hidden="true" />
+          )}
+          <span>{password === confirmation ? 'Passwords match' : 'Passwords do not match'}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -169,40 +233,86 @@ export function ForgotPasswordPage() {
 export function ResetPasswordPage() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
+  const mode = params.get('mode');
+  const isVerify = mode === 'verify' || params.get('welcome') != null;
   const [email, setEmail] = useState(params.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [done, setDone] = useState('');
+  const [clientError, setClientError] = useState<string | null>(null);
   const { busy, error, fieldErrors, run } = useSubmit();
+
+  const isLengthValid = password.length >= 8;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+  const passwordsMatch = password.length > 0 && password === confirmation;
+  const allCriteriaMet = isLengthValid && hasUppercase && hasLowercase && hasNumber && hasSpecial && passwordsMatch;
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    setClientError(null);
+    if (!isLengthValid || !hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+      setClientError('Please ensure your password satisfies all security requirements.');
+      return;
+    }
+    if (!passwordsMatch) {
+      setClientError('Passwords do not match.');
+      return;
+    }
     void run(async () => {
       setDone((await resetPassword({ token, email, password, password_confirmation: confirmation })).message);
     });
   };
 
+  const activeError = clientError || error;
+
   return (
-    <AuthShell title="Set a new password">
-      {!token ? <Alert tone="error">This reset link is incomplete. Request a new one from the sign-in page.</Alert> : null}
-      {error ? <Alert tone="error">{error}</Alert> : null}
+    <AuthShell
+      title={isVerify ? 'Verify your account & set password' : 'Set a new password'}
+      subtitle={isVerify ? 'Complete your account setup by creating a secure password.' : undefined}
+    >
+      {!token ? (
+        <Alert tone="error">
+          {isVerify
+            ? 'This verification link is incomplete. Please request a new one from your administrator.'
+            : 'This reset link is incomplete. Request a new one from the sign-in page.'}
+        </Alert>
+      ) : null}
+      {activeError ? <Alert tone="error">{activeError}</Alert> : null}
       {done ? (
-        <Alert tone="success">{done}</Alert>
+        <Alert tone="success">{isVerify ? 'Account verified successfully! You can now sign in with your new password.' : done}</Alert>
       ) : (
         <form onSubmit={submit} className="space-y-4" noValidate>
-          <Field id="email" label="Email address" type="email" value={email} onChange={setEmail} error={fieldErrors.email} autoComplete="email" />
+          <Field id="email" label="Email address" type="email" value={email} onChange={setEmail} error={fieldErrors.email} autoComplete="email" readOnly={Boolean(email)} />
           <Field
             id="password"
-            label="New password"
+            label={isVerify ? 'Choose password' : 'New password'}
             type="password"
             value={password}
-            onChange={setPassword}
+            onChange={(val) => {
+              setPassword(val);
+              if (clientError) setClientError(null);
+            }}
             error={fieldErrors.password}
             autoComplete="new-password"
-            hint="At least 8 characters."
           />
-          <Field id="password_confirmation" label="Confirm new password" type="password" value={confirmation} onChange={setConfirmation} autoComplete="new-password" />
-          <SubmitButton busy={busy || !token}>Reset password</SubmitButton>
+          <Field
+            id="password_confirmation"
+            label={isVerify ? 'Confirm password' : 'Confirm new password'}
+            type="password"
+            value={confirmation}
+            onChange={(val) => {
+              setConfirmation(val);
+              if (clientError) setClientError(null);
+            }}
+            autoComplete="new-password"
+          />
+
+          <PasswordRequirements password={password} confirmation={confirmation} />
+
+          <SubmitButton busy={busy || !token || !allCriteriaMet}>{isVerify ? 'Verify Account' : 'Reset password'}</SubmitButton>
         </form>
       )}
     </AuthShell>

@@ -50,7 +50,7 @@ export const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'batches', label: 'Batches', icon: Users, permission: 'departments.create' },
     { id: 'campuses', label: 'Campuses', icon: Building2, permission: 'departments.create' },
     { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'departments.create' },
-    { id: 'custom_fields', label: 'Custom Fields', icon: SlidersHorizontal, permission: 'custom_fields.manage' },
+    { id: 'custom_fields', label: 'Modules & Fields', icon: SlidersHorizontal, permission: 'custom_fields.manage' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
     { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'departments.create' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },

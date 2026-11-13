@@ -21,6 +21,7 @@ class Course extends Model
         'academic_level',
         'duration_value',
         'duration_type',
+        'duration_years',
         'total_semesters',
         'total_credits',
         'description',
@@ -33,6 +34,7 @@ class Course extends Model
         'total_fees',
         'fees_per_semester',
         'is_active',
+        'institution_id',
     ];
 
     protected $casts = [

@@ -9,6 +9,7 @@ use App\Models\Institution;
 use App\Models\InstitutionStatusEvent;
 use App\Models\PlatformSetting;
 use App\Models\User;
+use App\Notifications\VerifyAccountNotification;
 use App\Services\Audit\AuditLogger;
 use App\Services\Owner\CollegeLogService;
 use App\Services\Owner\InstitutionLifecycle;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -101,7 +103,15 @@ class OwnerInstitutionController extends Controller
             return $institution;
         });
 
-        Password::broker()->sendResetLink(['email' => $data['adminEmail']]);
+        try {
+            $adminUser = User::where('email', $data['adminEmail'])->first();
+            if ($adminUser) {
+                $token = Password::broker()->createToken($adminUser);
+                $adminUser->notify(new VerifyAccountNotification($token, $institution->name));
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Failed to send welcome verification link to {$data['adminEmail']}: {$e->getMessage()}");
+        }
         $this->audit->record('owner.institution_created', $institution, [], [...$institution->only(['code', 'name', 'status']), 'admin' => $data['adminEmail']]);
 
         return response()->json(['data' => $this->detail($institution->fresh())], 201);
@@ -229,7 +239,11 @@ class OwnerInstitutionController extends Controller
     /** GET /owner/institutions/{institution}/settings */
     public function settings(Institution $institution): JsonResponse
     {
-        $overrides = $institution->institutionSettings()->pluck('value', 'key')->all();
+        // Only platform-setting overrides; the institution also stores its own settings here (e.g. sidebarLayout).
+        $overrides = $institution->institutionSettings()
+            ->whereIn('key', \App\Models\InstitutionSetting::OVERRIDABLE_KEYS)
+            ->pluck('value', 'key')
+            ->all();
 
         return response()->json([
             'data' => [
