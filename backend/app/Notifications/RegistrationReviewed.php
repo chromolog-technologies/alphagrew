@@ -31,7 +31,7 @@ class RegistrationReviewed extends Notification implements ShouldQueue
             return (new MailMessage)
                 ->subject('Your registration was approved')
                 ->line('Your institution approved your registration. You can now sign in.')
-                ->action('Sign in', config('app.frontend_url'));
+                ->action('Sign in', config('app.frontend_login_url'));
         }
 
         return (new MailMessage)

@@ -1,4 +1,3 @@
-export { default as AdminDashboard } from './AdminDashboard';
 export { AcademicYearModule } from './AcademicYearModule';
 export { ClassesModule } from './ClassesModule';
 export { CoursesModule } from './CoursesModule';

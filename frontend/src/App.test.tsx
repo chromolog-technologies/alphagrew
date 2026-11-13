@@ -142,6 +142,12 @@ describe('App routing (signed out)', () => {
           recentLogins: [],
         });
       }
+      if (url.includes('/owner/dashboard/summary')) {
+        return jsonResponse(200, { data: null });
+      }
+      if (url.includes('/owner/dashboard/trends') || url.includes('/owner/dashboard/alerts') || url.includes('/owner/dashboard/activity')) {
+        return jsonResponse(200, { data: [] });
+      }
       return jsonResponse(200, {});
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -180,6 +186,12 @@ describe('App routing (signed in role isolation)', () => {
         const url = typeof input === 'string' ? input : input.toString();
         if (url.endsWith('/campus/bootstrap')) {
           return jsonResponse(200, { user: ownerUser, data: emptyDataset });
+        }
+        if (url.includes('/owner/dashboard/summary')) {
+          return jsonResponse(200, { data: null });
+        }
+        if (url.includes('/owner/dashboard/trends') || url.includes('/owner/dashboard/alerts') || url.includes('/owner/dashboard/activity')) {
+          return jsonResponse(200, { data: [] });
         }
         return jsonResponse(200, {
           counts: { institutions: 0, activeInstitutions: 0, suspendedInstitutions: 0, users: 0, students: 0, activeSessions: 0 },
@@ -394,4 +406,32 @@ describe('Owner Console Release 2 (SaaS commercial & AI credits)', () => {
     expect(await screen.findByRole('heading', { name: 'AI usage & credits' }, { timeout: 5000 })).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: 'Credit wallets & ledger' }, { timeout: 5000 })).toBeInTheDocument();
   }, 15000);
+});
+
+describe('browser storage of campus records (live API mode)', () => {
+  it('never keeps the campus dataset in localStorage and removes an old copy', async () => {
+    localStorage.setItem('chromolog-campus-data', JSON.stringify({ students: [{ id: 1, name: 'Old copy' }] }));
+    const staffUser = { id: 7, name: 'Admin', email: 'admin@demo.com', role: 'institution_admin', permissions: [] };
+    localStorage.setItem('chromolog-campus-auth', JSON.stringify({ token: '1|tok', user: staffUser }));
+    const bootstrap = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url.includes('/notifications')) {
+        return jsonResponse(200, { data: [], meta: { unreadCount: 0, total: 0 } });
+      }
+      if (url.endsWith('/dashboards')) {
+        return jsonResponse(200, { data: [], templates: [], defaultTemplate: 'student' });
+      }
+      if (url.endsWith('/dashboards/home')) {
+        return jsonResponse(200, { data: null });
+      }
+      return jsonResponse(200, { user: staffUser, data: { ...emptyDataset, students: [{ id: 99, name: 'Real Student' }] } });
+    });
+    vi.stubGlobal('fetch', bootstrap);
+
+    renderAt('/app/dashboard');
+
+    await vi.waitFor(() => expect(bootstrap).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(localStorage.getItem('chromolog-campus-data')).toBeNull();
+  });
 });

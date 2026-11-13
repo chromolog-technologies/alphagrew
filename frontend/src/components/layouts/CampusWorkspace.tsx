@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   Area,
@@ -20,7 +20,6 @@ import {
   ArrowRight,
   Bell,
   BookOpenCheck,
-  BookOpen,
   BriefcaseBusiness,
   Building2,
   CalendarDays,
@@ -31,7 +30,6 @@ import {
   ChevronRight,
   House,
   ClipboardList,
-  Clock,
   FileText,
   Filter,
   GraduationCap,
@@ -44,12 +42,10 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
-  Settings,
   Sparkles,
   TrendingUp,
   Trash2,
   UserCircle2,
-  UserPlus,
   Users,
   X,
 } from 'lucide-react';
@@ -95,21 +91,19 @@ const CampusesModule = lazyNamed(() => import('../admin/SetupModules'), 'Campuse
 const InstitutionSettingsModule = lazyNamed(() => import('../admin/SetupModules'), 'InstitutionSettingsModule');
 const PlacementPolicyModule = lazyNamed(() => import('../admin/SetupModules'), 'PlacementPolicyModule');
 import { NotificationBell } from '../notifications/NotificationCenter';
-import { SlidersHorizontal } from 'lucide-react';
 import { isApiConfigured } from '../../api/http';
 import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
 import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 import { apiCall } from '../../api/apiClient';
 import { campusBrand } from '../../campusDemoData';
-import { TenantState } from '../shared';
+import { SampleDataNotice, TenantState } from '../shared';
+import { workspacePath } from '../../routes';
 import {
   campusMasterCategoryLabels,
   campusPermissionLabels,
-  campusPortalLabels,
   campusRoleLabels,
   campusStaffAssignablePermissions,
   campusStaffBasePermissions,
-  createDefaultCampusStudentResume,
   getCampusMasterLabel,
   isAdminRole,
   isInstitutionStaffRole,
@@ -124,996 +118,53 @@ import type {
   CampusMasterCategory,
   CampusMasterOption,
   CampusPermission,
-  CampusResumeTemplate,
   CampusRole,
-  CampusSession,
   CampusStudentResume,
-  TenantError,
   CompanyStatus,
   CompanyType,
   FeeStatus,
-  StudentStatus,
 } from '../../campusTypes';
-
-interface CampusWorkspaceProps {
-  error: string;
-  /** 403 or 404 from the last API call; replaces the tab content until dismissed. */
-  tenantError?: TenantError | null;
-  onDismissTenantError?: () => void;
-  user: CampusSession;
-  data: CampusData;
-  onLogout: () => Promise<void> | void;
-  onResetDemo: () => Promise<void> | void;
-  onCreateStudent: (payload: {
-    name: string;
-    email: string;
-    departmentCode?: string;
-    year: string;
-    gender: string;
-    status: string;
-    cgpa: number;
-    attendance: number;
-    phone?: string;
-    feeStatus: FeeStatus;
-    password?: string;
-    skills: string[];
-  }) => Promise<void> | void;
-  onUpdateStudent: (
-    studentId: number,
-    payload: {
-      name: string;
-      email: string;
-      departmentCode?: string;
-      year: string;
-      gender: string;
-      status: string;
-      cgpa: number;
-      attendance: number;
-      phone?: string;
-      feeStatus: FeeStatus;
-      password?: string;
-      skills: string[];
-    },
-  ) => Promise<void> | void;
-  onDeleteStudent: (studentId: number) => Promise<void> | void;
-  onCreateDepartment: (payload: {
-    name: string;
-    code: string;
-    description: string;
-    hod: string;
-    staffCount: number;
-    intake: number;
-  }) => Promise<void> | void;
-  onUpdateDepartment: (
-    departmentId: number,
-    payload: {
-      name: string;
-      code: string;
-      description: string;
-      hod: string;
-      staffCount: number;
-      intake: number;
-    },
-  ) => Promise<void> | void;
-  onDeleteDepartment: (departmentId: number) => Promise<void> | void;
-  onCreateCompany: (payload: {
-    name: string;
-    role: string;
-    packageOffered: string;
-    driveDate: string;
-    status: CompanyStatus;
-    location: string;
-    type: CompanyType;
-    eligibleDepartments: string[];
-  }) => Promise<void> | void;
-  onUpdateCompany: (
-    companyId: number,
-    payload: {
-      name: string;
-      role: string;
-      packageOffered: string;
-      driveDate: string;
-      status: CompanyStatus;
-      location: string;
-      type: CompanyType;
-      eligibleDepartments: string[];
-    },
-  ) => Promise<void> | void;
-  onDeleteCompany: (companyId: number) => Promise<void> | void;
-  onCreateAnnouncement: (payload: {
-    title: string;
-    summary: string;
-    audience: AnnouncementAudience;
-    priority: AnnouncementPriority;
-    category: string;
-  }) => Promise<void> | void;
-  onUpdateAnnouncement: (
-    announcementId: number,
-    payload: {
-      title: string;
-      summary: string;
-      audience: AnnouncementAudience;
-      priority: AnnouncementPriority;
-      category: string;
-    },
-  ) => Promise<void> | void;
-  onDeleteAnnouncement: (announcementId: number) => Promise<void> | void;
-  onUpdateProfile: (payload: { name: string; email: string; title: string; password?: string }) => Promise<void> | void;
-  onUpdateStudentResume: (payload: CampusStudentResume) => Promise<void> | void;
-  onCreateMaster: (payload: {
-    category: CampusMasterCategory;
-    label: string;
-    description?: string;
-    sortOrder: number;
-  }) => Promise<void> | void;
-  onUpdateMaster: (
-    masterId: number,
-    payload: {
-      category: CampusMasterCategory;
-      label: string;
-      description?: string;
-      sortOrder: number;
-    },
-  ) => Promise<void> | void;
-  onDeleteMaster: (masterId: number) => Promise<void> | void;
-  onCreateDesignation: (payload: {
-    name: string;
-    departmentCode?: string;
-    description?: string;
-    permissions: CampusPermission[];
-  }) => Promise<void> | void;
-  onUpdateDesignation: (
-    designationId: number,
-    payload: {
-      name: string;
-      departmentCode?: string;
-      description?: string;
-      permissions: CampusPermission[];
-    },
-  ) => Promise<void> | void;
-  onDeleteDesignation: (designationId: number) => Promise<void> | void;
-  onCreateStaff: (payload: {
-    name: string;
-    email: string;
-    designationId: number;
-    departmentCode: string;
-    phone?: string;
-    communicationAddress?: string;
-    permanentAddress?: string;
-    emergencyContactPerson?: string;
-    emergencyContactNumber?: string;
-    biometricId?: string;
-    experienceYears?: number;
-    specialization?: string;
-    imageFile?: File;
-    password?: string;
-    permissions: CampusPermission[];
-  }) => Promise<void> | void;
-  onUpdateStaff: (
-    staffId: number,
-    payload: {
-      name: string;
-      email: string;
-      designationId: number;
-      departmentCode: string;
-      phone?: string;
-      communicationAddress?: string;
-      permanentAddress?: string;
-      emergencyContactPerson?: string;
-      emergencyContactNumber?: string;
-      biometricId?: string;
-      experienceYears?: number;
-      specialization?: string;
-      imageFile?: File;
-      password?: string;
-      permissions: CampusPermission[];
-    },
-  ) => Promise<void> | void;
-  onDeleteStaff: (staffId: number) => Promise<void> | void;
-  onApplyToCompany: (companyId: number) => Promise<void> | void;
-}
-
-type StudentDraft = {
-  name: string;
-  email: string;
-  departmentCode: string;
-  year: string;
-  gender: string;
-  status: string;
-  cgpa: string;
-  attendance: string;
-  phone: string;
-  feeStatus: FeeStatus;
-  password: string;
-  skills: string;
-};
-
-type DepartmentDraft = {
-  name: string;
-  code: string;
-  hod: string;
-  description: string;
-  staffCount: string;
-  intake: string;
-};
-
-type CompanyDraft = {
-  name: string;
-  role: string;
-  packageOffered: string;
-  driveDate: string;
-  status: CompanyStatus;
-  location: string;
-  type: CompanyType;
-  eligibleDepartments: string;
-};
-
-type AnnouncementDraft = {
-  title: string;
-  summary: string;
-  audience: AnnouncementAudience;
-  priority: AnnouncementPriority;
-  category: string;
-};
-
-type StaffDraft = {
-  designationId: string;
-  name: string;
-  email: string;
-  phone?: string;
-  imageUrl?: string;
-  imageFile?: File | null;
-  communicationAddress?: string;
-  permanentAddress?: string;
-  emergencyContactPerson?: string;
-  emergencyContactNumber?: string;
-  departmentCode: string;
-  biometricId?: string;
-  experience?: string;
-  specialization?: string;
-  password: string;
-  permissions: CampusPermission[];
-};
-
-type DesignationDraft = {
-  name: string;
-  departmentCode: string;
-  description: string;
-  permissions: CampusPermission[];
-};
-
-type MasterDraft = {
-  category: CampusMasterCategory;
-  label: string;
-  description: string;
-  sortOrder: string;
-};
-
-type ProfileDraft = {
-  name: string;
-  email: string;
-  title: string;
-  password: string;
-};
-
-type DeleteIntent =
-  | {
-      type: 'student';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'department';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'master';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'designation';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'company';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'announcement';
-      id: number;
-      title: string;
-      description: string;
-    }
-  | {
-      type: 'staff';
-      id: number;
-      title: string;
-      description: string;
-    };
-
-type NavItem = {
-  id: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  permission: CampusPermission;
-};
-
-type SidebarNavGroup = {
-  id: string;
-  label: string;
-  itemIds: string[];
-};
-
-type CardTone = 'navy' | 'sky' | 'teal' | 'amber' | 'indigo' | 'emerald';
-
-// Header role chip colours from documentation/frontend/roles-tenancy-design.md (D5).
-const roleChipTone: Record<CampusRole, string> = {
-  super_admin: 'bg-foreground text-white',
-  platform_staff: 'bg-foreground text-white',
-  institution_admin: 'bg-primary/10 text-primary',
-  placement_officer: 'bg-[#fff4e5] text-[#8a4b00]',
-  staff: 'bg-muted text-foreground',
-  student: 'bg-[#ecfdf3] text-[#05603a]',
-  recruiter: 'bg-muted text-foreground',
-};
-
-// Same page sizes as GET /students (per_page up to 100).
-const STUDENTS_PER_PAGE_OPTIONS = [25, 50, 100];
-
-const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
-  admin: [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-    { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
-    { id: 'masters', label: 'Masters', icon: BookOpenCheck, permission: 'departments.create' },
-    { id: 'departments', label: 'Departments', icon: Building2, permission: 'departments.view' },
-    { id: 'courses', label: 'Courses', icon: BookOpen, permission: 'departments.create' },
-    { id: 'designations', label: 'Designations', icon: ShieldCheck, permission: 'departments.create' },
-    { id: 'staff', label: 'Staff', icon: UserCircle2, permission: 'departments.view' },
-    { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
-    { id: 'onboarding', label: 'Onboarding', icon: UserCircle2, permission: 'users.create' },
-    { id: 'classes', label: 'Classes', icon: Users, permission: 'departments.create' },
-    { id: 'subjects', label: 'Subjects', icon: BookOpen, permission: 'departments.create' },
-    { id: 'academic_years', label: 'Academic Years', icon: Calendar, permission: 'departments.create' },
-    { id: 'batches', label: 'Batches', icon: Users, permission: 'departments.create' },
-    { id: 'campuses', label: 'Campuses', icon: Building2, permission: 'departments.create' },
-    { id: 'roles', label: 'Roles & Permissions', icon: ShieldCheck, permission: 'departments.create' },
-    { id: 'custom_fields', label: 'Custom Fields', icon: SlidersHorizontal, permission: 'custom_fields.manage' },
-    { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'departments.create' },
-    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
-    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
-    { id: 'fees', label: 'Fees', icon: BriefcaseBusiness, permission: 'departments.create' },
-    { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
-    { id: 'placement_policy', label: 'Placement Policy', icon: ShieldCheck, permission: 'placement.create' },
-    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
-    { id: 'settings', label: 'Settings', icon: Settings, permission: 'departments.create' },
-    { id: 'audit_log', label: 'Audit Log', icon: ShieldCheck, permission: 'activity.view' },
-    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
-    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
-  ],
-  staff: [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-    { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
-    { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
-    { id: 'departments', label: 'Departments', icon: Building2, permission: 'departments.view' },
-    { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
-    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
-    { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
-    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
-    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
-    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
-  ],
-  student: [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-    { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
-    { id: 'timetable', label: 'Timetable', icon: Calendar, permission: 'attendance.view' },
-    { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
-    { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'attendance.view' },
-    { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'marks.view' },
-    { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
-
-    { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
-    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'profile', label: 'Career & AI Hub', icon: UserCircle2, permission: 'profile.view' },
-    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
-  ],
-};
-
-const navByRole: Record<CampusRole, NavItem[]> = {
-  super_admin: baseNavByRole.admin,
-  platform_staff: [],
-  institution_admin: baseNavByRole.admin,
-  placement_officer: [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
-    { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
-    { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
-    { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
-    { id: 'placement_policy', label: 'Placement Policy', icon: ShieldCheck, permission: 'placement.create' },
-    { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view' },
-    { id: 'reports', label: 'Reports', icon: ChartColumn, permission: 'reports.view' },
-    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
-    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
-  ],
-  staff: baseNavByRole.staff,
-  student: baseNavByRole.student,
-  // Recruiters cannot sign in yet; the recruiter portal is a later phase.
-  recruiter: [],
-};
-
-/** Every page id any role can open; used to tell "no access" from "no such page". */
-const workspaceTabIds = new Set(Object.values(navByRole).flat().map((item) => item.id));
-
-const sidebarNavGroups: SidebarNavGroup[] = [
-  { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
-  { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years', 'batches', 'campuses', 'custom_fields'] },
-  { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
-  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
-
-  { id: 'finance', label: 'Finance', itemIds: [] },
-  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer', 'placement_policy'] },
-  { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
-];
-
-
-const monthTrend = [
-  { month: 'Jan', offers: 8, drives: 2 },
-  { month: 'Feb', offers: 14, drives: 3 },
-  { month: 'Mar', offers: 18, drives: 3 },
-  { month: 'Apr', offers: 22, drives: 4 },
-  { month: 'May', offers: 27, drives: 5 },
-  { month: 'Jun', offers: 31, drives: 5 },
-];
-
-const cardToneStyles: Record<
-  CardTone,
-  {
-    metric: string;
-    highlight: string;
-    icon: string;
-    helper: string;
-  }
-> = {
-  navy: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-blue-50 text-blue-600',
-    helper: 'bg-blue-50 text-blue-600',
-  },
-  sky: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-sky-50 text-sky-600',
-    helper: 'bg-sky-50 text-sky-600',
-  },
-  teal: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-teal-50 text-teal-600',
-    helper: 'bg-teal-50 text-teal-600',
-  },
-  amber: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-amber-50 text-amber-600',
-    helper: 'bg-amber-50 text-amber-600',
-  },
-  indigo: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-indigo-50 text-indigo-600',
-    helper: 'bg-indigo-50 text-indigo-600',
-  },
-  emerald: {
-    metric: 'border border-slate-200 bg-white shadow-sm',
-    highlight: 'border border-slate-200 bg-white shadow-sm',
-    icon: 'bg-emerald-50 text-emerald-600',
-    helper: 'bg-emerald-50 text-emerald-600',
-  },
-};
-
-function classNames(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(' ');
-}
-
-function formatDate(dateValue: string) {
-  return new Date(dateValue).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-const calendarWeekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
-function isSameDay(left: Date, right: Date) {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
-
-function audienceMatches(role: CampusRole, audience: AnnouncementAudience) {
-  if (audience === 'all' || audience === 'All') {
-    return true;
-  }
-  if (isAdminRole(role)) {
-    return true;
-  }
-  return (
-    (isInstitutionStaffRole(role) && (audience === 'staff' || audience === 'Staff')) ||
-    (role === 'student' && (audience === 'students' || audience === 'Students'))
-  );
-}
-
-function statusTone(status: StudentStatus | CompanyStatus | AnnouncementPriority | FeeStatus) {
-  const tones: Record<string, string> = {
-    active: 'bg-slate-100 text-slate-700',
-    Active: 'bg-slate-100 text-slate-700',
-    placement_ready: 'bg-blue-50 text-blue-700',
-    'Placement Ready': 'bg-blue-50 text-blue-700',
-    placed: 'bg-emerald-50 text-emerald-700',
-    Placed: 'bg-emerald-50 text-emerald-700',
-    open: 'bg-emerald-50 text-emerald-700',
-    Open: 'bg-emerald-50 text-emerald-700',
-    closing_soon: 'bg-amber-50 text-amber-700',
-    'Closing Soon': 'bg-amber-50 text-amber-700',
-    upcoming: 'bg-sky-50 text-sky-700',
-    Upcoming: 'bg-sky-50 text-sky-700',
-    closed: 'bg-slate-100 text-slate-500',
-    Closed: 'bg-slate-100 text-slate-500',
-    high: 'bg-red-50 text-red-700',
-    High: 'bg-red-50 text-red-700',
-    medium: 'bg-amber-50 text-amber-700',
-    Medium: 'bg-amber-50 text-amber-700',
-    low: 'bg-slate-100 text-slate-600',
-    Low: 'bg-slate-100 text-slate-600',
-    paid: 'bg-emerald-50 text-emerald-700',
-    Paid: 'bg-emerald-50 text-emerald-700',
-    pending: 'bg-red-50 text-red-700',
-    Pending: 'bg-red-50 text-red-700',
-  };
-
-  return tones[status] ?? 'bg-slate-100 text-slate-700';
-}
-
-const resumeTemplateOptions: Array<{
-  id: CampusResumeTemplate;
-  label: string;
-  description: string;
-  shellClass: string;
-  accentClass: string;
-}> = [
-  {
-    id: 'classic_ats',
-    label: 'Classic ATS',
-    description: 'Single-column structure with strong section headers for recruiter systems.',
-    shellClass: 'border border-slate-200 bg-white',
-    accentClass: 'bg-slate-950 text-white',
-  },
-  {
-    id: 'modern_ats',
-    label: 'Modern ATS',
-    description: 'Clean header and balanced spacing while keeping ATS-safe text blocks.',
-    shellClass: 'border border-sky-200 bg-[linear-gradient(180deg,#ffffff,#f5fbff)]',
-    accentClass: 'bg-[linear-gradient(135deg,#072b52,#16a3db)] text-white',
-  },
-  {
-    id: 'compact_ats',
-    label: 'Compact ATS',
-    description: 'Tighter layout for one-page resumes with dense but readable sections.',
-    shellClass: 'border border-emerald-200 bg-[linear-gradient(180deg,#ffffff,#f5fcf8)]',
-    accentClass: 'bg-emerald-600 text-white',
-  },
-];
-
-function resumeListToText(items: string[]) {
-  return items.join('\n');
-}
-
-function resumeTextToList(value: string) {
-  return value
-    .split('\n')
-    .map((item) => item.replace(/^[-*]\s*/, '').trim())
-    .filter(Boolean);
-}
-
-function uniqueResumeKeywords(keywords: string[]) {
-  return Array.from(
-    new Set(
-      keywords
-        .map((keyword) => keyword.trim().toLowerCase())
-        .filter((keyword) => keyword.length > 2),
-    ),
-  );
-}
-
-function buildResumeBenchmarkKeywords(student: CampusData['students'][number], companies: CampusData['companies']) {
-  return uniqueResumeKeywords([
-    ...student.skills,
-    ...companies.flatMap((company) =>
-      `${company.role} ${company.name} ${company.type} ${company.packageOffered}`
-        .split(/[^a-zA-Z0-9+#.]+/)
-        .filter(Boolean),
-    ),
-    'projects',
-    'leadership',
-    'communication',
-    'problem solving',
-    'internship',
-    'placement',
-  ]).slice(0, 16);
-}
-
-function buildGeneratedResumeText(student: CampusData['students'][number], resume: CampusStudentResume) {
-  const sections = [
-    `${student.name}`,
-    resume.headline || `${student.departmentCode} student`,
-    [student.email, student.phone || '', resume.location].filter(Boolean).join(' | '),
-    resume.links.length ? `Links: ${resume.links.join(' | ')}` : '',
-    '',
-    'PROFESSIONAL SUMMARY',
-    resume.summary,
-    '',
-    'TARGET ROLE',
-    resume.targetRole,
-    '',
-    'EDUCATION',
-    `${student.departmentCode} | ${masterYearLabel(student.year)} | CGPA ${student.cgpa.toFixed(1)} | Attendance ${student.attendance}%`,
-    '',
-    'SKILLS',
-    student.skills.join(', '),
-    '',
-    'PROJECTS',
-    ...resume.projects.map((item) => `- ${item}`),
-    '',
-    'EXPERIENCE',
-    ...resume.experience.map((item) => `- ${item}`),
-    '',
-    'ACHIEVEMENTS',
-    ...resume.achievements.map((item) => `- ${item}`),
-    '',
-    'CERTIFICATIONS',
-    ...resume.certifications.map((item) => `- ${item}`),
-  ];
-
-  return sections.filter((section) => section !== '').join('\n');
-}
-
-function masterYearLabel(year: string) {
-  return ({
-    year_1: '1st Year',
-    year_2: '2nd Year',
-    year_3: '3rd Year',
-    year_4: '4th Year',
-  } as Record<string, string>)[year] ?? year;
-}
-
-function analyzeResumeText(
-  text: string,
-  benchmarkKeywords: string[],
-  resume: CampusStudentResume,
-  student: CampusData['students'][number],
-) {
-  const normalizedText = text.toLowerCase();
-  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
-  const hasContact = Boolean(student.email) && Boolean(student.phone || resume.location || resume.links.length);
-  const hasSummary = Boolean(resume.summary.trim()) || /\b(summary|profile)\b/i.test(text);
-  const hasSkills = student.skills.length > 0 || /\bskills\b/i.test(text);
-  const hasProjects = resume.projects.length > 0 || /\bprojects?\b/i.test(text);
-  const hasExperience = resume.experience.length > 0 || /\bexperience\b/i.test(text);
-  const hasMetrics = /\b\d+(\.\d+)?%|\b\d+\+|\b\d+x\b|\b\d+\s*(users|students|projects|drives|teams|apps)\b/i.test(text);
-  const hasActionVerbs = /\b(built|led|designed|developed|created|implemented|improved|optimized|delivered|launched|managed)\b/i.test(text);
-  const atsSafeFormatting = !/[|]{2,}|[_]{3,}|[*]{3,}/.test(text);
-  const matchedKeywords = benchmarkKeywords.filter((keyword) => normalizedText.includes(keyword));
-  const missingKeywords = benchmarkKeywords.filter((keyword) => !normalizedText.includes(keyword)).slice(0, 6);
-  const keywordScore = benchmarkKeywords.length === 0 ? 0 : Math.round((matchedKeywords.length / benchmarkKeywords.length) * 15);
-
-  let score = 0;
-  if (hasContact) score += 14;
-  if (hasSummary) score += 12;
-  if (hasSkills) score += 14;
-  if (hasProjects) score += 12;
-  if (hasExperience) score += 12;
-  if (hasMetrics) score += 10;
-  if (hasActionVerbs) score += 8;
-  if (atsSafeFormatting) score += 6;
-  score += wordCount >= 220 && wordCount <= 900 ? 12 : wordCount >= 140 ? 6 : 0;
-  score += keywordScore;
-
-  const missingSections = [
-    !hasContact ? 'Contact details' : null,
-    !hasSummary ? 'Professional summary' : null,
-    !hasSkills ? 'Skills section' : null,
-    !hasProjects ? 'Projects section' : null,
-    !hasExperience ? 'Experience section' : null,
-    !hasMetrics ? 'Measured impact' : null,
-  ].filter(Boolean) as string[];
-
-  const suggestions = [
-    !hasMetrics ? 'Add measurable outcomes like percentages, counts, or delivery impact.' : null,
-    matchedKeywords.length < 5 ? 'Mirror keywords from target roles and eligible drives so ATS filters catch your resume.' : null,
-    wordCount < 220 ? 'Expand your resume with project impact, achievements, and clear skill evidence.' : null,
-    wordCount > 900 ? 'Tighten long paragraphs so the resume stays one-page and ATS-friendly.' : null,
-    !hasActionVerbs ? 'Start bullets with action verbs like built, led, optimized, or delivered.' : null,
-  ].filter(Boolean) as string[];
-
-  return {
-    score: Math.max(38, Math.min(98, score)),
-    wordCount,
-    matchedKeywords,
-    missingKeywords,
-    missingSections,
-    suggestions,
-  };
-}
-
-function Panel({ children, className }: { children: ReactNode; className?: string; key?: string | number }) {
-  return (
-    <section
-      className={classNames(
-        'heroui-card',
-        className,
-      )}
-    >
-      {children}
-    </section>
-  );
-}
-
-function SectionHeader({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-1">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">{title}</p>
-        <h2 className="mt-1 text-2xl font-black tracking-tight text-zinc-900">{description}</h2>
-      </div>
-      {action}
-    </div>
-  );
-}
-
-function Sparkline({ points, color = '#2563eb' }: { points: number[]; color?: string }) {
-  if (points.length === 0) return null;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min === 0 ? 1 : max - min;
-  const width = 50;
-  const height = 16;
-  const padding = 1;
-  const svgPoints = points.map((p, i) => {
-    const x = padding + (i / (points.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((p - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  });
-  const pathD = `M ${svgPoints.join(' L ')}`;
-  
-  return (
-    <svg width={width} height={height} className="shrink-0 opacity-85">
-      <path
-        d={pathD}
-        fill="none"
-        stroke={color}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-  helper,
-  icon: Icon,
-  tone = 'navy',
-  sparklineData = [12, 16, 14, 20, 18, 22, 21, 25]
-}: {
-  label: string;
-  value: string | number;
-  helper: string;
-  icon: typeof Users;
-  tone?: CardTone;
-  sparklineData?: number[];
-}) {
-  const toneStyles = cardToneStyles[tone];
-  
-  const colors: Record<CardTone, string> = {
-    navy: '#006fee',
-    sky: '#0284c7',
-    teal: '#0d9488',
-    amber: '#d97706',
-    indigo: '#6366f1',
-    emerald: '#10b981'
-  };
-  const strokeColor = colors[tone] || '#006fee';
-
-  return (
-    <section className="heroui-card p-4 transition-all duration-200 hover:-translate-y-0.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
-          <Icon size={18} />
-        </div>
-        <span className="trend-chip trend-chip-up">
-          <TrendingUp size={12} />
-          {helper || '+8.4%'}
-        </span>
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
-          <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
-        </div>
-        <div className="shrink-0">
-          <Sparkline points={sparklineData} color={strokeColor} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DashboardHighlightCard({
-  label,
-  value,
-  detail,
-  meta,
-  icon: Icon,
-  tone = 'navy',
-}: {
-  label: string;
-  value: string | number;
-  detail: string;
-  meta: string;
-  icon: typeof Users;
-  tone?: CardTone;
-}) {
-  const toneStyles = cardToneStyles[tone];
-
-  return (
-    <section className="heroui-card p-5 transition-all duration-200 hover:-translate-y-0.5">
-      <div className="flex items-start justify-between gap-3">
-        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
-          <Icon size={18} />
-        </div>
-        <span className={classNames('rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider', toneStyles.helper)}>
-          {meta}
-        </span>
-      </div>
-      <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-zinc-400">{label}</p>
-      <p className="mt-1 text-3xl font-black text-zinc-900 tracking-tight leading-none">{value}</p>
-      <p className="mt-2 text-xs text-zinc-500 leading-relaxed">{detail}</p>
-    </section>
-  );
-}
-
-function AdminSnapshotCard({
-  label,
-  value,
-  note,
-  icon: Icon,
-  tone = 'navy',
-  sparklineData = [12, 16, 14, 20, 18, 22, 21, 25]
-}: {
-  label: string;
-  value: string | number;
-  note: string;
-  icon: typeof Users;
-  className?: string;
-  tone?: CardTone;
-  sparklineData?: number[];
-}) {
-  const toneStyles = cardToneStyles[tone];
-  
-  const colors: Record<CardTone, string> = {
-    navy: '#006fee',
-    sky: '#0284c7',
-    teal: '#0d9488',
-    amber: '#d97706',
-    indigo: '#6366f1',
-    emerald: '#10b981'
-  };
-  const strokeColor = colors[tone] || '#006fee';
-
-  return (
-    <section className="heroui-card p-4 transition-all duration-200 hover:-translate-y-0.5">
-      <div className="flex items-center justify-between gap-3">
-        <div className={classNames('flex h-10 w-10 items-center justify-center rounded-xl font-semibold', toneStyles.icon)}>
-          <Icon size={18} />
-        </div>
-        <span className="trend-chip trend-chip-up">
-          <TrendingUp size={12} />
-          {note}
-        </span>
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-900 leading-none">{value}</p>
-          <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 truncate">{label}</p>
-        </div>
-        <div className="shrink-0">
-          <Sparkline points={sparklineData} color={strokeColor} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function Modal({
-  open,
-  title,
-  description,
-  onClose,
-  children,
-  compact = false,
-}: {
-  open: boolean;
-  title: string;
-  description: string;
-  onClose: () => void;
-  children: ReactNode;
-  compact?: boolean;
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-md"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 16, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 16, scale: 0.98 }}
-          className={`my-6 w-full rounded-2xl border border-zinc-200/90 bg-white shadow-2xl ${
-            compact ? 'max-w-md p-6' : 'max-w-2xl p-7'
-          }`}
-        >
-          <div className={`flex items-start justify-between gap-4 ${compact ? 'mb-4' : 'mb-5'}`}>
-            <div>
-              <h3 className={`${compact ? 'text-lg' : 'text-xl'} font-extrabold tracking-tight text-zinc-900`}>{title}</h3>
-              <p className="mt-1 text-xs text-zinc-500 leading-relaxed">{description}</p>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-200 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
-              aria-label="Close modal"
-            >
-              <X size={16} />
-            </button>
-          </div>
-          {children}
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
+import type {
+  CampusWorkspaceProps,
+  StudentDraft,
+  DepartmentDraft,
+  CompanyDraft,
+  AnnouncementDraft,
+  StaffDraft,
+  DesignationDraft,
+  MasterDraft,
+  ProfileDraft,
+  DeleteIntent,
+} from './workspace/types';
+import {
+  STUDENTS_PER_PAGE_OPTIONS,
+  navByRole,
+  workspaceTabIds,
+  sidebarNavGroups,
+} from './workspace/navigation';
+import {
+  monthTrend,
+  classNames,
+  formatDate,
+  calendarWeekdays,
+  isSameDay,
+  audienceMatches,
+  statusTone,
+  resumeTemplateOptions,
+  resumeListToText,
+  resumeTextToList,
+  buildResumeBenchmarkKeywords,
+  buildGeneratedResumeText,
+  analyzeResumeText,
+} from './workspace/helpers';
+import {
+  Panel,
+  SectionHeader,
+  MetricCard,
+  DashboardHighlightCard,
+  AdminSnapshotCard,
+  Modal,
+} from './workspace/ui';
 
 export default function CampusWorkspace({
   error,
@@ -1286,7 +337,6 @@ export default function CampusWorkspace({
 
   const findDesignationByName = (name?: string | null) =>
     data.designations.find((designation) => designation.name.trim().toLowerCase() === String(name ?? '').trim().toLowerCase()) ?? null;
-  const findMasterById = (masterId?: number | null) => data.masters.find((master) => master.id === masterId) ?? null;
   const extractAssignablePermissions = (permissions: CampusPermission[]) =>
     normalizeStaffPermissions(permissions).filter((permission) => campusStaffAssignablePermissions.includes(permission));
 
@@ -1295,7 +345,7 @@ export default function CampusWorkspace({
   const { tab: routeTab } = useParams<{ tab?: string }>();
   const homeTab = availableNav[0]?.id ?? 'dashboard';
   const activeTab = routeTab ?? homeTab;
-  const setActiveTab = (tabId: string) => navigate(`/app/${tabId}`);
+  const setActiveTab = (tabId: string) => navigate(workspacePath(tabId));
 
   // A 403/404 belongs to the tab it happened on; moving to another tab clears it.
   useEffect(() => {
@@ -1322,7 +372,6 @@ export default function CampusWorkspace({
   });
   const [selectedCalendarDate, setSelectedCalendarDate] = useState(() => new Date());
   const [adminAnalyticsTab, setAdminAnalyticsTab] = useState<'placement' | 'pipeline' | 'readiness'>('placement');
-  const [isHeaderSearchOpen, setIsHeaderSearchOpen] = useState(false);
   const [headerSearch, setHeaderSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -1524,6 +573,8 @@ export default function CampusWorkspace({
   }, [activeTab, sidebarDropdowns]);
 
   useEffect(() => {
+    // matchMedia is missing in some embedded browsers and in jsdom; keep the sidebar's default then.
+    if (typeof window.matchMedia !== 'function') return;
     const mediaQuery = window.matchMedia('(min-width: 1024px)');
     const syncSidebarState = (matches: boolean) => {
       setIsSidebarOpen(matches);
@@ -1801,19 +852,6 @@ export default function CampusWorkspace({
       return new Date(left.driveDate).getTime() - new Date(right.driveDate).getTime();
     })
     .slice(0, 5);
-  const filteredFeaturedCompanies = featuredCompanies.filter((company) =>
-    matchesHeaderSearch(
-      company.name,
-      company.role,
-      company.location,
-      company.packageOffered,
-      company.type,
-      masterLabel('company_drive_type', company.type),
-      company.status,
-      masterLabel('company_drive_status', company.status),
-      company.eligibleDepartments.join(' '),
-    ),
-  );
   const filteredPlacementCompanies = data.companies.filter((company) =>
     matchesHeaderSearch(
       company.name,
@@ -2000,12 +1038,6 @@ export default function CampusWorkspace({
   const institutionName =
     user.institution?.name ?? (user.role === 'super_admin' ? 'All institutions' : campusBrand.campusName);
   const institutionCode = user.institution?.code;
-  const institutionInitials = institutionName
-    .split(/\s+/)
-    .filter((word) => /^[A-Za-z]/.test(word) && !['of', 'and', 'the'].includes(word.toLowerCase()))
-    .slice(0, 3)
-    .map((word) => word[0].toUpperCase())
-    .join('');
   const userInitials =
     user.name
       .split(' ')
@@ -2112,25 +1144,6 @@ export default function CampusWorkspace({
     // Values for an existing student load from the API (see studentFieldValues).
     setStudentCustomFields({});
     setShowStudentModal(true);
-  };
-
-  const openDepartmentEditor = (department?: CampusData['departments'][number]) => {
-    if (department) {
-      setEditingDepartment(department);
-      setDepartmentDraft({
-        name: department.name,
-        code: department.code,
-        hod: departmentHodLabel(department.hod),
-        description: department.description ?? '',
-        staffCount: String(department.staffCount),
-        intake: String(department.intake),
-      });
-    } else {
-      setEditingDepartment(null);
-      setDepartmentDraft(createDepartmentDraft());
-    }
-
-    setShowDepartmentModal(true);
   };
 
   const openCompanyEditor = (company?: CampusData['companies'][number]) => {
@@ -2640,15 +1653,6 @@ export default function CampusWorkspace({
       id: student.id,
       title: 'Delete student?',
       description: `Remove ${student.name} from the student list and disable this login from the demo workspace.`,
-    });
-  };
-
-  const deleteDepartment = (department: CampusData['departments'][number]) => {
-    setDeleteIntent({
-      type: 'department',
-      id: department.id,
-      title: 'Delete department?',
-      description: `Remove ${department.name} (${department.code}) from the campus list when it no longer has linked records.`,
     });
   };
 
@@ -4086,125 +3090,6 @@ export default function CampusWorkspace({
     </div>
   );
 
-  const renderDepartmentsTab = () => (
-    <div className="space-y-6">
-      {can('departments.create') && filteredDepartmentStats.length === 0 ? (
-        <Panel className="border-dashed border-slate-300 bg-slate-50/50 p-8">
-          <div className="text-center">
-            <Building2 size={48} className="mx-auto mb-4 text-slate-400" />
-            <h3 className="mb-2 text-lg font-semibold text-slate-900">No departments yet</h3>
-            <p className="mb-6 text-sm text-slate-600">
-              Start by adding staff members, then create departments and assign HODs.
-            </p>
-            <div className="flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => openStaffEditor()}
-                className="inline-flex items-center gap-2 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                <UserPlus size={16} />
-                Add Staff First
-              </button>
-              <button
-                type="button"
-                onClick={() => openDepartmentEditor()}
-                className="inline-flex items-center gap-2 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                <Plus size={16} />
-                Create Department
-              </button>
-            </div>
-          </div>
-        </Panel>
-      ) : null}
-
-      <SectionHeader
-        title="Department module"
-        description="Academic units, HOD ownership, and placement performance."
-        action={
-          can('departments.create') ? (
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => openStaffEditor()}
-                className="inline-flex items-center gap-2 rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-              >
-                <UserPlus size={16} />
-                Add Staff
-              </button>
-              <button
-                type="button"
-                onClick={() => openDepartmentEditor()}
-                className="inline-flex items-center gap-2 rounded-[18px] bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                <Plus size={16} />
-                Create Department
-              </button>
-            </div>
-          ) : null
-        }
-      />
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        {filteredDepartmentStats.map((item) => (
-          <Panel key={item.department.id} className="p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                  {item.department.code}
-                </div>
-                <h3 className="mt-4 text-xl font-bold text-slate-950">{item.department.name}</h3>
-                <p className="mt-2 text-sm text-slate-500">HOD: {departmentHodLabel(item.department.hod)}</p>
-              </div>
-              <div className="flex items-start gap-2">
-                {can('departments.create') ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => openDepartmentEditor(item.department)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-slate-200 text-slate-700 transition hover:bg-slate-50"
-                      aria-label={`Edit ${item.department.name}`}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteDepartment(item.department)}
-                      className="inline-flex h-10 w-10 items-center justify-center rounded-[18px] border border-red-200 text-red-600 transition hover:bg-red-50"
-                      aria-label={`Delete ${item.department.name}`}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </>
-                ) : null}
-                <div className="h-12 w-12 rounded-[18px]" style={{ background: `linear-gradient(145deg, ${item.department.accent}, #24a8e8)` }} />
-              </div>
-            </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[18px] bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Students</p>
-                <p className="mt-2 text-2xl font-bold text-slate-950">{item.students}</p>
-              </div>
-              <div className="rounded-[18px] bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Placed</p>
-                <p className="mt-2 text-2xl font-bold text-slate-950">{item.placed}</p>
-              </div>
-              <div className="rounded-[18px] bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Rate</p>
-                <p className="mt-2 text-2xl font-bold text-slate-950">{item.rate}%</p>
-              </div>
-            </div>
-          </Panel>
-        ))}
-        {filteredDepartmentStats.length === 0 ? (
-          <div className="rounded-[18px] border border-dashed border-slate-200 px-4 py-10 text-center text-sm text-slate-500 xl:col-span-2">
-            No departments match the current search.
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-
   const renderStudentPlacementTable = () => (
     <div className="space-y-6">
       <SectionHeader title="Placement module" description="Open company drives matched to the current student profile." />
@@ -5546,7 +4431,7 @@ export default function CampusWorkspace({
     // Route guard: a page outside the role's menu is refused, an unknown one is not found.
     const access = workspaceAccess(activeTab, availableNav.map((item) => item.id), workspaceTabIds);
     if (access !== 'allowed') {
-      return access === 'forbidden' ? <AccessDenied homePath={`/app/${homeTab}`} /> : <NotFound homePath={`/app/${homeTab}`} />;
+      return access === 'forbidden' ? <AccessDenied homePath={workspacePath(homeTab)} /> : <NotFound homePath={workspacePath(homeTab)} />;
     }
 
     switch (activeTab) {
@@ -6060,6 +4945,7 @@ export default function CampusWorkspace({
             </aside>
 
             <main className="min-w-0 space-y-5 p-4 lg:col-start-2 lg:row-start-2 lg:p-6">
+              <SampleDataNotice screenKey={activeTab} />
               <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground">
                 <button
                   type="button"

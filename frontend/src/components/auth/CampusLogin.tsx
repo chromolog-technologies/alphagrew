@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, Eye, EyeOff, GraduationCap, Briefcase, Building, Info } from 'lucide-react';
 import { campusBrand } from '../../campusDemoData';
 import { Link } from 'react-router-dom';
+import { loginPath } from '../../routes';
 import {
   Card,
   CardHeader,
@@ -70,7 +71,7 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-50 flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
       {/* Background radial effects */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,111,238,0.08),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(99,102,241,0.08),_transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(0,111,238,0.08),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(36, 107, 252,0.08),_transparent_35%)]" />
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]" />
 
       <div className="relative mx-auto w-full max-w-md">
@@ -177,7 +178,7 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
                     <Label htmlFor="login-password" required className="text-xs uppercase tracking-wider text-slate-600">
                       Password
                     </Label>
-                    <Link to="/forgot-password" className="text-xs font-semibold text-blue-600 hover:text-blue-700">
+                    <Link to={loginPath('forgot-password')} className="text-xs font-semibold text-blue-600 hover:text-blue-700">
                       Forgot password?
                     </Link>
                   </div>
@@ -240,7 +241,7 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
                       Register with your institution code
                     </button>
                   ) : (
-                    <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-700">
+                    <Link to={loginPath('register')} className="font-semibold text-blue-600 hover:text-blue-700">
                       Register with your institution code
                     </Link>
                   )}

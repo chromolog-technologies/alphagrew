@@ -23,7 +23,7 @@ class EmailVerificationController extends Controller
         $user = User::withoutGlobalScope(InstitutionScope::class)->find($id);
 
         if (! $user || ! hash_equals(sha1($user->getEmailForVerification()), $hash)) {
-            return redirect()->away(config('app.frontend_url').'/?verified=invalid');
+            return redirect()->away(config('app.frontend_login_url').'?verified=invalid');
         }
 
         if (! $user->hasVerifiedEmail()) {
@@ -32,7 +32,7 @@ class EmailVerificationController extends Controller
             $audit->record('auth.email_verified', $user, actor: $user);
         }
 
-        return redirect()->away(config('app.frontend_url').'/?verified=1');
+        return redirect()->away(config('app.frontend_login_url').'?verified=1');
     }
 
     public function resend(Request $request): JsonResponse

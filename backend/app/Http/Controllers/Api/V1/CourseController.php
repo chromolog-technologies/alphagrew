@@ -151,7 +151,6 @@ class CourseController extends Controller
         $staff = User::query()
             ->select('id', 'name', 'email')
             ->where('role', 'staff')
-            ->orWhere('role', 'hod')
             ->get();
 
         return response()->json($staff);

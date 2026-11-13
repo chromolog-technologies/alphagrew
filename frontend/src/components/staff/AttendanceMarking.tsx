@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Check, X, AlertCircle } from 'lucide-react';
 import { fetchStaffAttendanceStudents, submitStaffAttendance, fetchStaffClasses } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
-import { PrototypeNotice } from '../shared';
 
 interface AttendanceMarkingProps {
   staffRole: 'faculty' | 'hod' | 'admin';
@@ -148,7 +147,6 @@ export const AttendanceMarking: React.FC<AttendanceMarkingProps> = ({ staffRole 
 
   return (
     <div className="space-y-6">
-      <PrototypeNotice />
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Mark Attendance</h2>
         <p className="mt-1 text-sm text-slate-600">Record student attendance for your class</p>

@@ -73,7 +73,7 @@ export function NotificationBell({ onNavigate, onOpenAll }: NavigateProps & { on
   const ref = useRef<HTMLDivElement>(null);
   const notifications = useNotifications({ perPage: 8 });
   const readAll = useNotificationMutation(() => notificationsApi.markAllRead());
-  const unread = notifications.data?.meta.unreadCount ?? 0;
+  const unread = notifications.data?.meta?.unreadCount ?? 0;
 
   useEffect(() => {
     if (!open) return;
@@ -103,7 +103,7 @@ export function NotificationBell({ onNavigate, onOpenAll }: NavigateProps & { on
               <Button type="button" variant="ghost" size="sm" onClick={() => readAll.mutate(undefined)}><CheckCheck size={14} /> Mark all read</Button>
             ) : null}
           </div>
-          {notifications.isPending ? <Skeleton className="m-2 h-20" /> : notifications.data?.data.length ? (
+          {notifications.isPending ? <Skeleton className="m-2 h-20" /> : Array.isArray(notifications.data?.data) && notifications.data.data.length ? (
             <ul className="max-h-96 space-y-1 overflow-y-auto">
               {notifications.data.data.map((notification) => (
                 <NotificationItem key={notification.id} notification={notification} compact onNavigate={(tab, params) => { setOpen(false); onNavigate?.(tab, params); }} />
@@ -151,7 +151,7 @@ export function NotificationCenter({ onNavigate }: NavigateProps) {
       <section className="rounded-xl border border-border bg-card p-2 shadow-card">
         {notifications.isPending ? <Skeleton className="m-2 h-32" /> : notifications.isError ? (
           <Alert variant="destructive"><AlertDescription>Notifications could not be loaded.</AlertDescription></Alert>
-        ) : notifications.data?.data.length ? (
+        ) : Array.isArray(notifications.data?.data) && notifications.data.data.length ? (
           <ul className="space-y-1">{notifications.data.data.map((notification) => <NotificationItem key={notification.id} notification={notification} onNavigate={onNavigate} />)}</ul>
         ) : (
           <p className="px-3 py-10 text-center text-sm text-muted-foreground">{unreadOnly ? 'No unread notifications.' : 'No notifications yet.'}</p>

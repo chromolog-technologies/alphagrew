@@ -78,12 +78,12 @@ export function SettingsPage({ can, go }: OwnerPageProps) {
               </Field>
               <Field label="Brand primary color" htmlFor="set-brand-color">
                 <div className="flex items-center gap-2">
-                  <Input id="set-brand-color" value={form.brandPrimaryColor ?? '#4f46e5'} disabled={!canManage} onChange={(e) => setForm({ ...form, brandPrimaryColor: e.target.value })} />
+                  <Input id="set-brand-color" value={form.brandPrimaryColor ?? '#1557e0'} disabled={!canManage} onChange={(e) => setForm({ ...form, brandPrimaryColor: e.target.value })} />
                   <input
                     type="color"
                     aria-label="Color picker"
                     disabled={!canManage}
-                    value={/^#[0-9a-fA-F]{6}$/.test(form.brandPrimaryColor ?? '') ? form.brandPrimaryColor : '#4f46e5'}
+                    value={/^#[0-9a-fA-F]{6}$/.test(form.brandPrimaryColor ?? '') ? form.brandPrimaryColor : '#1557e0'}
                     onChange={(e) => setForm({ ...form, brandPrimaryColor: e.target.value })}
                     className="h-9 w-10 cursor-pointer rounded border border-border bg-transparent p-0.5"
                   />

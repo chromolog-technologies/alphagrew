@@ -6,40 +6,10 @@
  * - 403 / 404 / 409 / 423 / 429 → ApiError with the server's message.
  */
 
-import { notifySessionExpired } from './campusApi';
+import { ApiError } from './apiError';
+import { apiBaseUrl, apiFetch, getStoredToken, isApiConfigured, notifySessionExpired } from './core';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
-
-const AUTH_KEY = 'chromolog-campus-auth';
-
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly fieldErrors: Record<string, string[]> = {},
-    public readonly code?: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-
-  /** First message per field, for showing next to inputs. */
-  get firstFieldErrors(): Record<string, string> {
-    return Object.fromEntries(Object.entries(this.fieldErrors).map(([field, messages]) => [field, messages[0] ?? '']));
-  }
-}
-
-export function isApiConfigured() {
-  return Boolean(apiBaseUrl);
-}
-
-function storedToken(): string | null {
-  try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY) ?? 'null')?.token ?? null;
-  } catch {
-    return null;
-  }
-}
+export { ApiError, isApiConfigured };
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -54,40 +24,8 @@ export function withQuery(path: string, query?: Query): string {
   return text ? `${path}?${text}` : path;
 }
 
-async function send<T>(method: Method, path: string, body?: unknown, options: { auth?: boolean } = {}): Promise<T> {
-  if (!apiBaseUrl) {
-    throw new ApiError('Campus API is not configured.', 0);
-  }
-
-  const token = options.auth === false ? null : storedToken();
-  const isForm = body instanceof FormData;
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    method,
-    headers: {
-      Accept: 'application/json',
-      ...(isForm || body === undefined ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-  });
-
-  const payload = (response.headers.get('content-type') ?? '').includes('application/json') ? await response.json() : null;
-
-  if (!response.ok) {
-    if (response.status === 401 && token) {
-      notifySessionExpired();
-    }
-
-    const fallback = response.status === 429 ? 'Too many requests. Wait a minute and try again.' : `Request failed (${response.status}).`;
-    throw new ApiError(
-      typeof payload?.message === 'string' ? payload.message : fallback,
-      response.status,
-      payload?.errors ?? {},
-      typeof payload?.code === 'string' ? payload.code : undefined,
-    );
-  }
-
-  return payload as T;
+function send<T>(method: Method, path: string, body?: unknown, options: { auth?: boolean } = {}): Promise<T> {
+  return apiFetch<T>(path, { method, body, token: options.auth === false ? null : undefined });
 }
 
 export const http = {
@@ -109,7 +47,7 @@ export async function downloadFile(path: string, query?: Query, fallbackName = '
     throw new ApiError('Campus API is not configured.', 0);
   }
 
-  const token = storedToken();
+  const token = getStoredToken();
   const response = await fetch(`${apiBaseUrl}${withQuery(path, query)}`, {
     headers: { Accept: 'text/csv, application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });

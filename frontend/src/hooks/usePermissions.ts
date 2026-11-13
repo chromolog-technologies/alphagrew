@@ -1,11 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getStoredToken } from '../api/apiClient';
-
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') || 'http://localhost:8000/api/v1');
-
-function getTokenFromStorage(): string | null {
-  return getStoredToken();
-}
+import { apiFetch, getStoredToken, isApiConfigured } from '../api/core';
 
 
 export interface UserPermissions {
@@ -22,27 +16,17 @@ export const usePermissions = () => {
   useEffect(() => {
     const fetchPermissions = async () => {
       try {
-        const token = getTokenFromStorage();
-        if (!token) {
+        const token = getStoredToken();
+        if (!isApiConfigured() || !token) {
           setError('No authentication token found');
           setLoading(false);
           return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/permissions/all`, {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+        const data = await apiFetch<{ permissions: UserPermissions['permissions']; role: string }>('/permissions/all', {
+          token,
+          fallbackMessage: 'Failed to load permissions',
         });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.message || 'Failed to load permissions');
-        }
-
-        const data = await response.json();
 
         setPermissions({
           permissions: data.permissions,

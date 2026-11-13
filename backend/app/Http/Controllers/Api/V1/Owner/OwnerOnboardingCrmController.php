@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Owner;
 
+use App\Rules\PlatformStaffUser;
 use App\Enums\UserRole;
 use App\Exceptions\BusinessRuleException;
 use App\Http\Controllers\Controller;
@@ -114,7 +115,7 @@ class OwnerOnboardingCrmController extends Controller
     {
         $data = $request->validate([
             'stage' => ['sometimes', Rule::in(Lead::STAGES)],
-            'ownerId' => ['nullable', 'integer', 'exists:users,id'],
+            'ownerId' => ['nullable', 'integer', new PlatformStaffUser],
             'interestedPlanId' => ['nullable', 'integer', 'exists:plans,id'],
             'expectedStudents' => ['nullable', 'integer', 'min:1'],
             'expectedMrr' => ['nullable', 'numeric', 'min:0'],

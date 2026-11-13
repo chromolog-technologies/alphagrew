@@ -104,10 +104,26 @@ class SubjectController extends Controller
      */
     public function getCourses(): JsonResponse
     {
+        // Courses store their length as duration_value + duration_type; duration_years is
+        // derived for the dropdown (null when the course has no duration).
         $courses = Course::query()
-            ->select('id', 'name', 'code', 'duration_years', 'total_semesters')
+            ->select('id', 'name', 'code', 'duration_value', 'duration_type', 'total_semesters')
             ->where('is_active', true)
-            ->get();
+            ->get()
+            ->map(fn (Course $course): array => [
+                'id' => $course->id,
+                'name' => $course->name,
+                'code' => $course->code,
+                'duration_value' => $course->duration_value,
+                'duration_type' => $course->duration_type,
+                'duration_years' => match ($course->duration_type) {
+                    'Years' => $course->duration_value,
+                    'Months' => $course->duration_value !== null ? round($course->duration_value / 12, 1) : null,
+                    'Weeks' => $course->duration_value !== null ? round($course->duration_value / 52, 1) : null,
+                    default => null,
+                },
+                'total_semesters' => $course->total_semesters,
+            ]);
 
         return response()->json($courses);
     }

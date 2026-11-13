@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Owner;
 
+use App\Rules\PlatformStaffUser;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Institution;
@@ -266,7 +267,7 @@ class OwnerPlatformController extends Controller
         $data = $request->validate([
             'status' => ['sometimes', Rule::in(SystemIncident::STATUSES)],
             'severity' => ['sometimes', Rule::in(SystemIncident::SEVERITIES)],
-            'assignedTo' => ['nullable', 'integer', 'exists:users,id'],
+            'assignedTo' => ['nullable', 'integer', new PlatformStaffUser],
             'resolutionNote' => ['nullable', 'string', 'max:1000'],
         ]);
 

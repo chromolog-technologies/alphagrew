@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
 import { fetchDepartmentOverview, fetchDepartmentPerformance, fetchDepartmentBudget } from '../../api/campusApi';
-import { getStoredToken } from '../../api/apiClient';
-import { PrototypeNotice } from '../shared';
+import { apiFetch, getStoredToken } from '../../api/core';
 
 interface DepartmentStats {
   totalStudents: number;
@@ -18,7 +17,6 @@ interface SchoolPerformance {
   passPercentage: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
 export const DepartmentOverview: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
@@ -42,27 +40,13 @@ export const DepartmentOverview: React.FC = () => {
         // Attempt to fetch real persisted department stats
         let liveStatsLoaded = false;
         try {
-          const deptsRes = await fetch(`${API_BASE_URL}/departments`, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-
-          if (deptsRes.ok) {
-            const deptsPayload = await deptsRes.json();
+          const deptsPayload = await apiFetch<any>('/departments', { token });
+          {
             const deptsList = Array.isArray(deptsPayload?.data) ? deptsPayload.data : (Array.isArray(deptsPayload) ? deptsPayload : []);
             if (deptsList.length > 0) {
               const primaryDept = deptsList[0];
-              const statsRes = await fetch(`${API_BASE_URL}/departments/${primaryDept.id}/stats`, {
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-              });
-
-              if (statsRes.ok) {
-                const statsPayload = await statsRes.json();
+              const statsPayload = await apiFetch<any>(`/departments/${primaryDept.id}/stats`, { token });
+              {
                 if (statsPayload?.data) {
                   setStats(statsPayload.data);
                   setDepartmentName(statsPayload.data.name || primaryDept.name || departmentName);
@@ -132,7 +116,6 @@ export const DepartmentOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {!isLiveStats && <PrototypeNotice />}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Department Overview</h2>
         <p className="mt-1 text-sm text-slate-600">{departmentName}</p>

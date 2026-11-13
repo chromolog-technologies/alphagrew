@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Owner;
 
+use App\Rules\PlatformStaffUser;
 use App\Http\Controllers\Controller;
 use App\Models\SupportTicket;
 use App\Models\TicketAttachment;
@@ -129,7 +130,7 @@ class OwnerSupportController extends Controller
         $data = $request->validate([
             'status' => ['sometimes', Rule::in(SupportTicket::STATUSES)],
             'priority' => ['sometimes', Rule::in(SupportTicket::PRIORITIES)],
-            'assignedTo' => ['nullable', 'integer', 'exists:users,id'],
+            'assignedTo' => ['nullable', 'integer', new PlatformStaffUser],
             'escalate' => ['sometimes', 'boolean'],
             'csatScore' => ['nullable', 'integer', 'between:1,5'],
             'csatComment' => ['nullable', 'string', 'max:255'],

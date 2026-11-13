@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Check, AlertCircle, Loader, Save, Plus, Trash2 } from 'lucide-react';
-import { getStoredToken } from '../../api/apiClient';
+import { apiFetch, getStoredToken } from '../../api/core';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
 
 interface Student {
   id: number;
@@ -41,18 +40,7 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
 
   const fetchSubjects = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/attendance/subjects`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to load subjects');
-      }
-      const data = await response.json();
+      const data = await apiFetch<any>('/attendance/subjects', { token, fallbackMessage: 'Failed to load subjects' });
       setSubjects(data.subjects || []);
     } catch (error: any) {
       setMessage({
@@ -67,23 +55,10 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/attendance/subject/${subjectId}/students`,
-        {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to load students');
-      }
-
-      const data = await response.json();
+      const data = await apiFetch<any>(`/attendance/subject/${subjectId}/students`, {
+        token,
+        fallbackMessage: 'Failed to load students',
+      });
       setStudents(data.students || []);
 
       // Initialize attendance records
@@ -125,29 +100,17 @@ export const AttendanceMarkForm: React.FC<MarkAttendanceProps> = ({ onSuccess })
     setSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/attendance/mark`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            subject_id: selectedSubject,
-            attendance_data: attendance,
-            attendance_date: attendanceDate,
-            remarks,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || 'Failed to mark attendance');
-      }
-
-      const data = await response.json();
+      const data = await apiFetch<any>('/attendance/mark', {
+        method: 'POST',
+        token,
+        body: {
+          subject_id: selectedSubject,
+          attendance_data: attendance,
+          attendance_date: attendanceDate,
+          remarks,
+        },
+        fallbackMessage: 'Failed to mark attendance',
+      });
 
       setMessage({
         type: 'success',

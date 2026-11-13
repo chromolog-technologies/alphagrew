@@ -177,8 +177,9 @@ Run the same checks locally before opening a PR. If you add a migration, make su
 
 ## Deployment
 
-- **Backend**: [backend/Dockerfile](backend/Dockerfile) builds a PHP 8.2 image that runs migrations and seeders, then serves on port 10000. For a real deployment, replace `php artisan serve` with PHP-FPM behind a web server, run a queue worker and the scheduler, and set `APP_ENV=production`, `APP_DEBUG=false` and `DEMO_RESET_ENABLED=false`. The Dockerfile also seeds demo data on every start, so remove that step for production.
-- **Frontend**: [frontend/vercel.json](frontend/vercel.json) configures a Vercel deployment with SPA rewrites. Set `VITE_API_BASE_URL` to the deployed API URL at build time.
+- **Backend**: [backend/Dockerfile](backend/Dockerfile) builds a production PHP 8.4 image. One container runs Apache with OPcache, the queue worker and the scheduler under supervisord ([backend/docker/](backend/docker/)). At start it migrates, seeds roles and permissions, and builds the config, route, event and view caches. It listens on `$PORT` (default 10000) and reports health at `/up`. Set `APP_KEY`, the `DB_*` variables, `FRONTEND_URL`, `APP_URL`, mail settings and `ANTHROPIC_API_KEY`; keep `DEMO_SEED_ENABLED` and `DEMO_RESET_ENABLED` off in production. Under heavy load, run the queue worker as its own service instead.
+- **Frontend**: [frontend/vercel.json](frontend/vercel.json) configures a Vercel deployment with SPA rewrites, long-lived caching for hashed assets, and security headers (Content Security Policy, HSTS, `X-Frame-Options`, `Permissions-Policy` allowing the microphone for voice interviews). Set `VITE_API_BASE_URL` to the deployed API URL at build time.
+- **CORS**: the API accepts browser requests only from `CORS_ALLOWED_ORIGINS` (comma-separated; defaults to `FRONTEND_URL`) and exposes `Content-Disposition`, `X-Data-Source`, `Deprecation` and `Link` to the app ([backend/config/cors.php](backend/config/cors.php)).
 
 ## Documentation
 

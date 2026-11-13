@@ -197,7 +197,7 @@ const users: PlatformUserDetail[] = [
 let settings: PlatformSettings = {
   platformName: 'Alpha Grew',
   brandTagline: 'Unified Campus & Career Intelligence Platform',
-  brandPrimaryColor: '#4f46e5',
+  brandPrimaryColor: '#1557e0',
   supportEmail: 'support@alphagrew.example',
   supportPhone: '+91-80-4000-2200',
   defaultTimezone: 'Asia/Kolkata',

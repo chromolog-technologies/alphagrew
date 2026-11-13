@@ -58,10 +58,8 @@ These screens are visible in the app but show fixed data, or data that is never 
 | Exams (admin) | Nothing: a hardcoded list in component state | Exams created here are not saved. The backend only has `GET /exams`. Creating and scheduling exams has no API yet. |
 | Exam coordinator | `/staff/exam/*` (sample) | Same fixed exams for everyone. Invigilator and room assignments are not saved. |
 | Timetable (admin), Classes, Fees | Nothing | Static screens. The backend has no timetable, class or fee API. (System settings now uses the institution settings API.) |
-| Student timetable, assignments, materials, notifications | `/student/timetable` (broken, known issue 2) and `/student/assignments`, `/student/materials`, `/student/notifications` (sample) | Same fixed content for every student. |
+| Student timetable, assignments, materials, notifications | `/student/timetable` (fixed upstream, known issue 2) and `/student/assignments`, `/student/materials`, `/student/notifications` (sample) | Same fixed content for every student. |
 | Staff dashboard, department overview, HOD staff and reports, staff reports | `/staff/dashboard`, `/staff/department/*`, `/staff/management/*`, `/staff/reports/*` (sample) | Fixed numbers. The role dashboards under Dashboard show real data. |
-| Staff marks entry (`components/staff/MarksEntry.tsx`) | `/staff/marks/*` (sample) | Not rendered. It would use the old `marks` table, not the results workflow. |
-| `components/admin/AdminDashboard.tsx` | `/api/analytics/overview`, `/api/admin/*`, `/api/jobs` | These URLs do not exist. The component is exported but not rendered: the admin home is `renderAdminDashboard` in `CampusWorkspace.tsx`. |
 
 ## 4. Summary
 

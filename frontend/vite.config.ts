@@ -1,7 +1,36 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { SITE_PAGES } from './src/marketing/siteMap';
+import { APP_ROUTE_PATTERNS } from './src/routes';
+
+/**
+ * Writes robots.txt, and sitemap.xml when VITE_SITE_URL is set, for the public marketing
+ * pages. Sign-in, workspace and Owner Console paths and draft (noindex) pages are left out.
+ */
+function marketingSeoFiles(siteUrl: string): Plugin {
+  const origin = siteUrl.trim().replace(/\/+$/, '');
+  return {
+    name: 'alphagrew-marketing-seo-files',
+    apply: 'build',
+    generateBundle() {
+      const robots = ['User-agent: *', ...APP_ROUTE_PATTERNS.map((pattern) => `Disallow: ${pattern.replace('/*', '/')}`)];
+      if (origin) {
+        const urls = Object.values(SITE_PAGES)
+          .filter((page) => !page.noindex)
+          .map((page) => `  <url><loc>${origin}${page.path === '/' ? '/' : page.path}</loc></url>`);
+        this.emitFile({
+          type: 'asset',
+          fileName: 'sitemap.xml',
+          source: `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>\n`,
+        });
+        robots.push('', `Sitemap: ${origin}/sitemap.xml`);
+      }
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: `${robots.join('\n')}\n` });
+    },
+  };
+}
 
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, __dirname, '');
@@ -16,7 +45,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: frontendRoot,
     envDir: __dirname,
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), marketingSeoFiles(env.VITE_SITE_URL ?? '')],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

@@ -162,8 +162,13 @@ export const dashboardsApi = {
   query: (spec: WidgetSpec) => http.post<{ data: QueryResult }>('/dashboards/query', { spec }).then((r) => r.data),
   queryMany: (specs: Record<string, WidgetSpec>) =>
     http.post<{ data: Record<string, BatchResult> }>('/dashboards/query', { specs }).then((r) => r.data),
-  list: () => http.get<DashboardList>('/dashboards'),
-  home: () => http.get<{ data: Dashboard }>('/dashboards/home').then((r) => r.data),
+  list: () =>
+    http.get<DashboardList>('/dashboards').then((res) => ({
+      data: Array.isArray(res?.data) ? res.data : [],
+      templates: Array.isArray(res?.templates) ? res.templates : [],
+      defaultTemplate: res?.defaultTemplate ?? 'student',
+    })),
+  home: () => http.get<{ data: Dashboard }>('/dashboards/home').then((r) => r?.data ?? null),
   show: (id: number) => http.get<{ data: Dashboard }>(`/dashboards/${id}`).then((r) => r.data),
   create: (input: SaveDashboardInput) => http.post<{ data: Dashboard }>('/dashboards', input).then((r) => r.data),
   update: (id: number, input: SaveDashboardInput) => http.patch<{ data: Dashboard }>(`/dashboards/${id}`, input).then((r) => r.data),

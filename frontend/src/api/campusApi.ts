@@ -12,11 +12,10 @@ import type {
   CompanyType,
   FeeStatus,
 } from '../campusTypes';
-import { apiErrorFromResponse } from './apiError';
+import { apiBaseUrl, apiFetch } from './core';
 
 export { ApiError, isApiError } from './apiError';
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim().replace(/\/$/, '') ?? '';
+export { notifySessionExpired, SESSION_EXPIRED_EVENT } from './core';
 
 export type LoginPortal = 'campus' | 'owner';
 
@@ -138,47 +137,15 @@ type AnnouncementPayload = {
 
 type StudentResumePayload = CampusStudentResume;
 
-async function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
-  if (!apiBaseUrl) {
-    throw new Error('Campus API is not configured.');
-  }
-
-  const isFormData = init?.body instanceof FormData;
-
-  const requestHeaders: HeadersInit = {
-    // Without it Laravel answers a validation error with a redirect instead of a 422.
-    Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(init?.headers ?? {}),
-  };
-
-  if (!isFormData && !(requestHeaders as Record<string, string>)['Content-Type']) {
-    (requestHeaders as Record<string, string>)['Content-Type'] = 'application/json';
-  }
-
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init,
-    headers: requestHeaders,
+/** Campus calls pass the session token explicitly; no token means a public request. */
+function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
+  return apiFetch<T>(path, {
+    method: init?.method,
+    body: init?.body ?? undefined,
+    token: token ?? null,
+    headers: init?.headers as Record<string, string> | undefined,
+    fallbackMessage: 'API request failed.',
   });
-
-  const contentType = response.headers.get('content-type') ?? '';
-  const payload = contentType.includes('application/json') ? await response.json() : null;
-
-  if (!response.ok) {
-    if (response.status === 401 && token) {
-      notifySessionExpired();
-    }
-    throw apiErrorFromResponse(response.status, payload, 'API request failed.');
-  }
-
-  return payload as T;
-}
-
-/** Fired when the API rejects the stored token (expired or revoked); App signs the user out. */
-export const SESSION_EXPIRED_EVENT = 'campus:session-expired';
-
-export function notifySessionExpired() {
-  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 export function isCampusApiConfigured() {
@@ -198,19 +165,6 @@ export function verifyOwnerMfa(challengeToken: string, code: string) {
   return request<AuthResponse>('/auth/mfa/verify', {
     method: 'POST',
     body: JSON.stringify({ challengeToken, code }),
-  });
-}
-
-export function registerWithCampusApi(payload: {
-  name: string;
-  email: string;
-  password: string;
-  institutionCode: string;
-  departmentCode: string;
-}) {
-  return request<AuthResponse>('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify(payload),
   });
 }
 
@@ -629,18 +583,11 @@ export function submitStudentAssignment(token: string, assignmentId: number, for
     }
   }
 
-  return fetch(`${apiBaseUrl}/student/assignments/submit`, {
+  return apiFetch<any>('/student/assignments/submit', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     body: form,
-  }).then(async (response) => {
-    const payload = await response.json();
-    if (!response.ok) {
-      throw apiErrorFromResponse(response.status, payload, 'Assignment submission failed');
-    }
-    return payload;
+    token,
+    fallbackMessage: 'Assignment submission failed',
   });
 }
 
@@ -830,18 +777,11 @@ export function uploadMarksFromFile(token: string, file: File, examId: number, s
   formData.append('subject_id', subjectId.toString());
   formData.append('class_id', classId.toString());
 
-  return fetch(`${apiBaseUrl}/staff/marks/upload`, {
+  return apiFetch<any>('/staff/marks/upload', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
     body: formData,
-  }).then(async (response) => {
-    const payload = await response.json();
-    if (!response.ok) {
-      throw apiErrorFromResponse(response.status, payload, 'Marks upload failed');
-    }
-    return payload;
+    token,
+    fallbackMessage: 'Marks upload failed',
   });
 }
 

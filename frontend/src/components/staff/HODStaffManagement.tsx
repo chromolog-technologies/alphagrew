@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
 import { fetchAllStaffMembers, createNewStaffMember, deleteStaffMember, assignClassesToStaff } from '../../api/campusApi';
 import { getStoredToken } from '../../api/apiClient';
-import { PrototypeNotice } from '../shared';
 
 interface StaffMember {
   id: number;
@@ -112,7 +111,6 @@ export const HODStaffManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <PrototypeNotice />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Staff Management</h2>
