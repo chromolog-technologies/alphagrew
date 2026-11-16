@@ -6,6 +6,7 @@ use App\Models\Designation;
 use App\Models\User;
 use App\Observers\DesignationObserver;
 use App\Observers\UserObserver;
+use App\Services\CustomFields\CustomFieldValueCleanup;
 use App\Support\Tenancy\Tenant;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -41,6 +42,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Register model observers for automatic permission syncing
         User::observe(UserObserver::class);
+        CustomFieldValueCleanup::register();
         Designation::observe(DesignationObserver::class);
 
         $this->configureRateLimiting();

@@ -72,7 +72,7 @@ The app does **not** need every Zoho feature. The aim is the subset that lets a 
 | CF-3 | Values are only captured for **students**. For staff, subject, exam, company, department, course and designation, fields can be defined but no form shows them, their APIs ignore `customFields`, and required fields are not enforced on create | ⚠️ | Generic values endpoint exists (`PUT /custom-fields/values/{entity}/{id}`), but no screen uses it |
 | CF-4 | Record list and detail APIs of standard modules do not return custom field values | 🔴 | Only `StudentController` returns them |
 | CF-5 | Deleting a record leaves its custom field values behind (no cleanup, no foreign key on `entity_id`); `designations` is hard-deleted | ⚠️ | Orphan rows grow and could reattach if ids are reused |
-| CF-6 | Value permissions are coarse and partly wrong: course, designation and staff values use `departments.*`, companies use `placement.*`, although `courses.*`, `designations.*`, `companies.*` exist | ⚠️ | `CustomFieldController::EDIT_PERMISSION` / `authorizeView` |
+| CF-6 | Value permissions did not always match the record's own endpoints: department values were changed with `departments.create` (the department itself needs `departments.edit`), designation values used `departments.*` (designations use `designations.*`). Courses, subjects and staff correctly use `departments.*`, like their own routes | ✅ Fixed (P0, 16 Nov) | `CustomFieldController::EDIT_PERMISSION` / `authorizeView` |
 | CF-7 | Entity lists duplicated in three places (route `whereIn`, TS union, `ENTITIES`) | 🟡 | Drift risk; route should use the registry |
 | CF-8 | No field history (who changed which value when) | 🔴 | Only definition changes are audited |
 | CF-9 | No encryption / sensitive flag (e.g. Aadhaar, income) and no masking in lists or exports | 🔴 | |
@@ -216,10 +216,12 @@ Effort: S ≈ 1–3 dev-days · M ≈ 4–8 · L ≈ 9–15 (one developer, incl
 
 ### Phase 0 — Fix what is broken or misleading (S–M, do first)
 
+> **Status, 16 November 2026:** done on branch `fix/p0-security-integrity` (0.1 values purged on force delete / hard delete, soft-deleted records keep them; 0.2; 0.3; 0.4 Multi-line and Decimal/Currency palette items and the Web Tabs / Global Sets tabs removed; 0.5 built-in modules show a fixed Active badge). Tests: `CustomFieldIntegrityTest`, `CustomFieldsModule.test.tsx`.
+
 | # | Task | Closes | Effort | Done when |
 |---|---|---|---|---|
 | 0.1 | Delete custom field values when a record is deleted (model events / observer for every entity in the registry); purge on force delete | CF-5 | S | Test: deleting a course removes its values |
-| 0.2 | Use the right permissions for values (`courses.*`, `designations.*`, `companies.*`, `staff.*`) | CF-6 | S | Permission tests per entity |
+| 0.2 | Values need the same permission as the record's own endpoints (department → `departments.edit`, designation → `designations.view/edit`) | CF-6 | S | Permission tests per entity |
 | 0.3 | Route entity list from `CustomFieldDefinition::ENTITIES` | CF-7 | S | One source of entity names |
 | 0.4 | Hide or label palette items that are not real types yet ("Lookup", "Currency", "Multi-line") and the Web Tabs / Global Sets tabs | MOD-5, CF-1 | S | No control in the UI that silently does something else |
 | 0.5 | Stop showing the built-in module on/off switch until MOD-2 exists | MOD-2 | S | |

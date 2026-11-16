@@ -120,8 +120,9 @@ describe('CustomFieldsModule (Zoho CRM-Style Modules & Dynamic Tables)', () => {
     // Header & Tabs
     expect(screen.getByText('Modules and Fields')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^modules$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Web Tabs/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Global Sets/i })).toBeInTheDocument();
+    // Placeholder tabs that did nothing are gone until they are built.
+    expect(screen.queryByRole('button', { name: /Web Tabs/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Global Sets/i })).not.toBeInTheDocument();
 
     // Table Headers
     expect(screen.getByText('Displayed In Tabs As')).toBeInTheDocument();
@@ -255,5 +256,22 @@ describe('CustomFieldsModule (Zoho CRM-Style Modules & Dynamic Tables)', () => {
       },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('only offers field types that are stored as they say and only toggles created modules', async () => {
+    const user = userEvent.setup();
+    renderWithClient(<CustomFieldsModule courses={mockCourses} />);
+
+    // Built-in modules are always on: a badge, not a switch. Created modules keep their switch.
+    expect(screen.queryByRole('button', { name: 'Toggle Students status' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Toggle Hostel Rooms status' })).toBeInTheDocument();
+
+    const studentsRow = screen.getByText('Students', { selector: 'span' }).closest('tr') as HTMLElement;
+    await user.click(within(studentsRow).getByRole('button', { name: /Customize Fields/i }));
+
+    expect(screen.getByText('Number')).toBeInTheDocument();
+    for (const label of ['Multi-line Text Area', 'Decimal / Currency', 'Lookup / Relation', 'Number / Integer']) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
   });
 });
