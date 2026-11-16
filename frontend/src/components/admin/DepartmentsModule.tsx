@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, AlertCircle, ChevronDown, Users, UserPlus } from 'lucide-react';
 import { apiCall } from '../../api/apiClient';
+import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
+import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 import Select from 'react-select';
 
 interface DepartmentsModuleProps {
@@ -50,6 +52,7 @@ export const DepartmentsModule: React.FC<DepartmentsModuleProps> = ({ onNavigate
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const customFields = useRecordCustomFields('department', editingId, showForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedSections, setExpandedSections] = useState({
@@ -140,6 +143,7 @@ export const DepartmentsModule: React.FC<DepartmentsModuleProps> = ({ onNavigate
         ...formData,
         hod_id: formData.hod_id ? Number(formData.hod_id) : null,
         intake_capacity: formData.intake_capacity ? Number(formData.intake_capacity) : null,
+        ...customFields.payload(),
       };
 
       if (editingId) {
@@ -153,6 +157,7 @@ export const DepartmentsModule: React.FC<DepartmentsModuleProps> = ({ onNavigate
       setShowForm(false);
       setError('');
     } catch (err: any) {
+      customFields.captureErrors(err);
       setError(err.message || 'Failed to save department');
     }
   };
@@ -370,6 +375,14 @@ export const DepartmentsModule: React.FC<DepartmentsModuleProps> = ({ onNavigate
               </div>
             )}
           </div>
+
+          <CustomFieldInputs
+            definitions={customFields.fields}
+            values={customFields.values}
+            onChange={customFields.setValues}
+            errors={customFields.errors}
+            className="mb-6 grid gap-4 md:grid-cols-2"
+          />
 
           {/* Form Actions */}
           <div className="flex gap-3 justify-end">

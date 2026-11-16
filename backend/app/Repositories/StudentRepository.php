@@ -14,24 +14,27 @@ use Illuminate\Database\Eloquent\Builder;
 class StudentRepository
 {
     /**
-     * Students visible to the user: all for admins and placement officers,
-     * own department for staff, only themselves for students.
+     * Students visible to the user, deny by default:
+     * - admins and placement officers: all students of the institution;
+     * - staff: their own department only, and none while they have no department;
+     * - students: only themselves;
+     * - every other role (recruiters, platform staff, unknown values): none. Recruiters get
+     *   their own rule when the recruiter portal is built.
      */
     public function visibleTo(User $user): Builder
     {
         $user->loadMissing('student:id,user_id,department_code');
 
-        return Student::query()
+        $query = Student::query()
             ->with(['applications', 'studentSkills.skill', 'academicSummary'])
-            ->when(
-                $user->role === UserRole::Staff->value && $user->department_code,
-                fn (Builder $query) => $query->where('department_code', $user->department_code)
-            )
-            ->when(
-                $user->role === UserRole::Student->value,
-                fn (Builder $query) => $query->whereKey($user->student?->id ?? 0)
-            )
             ->orderBy('id');
+
+        return match (true) {
+            $user->isAdmin(), $user->role === UserRole::PlacementOfficer->value => $query,
+            $user->role === UserRole::Staff->value && filled($user->department_code) => $query->where('department_code', $user->department_code),
+            $user->role === UserRole::Student->value && $user->student !== null => $query->whereKey($user->student->id),
+            default => $query->whereRaw('1 = 0'),
+        };
     }
 
     public function paginateVisibleTo(User $user, int $perPage): LengthAwarePaginator

@@ -70,6 +70,43 @@ jobs:
           php artisan migrate:rollback --step=1 --force
           php artisan migrate --force
 
+  # The SQLite job misses MySQL-only failures (identifier length, NOT NULL columns created by
+  # old migrations, strict mode). Run the whole suite on MySQL too. The env below overrides the
+  # sqlite settings in phpunit.xml, which does not force them.
+  backend-tests-mysql:
+    name: Backend tests (MySQL 8)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: alphagrew_test
+          MYSQL_ROOT_PASSWORD: root
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot"
+          --health-interval=10s --health-timeout=5s --health-retries=5
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: alphagrew_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, fileinfo
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: cp .env.example .env && php artisan key:generate
+      - run: php artisan test
+
   frontend:
     name: Frontend type check, tests and build (Node ${{ matrix.node }})
     runs-on: ubuntu-latest

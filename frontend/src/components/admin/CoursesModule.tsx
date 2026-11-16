@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, AlertCircle, ChevronDown } from 'lucide-react';
 import { apiCall } from '../../api/apiClient';
+import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
+import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 
 interface Department {
   id: number;
@@ -70,6 +72,7 @@ export const CoursesModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const customFields = useRecordCustomFields('course', editingId, showForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedSections, setExpandedSections] = useState({
@@ -194,6 +197,7 @@ export const CoursesModule: React.FC = () => {
         course_coordinator_id: formData.course_coordinator_id ? Number(formData.course_coordinator_id) : null,
         total_fees: formData.total_fees ? Number(formData.total_fees) : null,
         fees_per_semester: formData.fees_per_semester ? Number(formData.fees_per_semester) : null,
+        ...customFields.payload(),
       };
 
       if (editingId) {
@@ -207,6 +211,7 @@ export const CoursesModule: React.FC = () => {
       setShowForm(false);
       setError('');
     } catch (err: any) {
+      customFields.captureErrors(err);
       setError(err.message || 'Failed to save course');
     }
   };
@@ -536,6 +541,14 @@ export const CoursesModule: React.FC = () => {
               </div>
             )}
           </div>
+
+          <CustomFieldInputs
+            definitions={customFields.fields}
+            values={customFields.values}
+            onChange={customFields.setValues}
+            errors={customFields.errors}
+            className="mt-6 grid gap-4 md:grid-cols-2"
+          />
 
           <div className="flex gap-2 mt-6">
             <button

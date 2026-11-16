@@ -4,6 +4,8 @@ namespace App\Http\Requests\Staff;
 
 use App\DTOs\StaffMemberData;
 use App\Enums\UserRole;
+use App\Models\CustomFieldDefinition;
+use App\Services\CustomFields\CustomFieldService;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -28,6 +30,7 @@ class StoreStaffMemberRequest extends FormRequest
             'password' => ['required', 'string', 'min:6'],
             'biometricId' => ['nullable', 'string', 'max:255', Rule::unique('users', 'biometric_id')],
             ...self::profileRules(),
+            ...app(CustomFieldService::class)->rules(CustomFieldDefinition::ENTITY_STAFF, creating: true),
         ];
     }
 
@@ -52,6 +55,18 @@ class StoreStaffMemberRequest extends FormRequest
             'specialization' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'image', 'max:5120'],
         ];
+    }
+
+    /** Readable names for custom field errors. */
+    public function attributes(): array
+    {
+        return app(CustomFieldService::class)->attributes(CustomFieldDefinition::ENTITY_STAFF);
+    }
+
+    /** @return array<string, mixed> */
+    public function customFields(): array
+    {
+        return $this->validated('customFields') ?? [];
     }
 
     public function toData(): StaffMemberData

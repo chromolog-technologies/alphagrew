@@ -25,16 +25,20 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class CustomFieldController extends Controller
 {
-    /** Permission needed to change a record's custom field values, per entity. */
+    /**
+     * Permission needed to change a record's custom field values, per entity: the same one the
+     * record's own update endpoint requires (routes/api.php), so values never need more or less
+     * access than the record itself.
+     */
     private const EDIT_PERMISSION = [
         CustomFieldDefinition::ENTITY_STUDENT => CampusPermission::STUDENTS_CREATE,
         CustomFieldDefinition::ENTITY_STAFF => CampusPermission::DEPARTMENTS_CREATE,
         CustomFieldDefinition::ENTITY_SUBJECT => CampusPermission::DEPARTMENTS_CREATE,
         CustomFieldDefinition::ENTITY_EXAM => CampusPermission::EXAMS_EDIT,
         CustomFieldDefinition::ENTITY_COMPANY => CampusPermission::PLACEMENT_CREATE,
-        CustomFieldDefinition::ENTITY_DEPARTMENT => CampusPermission::DEPARTMENTS_CREATE,
+        CustomFieldDefinition::ENTITY_DEPARTMENT => CampusPermission::DEPARTMENTS_EDIT,
         CustomFieldDefinition::ENTITY_COURSE => CampusPermission::DEPARTMENTS_CREATE,
-        CustomFieldDefinition::ENTITY_DESIGNATION => CampusPermission::DEPARTMENTS_CREATE,
+        CustomFieldDefinition::ENTITY_DESIGNATION => CampusPermission::DESIGNATIONS_EDIT,
     ];
 
     public function __construct(private readonly AuditLogger $audit) {}
@@ -159,8 +163,8 @@ class CustomFieldController extends Controller
             CustomFieldDefinition::ENTITY_EXAM => $user->can(CampusPermission::EXAMS_VIEW) || $user->can(CampusPermission::MARKS_VIEW),
             CustomFieldDefinition::ENTITY_COMPANY => $user->can(CampusPermission::PLACEMENT_VIEW),
             CustomFieldDefinition::ENTITY_DEPARTMENT,
-            CustomFieldDefinition::ENTITY_COURSE,
-            CustomFieldDefinition::ENTITY_DESIGNATION => $user->can(CampusPermission::DEPARTMENTS_VIEW),
+            CustomFieldDefinition::ENTITY_COURSE => $user->can(CampusPermission::DEPARTMENTS_VIEW),
+            CustomFieldDefinition::ENTITY_DESIGNATION => $user->can(CampusPermission::DESIGNATIONS_VIEW),
             default => false,
         };
 

@@ -3,8 +3,13 @@
 namespace App\Services\Dashboards;
 
 use App\Models\CustomFieldDefinition;
+use App\Models\CustomModule;
 use App\Models\User;
 use App\Services\Dashboards\Sources\AttendanceSource;
+use App\Services\Dashboards\Sources\CompaniesSource;
+use App\Services\Dashboards\Sources\CoursesSource;
+use App\Services\Dashboards\Sources\CustomModuleRecordsSource;
+use App\Services\Dashboards\Sources\DepartmentsSource;
 use App\Services\Dashboards\Sources\ExamsSource;
 use App\Services\Dashboards\Sources\MarksSource;
 use App\Services\Dashboards\Sources\SemesterResultsSource;
@@ -22,6 +27,9 @@ class SourceRegistry
         MarksSource::class,
         SemesterResultsSource::class,
         ExamsSource::class,
+        CompaniesSource::class,
+        CoursesSource::class,
+        DepartmentsSource::class,
     ];
 
     /** @var Collection<int, CustomFieldDefinition>|null */
@@ -36,7 +44,11 @@ class SourceRegistry
             }
         }
 
-        return null;
+        // Institution-created modules: "module_{id}" (tenant scope applies to the lookup).
+        $moduleId = CustomFieldDefinition::moduleIdFromEntity($key);
+        $module = $moduleId === null ? null : CustomModule::query()->find($moduleId);
+
+        return $module ? new CustomModuleRecordsSource($module) : null;
     }
 
     /** @return list<DataSource> */
@@ -46,10 +58,14 @@ class SourceRegistry
             return [];
         }
 
-        return array_values(array_filter(
-            array_map(fn (string $class) => new $class, self::SOURCES),
-            fn (DataSource $source) => $source->allowedFor($user, $scope),
-        ));
+        $sources = [
+            ...array_map(fn (string $class) => new $class, self::SOURCES),
+            ...CustomModule::query()->orderBy('sort_order')->orderBy('plural_label')->get()
+                ->map(fn (CustomModule $module) => new CustomModuleRecordsSource($module))
+                ->all(),
+        ];
+
+        return array_values(array_filter($sources, fn (DataSource $source) => $source->allowedFor($user, $scope)));
     }
 
     /** @return Collection<int, CustomFieldDefinition> */

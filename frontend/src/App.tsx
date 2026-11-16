@@ -1,3 +1,4 @@
+import type { CustomFieldValues } from './api/customFieldsApi';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 // Self-hosted app fonts; imported here so only the signed-in app downloads them.
 import '@fontsource-variable/geist';
@@ -1119,6 +1120,7 @@ export default function App() {
     imageFile?: File;
     password?: string;
     permissions: CampusPermission[];
+    customFields?: CustomFieldValues;
   }) => {
     if (apiConfigured) {
       try {
@@ -1192,6 +1194,7 @@ export default function App() {
       imageFile?: File;
       password?: string;
       permissions: CampusPermission[];
+      customFields?: CustomFieldValues;
     },
   ) => {
     if (apiConfigured) {
@@ -1273,6 +1276,7 @@ export default function App() {
     departmentCode?: string;
     description?: string;
     permissions: CampusPermission[];
+    customFields?: CustomFieldValues;
   }) => {
     if (apiConfigured) {
       try {
@@ -1336,6 +1340,7 @@ export default function App() {
       departmentCode?: string;
       description?: string;
       permissions: CampusPermission[];
+      customFields?: CustomFieldValues;
     },
   ) => {
     if (apiConfigured) {

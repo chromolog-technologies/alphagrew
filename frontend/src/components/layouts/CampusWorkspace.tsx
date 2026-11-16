@@ -97,6 +97,7 @@ import { NotificationBell } from '../notifications/NotificationCenter';
 import { isApiConfigured } from '../../api/http';
 import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
 import { CustomFieldInputs } from '../shared/CustomFieldInputs';
+import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
 import { customModuleIdFromTab, customModuleTabId, useCustomModules, useReorderCustomModules } from '../../api/customModulesApi';
 import {
   arrangeItems,
@@ -430,6 +431,9 @@ export default function CampusWorkspace({
   const [editingMaster, setEditingMaster] = useState<CampusMasterOption | null>(null);
   const [editingDesignation, setEditingDesignation] = useState<CampusDesignation | null>(null);
   const [editingStaff, setEditingStaff] = useState<CampusData['users'][number] | null>(null);
+  // Admin-defined fields on the staff and designation forms (live API only).
+  const staffCustomFields = useRecordCustomFields('staff', editingStaff?.id ?? null, showStaffModal);
+  const designationCustomFields = useRecordCustomFields('designation', editingDesignation?.id ?? null, showDesignationModal);
   const [studentDraft, setStudentDraft] = useState<StudentDraft>(createStudentDraft);
   // Admin-defined student fields: definitions while the form is open, current values when editing.
   const [studentCustomFields, setStudentCustomFields] = useState<CustomFieldValues>({});
@@ -1499,6 +1503,7 @@ export default function CampusWorkspace({
       departmentCode: designationDraft.departmentCode || undefined,
       description: designationDraft.description.trim() || undefined,
       permissions: extractAssignablePermissions(designationDraft.permissions),
+      ...designationCustomFields.payload(),
     };
 
     const action = editingDesignation
@@ -1507,7 +1512,9 @@ export default function CampusWorkspace({
 
     void Promise.resolve(action).then(() => {
       closeDesignationModal();
-    }).catch(() => undefined);
+    }).catch((error) => {
+      if (designationCustomFields.captureErrors(error)) setDesignationModalTab('details');
+    });
   };
 
   const submitStaff = (event: FormEvent<HTMLFormElement>) => {
@@ -1575,6 +1582,7 @@ export default function CampusWorkspace({
       departmentCode: staffDraft.departmentCode,
       password: staffDraft.password.trim() || undefined,
       permissions: extractAssignablePermissions(designation.permissions),
+      ...staffCustomFields.payload(),
     };
 
     const action = editingStaff
@@ -1594,6 +1602,7 @@ export default function CampusWorkspace({
         closeStaffModal();
       })
       .catch((error) => {
+        if (staffCustomFields.captureErrors(error)) setStaffModalTab('academic');
         const message = error instanceof Error ? error.message : 'Unable to save staff account.';
         setStaffErrors((current) => ({
           ...current,
@@ -5789,6 +5798,13 @@ export default function CampusWorkspace({
                     className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
                   />
                 </label>
+                <CustomFieldInputs
+                  definitions={designationCustomFields.fields}
+                  values={designationCustomFields.values}
+                  onChange={designationCustomFields.setValues}
+                  errors={designationCustomFields.errors}
+                  className="grid gap-4 md:grid-cols-2"
+                />
               </>
             )}
 
@@ -6147,6 +6163,12 @@ export default function CampusWorkspace({
                     Saving with a password will open a share card in the workspace so you can pass the credentials to the staff member.
                   </p>
                 </label>
+                <CustomFieldInputs
+                  definitions={staffCustomFields.fields}
+                  values={staffCustomFields.values}
+                  onChange={staffCustomFields.setValues}
+                  errors={staffCustomFields.errors}
+                />
               </div>
             )}
 

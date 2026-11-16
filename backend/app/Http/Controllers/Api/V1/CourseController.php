@@ -3,16 +3,23 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\HandlesCustomFields;
 use App\Models\Course;
+use App\Models\CustomFieldDefinition;
 use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Support\Tenancy\TenantRule;
+use Illuminate\Support\Facades\DB;
 
 class CourseController extends Controller
 {
+    use HandlesCustomFields;
+
+    private const ENTITY = CustomFieldDefinition::ENTITY_COURSE;
+
     /**
      * Get all courses
      */
@@ -29,7 +36,7 @@ class CourseController extends Controller
             })
             ->get();
 
-        return response()->json($courses);
+        return response()->json($this->customFieldService()->presentMany($courses, self::ENTITY));
     }
 
     /**
@@ -38,7 +45,8 @@ class CourseController extends Controller
     public function show(Course $course): JsonResponse
     {
         $course->load('department', 'subjects');
-        return response()->json($course);
+
+        return response()->json($this->customFieldService()->present($course, self::ENTITY));
     }
 
     /**
@@ -46,7 +54,7 @@ class CourseController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        $payload = $request->validate([
+        [$payload, $customFields] = $this->validateWithCustomFields($request, [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', TenantRule::unique('courses', 'code'), 'max:50'],
             'department_id' => ['required', TenantRule::exists('departments', 'id')],
@@ -67,12 +75,21 @@ class CourseController extends Controller
             'total_fees' => ['nullable', 'numeric', 'min:0'],
             'fees_per_semester' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
-        ]);
+        ], self::ENTITY, creating: true);
 
-        $course = Course::create($payload);
+        // courses.duration_years is NOT NULL in installs created by the first courses migration,
+        // and the form does not send it.
+        $payload['duration_years'] = $this->durationYears($payload);
+
+        $course = DB::transaction(function () use ($payload, $customFields): Course {
+            $course = Course::create($payload);
+            $this->customFieldService()->save($course, self::ENTITY, $customFields);
+
+            return $course;
+        });
         $course->load('department');
 
-        return response()->json($course, 201);
+        return response()->json($this->customFieldService()->present($course, self::ENTITY), 201);
     }
 
     /**
@@ -80,7 +97,7 @@ class CourseController extends Controller
      */
     public function update(Request $request, Course $course): JsonResponse
     {
-        $payload = $request->validate([
+        [$payload, $customFields] = $this->validateWithCustomFields($request, [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', TenantRule::unique('courses', 'code')->ignore($course->id), 'max:50'],
             'department_id' => ['required', TenantRule::exists('departments', 'id')],
@@ -101,12 +118,34 @@ class CourseController extends Controller
             'total_fees' => ['nullable', 'numeric', 'min:0'],
             'fees_per_semester' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['boolean'],
-        ]);
+        ], self::ENTITY, creating: false);
 
-        $course->update($payload);
+        $payload['duration_years'] = $this->durationYears($payload);
+
+        DB::transaction(function () use ($course, $payload, $customFields): void {
+            $course->update($payload);
+            $this->customFieldService()->save($course, self::ENTITY, $customFields);
+        });
         $course->load('department');
 
-        return response()->json($course);
+        return response()->json($this->customFieldService()->present($course, self::ENTITY));
+    }
+
+    /**
+     * Course length in whole years: the duration when it is given in years (or months),
+     * otherwise two semesters per year.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function durationYears(array $payload): int
+    {
+        $value = isset($payload['duration_value']) ? (int) $payload['duration_value'] : null;
+
+        return match (true) {
+            $value !== null && ($payload['duration_type'] ?? 'Years') === 'Years' => $value,
+            $value !== null && ($payload['duration_type'] ?? null) === 'Months' => max(1, (int) ceil($value / 12)),
+            default => max(1, (int) ceil(((int) $payload['total_semesters']) / 2)),
+        };
     }
 
     /**

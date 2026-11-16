@@ -9,12 +9,10 @@ import {
   Clock,
   CreditCard,
   Database,
-  DollarSign,
   Eye,
   EyeOff,
   FileText,
   Filter,
-  Globe,
   Hash,
   HelpCircle,
   Layers,
@@ -99,19 +97,6 @@ export interface ModuleItem {
   /** Set for modules created by the institution (stored on the server). */
   serverId?: number;
   recordsCount?: number;
-}
-
-/** On/off state of the built-in modules, kept in the browser (icons can't be serialised). */
-const MODULE_STATUS_STORAGE_KEY = 'alphagrew_modules_status';
-
-function loadModuleStatus(): Record<string, boolean> {
-  try {
-    const saved = localStorage.getItem(MODULE_STATUS_STORAGE_KEY);
-    const parsed: unknown = saved ? JSON.parse(saved) : {};
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, boolean>) : {};
-  } catch {
-    return {};
-  }
 }
 
 function formatModified(iso: string | null): string {
@@ -372,9 +357,7 @@ const DEFAULT_MODULES: ModuleItem[] = [
 
 const FIELD_PALETTE_ITEMS = [
   { type: 'text' as CustomFieldType, label: 'Single Line Text', icon: FileText, desc: 'Names, codes, short strings' },
-  { type: 'text' as CustomFieldType, label: 'Multi-line Text Area', icon: FileText, desc: 'Addresses, notes, descriptions' },
-  { type: 'number' as CustomFieldType, label: 'Number / Integer', icon: Hash, desc: 'Rank, count, room number' },
-  { type: 'number' as CustomFieldType, label: 'Decimal / Currency', icon: DollarSign, desc: 'Package, fees, GPA, percentages' },
+  { type: 'number' as CustomFieldType, label: 'Number', icon: Hash, desc: 'Whole or decimal: rank, seats, GPA, fees' },
   { type: 'date' as CustomFieldType, label: 'Date', icon: Calendar, desc: 'Date of birth, expiry date' },
   { type: 'select' as CustomFieldType, label: 'Dropdown (Pick List)', icon: ListFilter, desc: 'Single choice from list' },
   { type: 'multiselect' as CustomFieldType, label: 'Multi-Select', icon: Layers, desc: 'Multiple choices from list' },
@@ -424,18 +407,18 @@ export function CustomFieldsModule({
   staffCount = 0,
   companiesCount = 0,
 }: CustomFieldsModuleProps = {}) {
-  const [activeTab, setActiveTab] = useState<'modules' | 'webtabs' | 'global_sets'>('modules');
-  const [builtInStatus, setBuiltInStatus] = useState<Record<string, boolean>>(loadModuleStatus);
+  const [activeTab, setActiveTab] = useState<'modules'>('modules');
   const customModules = useCustomModules();
   const saveModule = useSaveCustomModule();
   const removeModule = useDeleteCustomModule();
 
   const modules = useMemo<ModuleItem[]>(
     () => [
-      ...DEFAULT_MODULES.map((m) => (m.id in builtInStatus ? { ...m, isActive: builtInStatus[m.id] } : m)),
+      // Built-in modules are always on; only modules created here can be switched off (saved on the server).
+      ...DEFAULT_MODULES,
       ...(customModules.data ?? []).map(toModuleItem),
     ],
-    [builtInStatus, customModules.data],
+    [customModules.data],
   );
 
   const [coursesList, setCoursesList] = useState<{ id: number; name: string; code?: string }[]>(courses);
@@ -509,17 +492,10 @@ export function CustomFieldsModule({
   const formError = save?.error instanceof ApiError && Object.keys(errors).length === 0 ? save.error.message : null;
 
   // Toggle module active
+  // Switching a created module off removes access for everyone but admins.
   const toggleModuleStatus = (mod: ModuleItem) => {
-    if (mod.serverId !== undefined) {
-      // Server modules: switching off removes access for everyone but admins.
-      saveModule.mutate({ id: mod.serverId, input: { isActive: !mod.isActive } });
-      return;
-    }
-    setBuiltInStatus((prev) => {
-      const updated = { ...prev, [mod.id]: !mod.isActive };
-      localStorage.setItem(MODULE_STATUS_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
+    if (mod.serverId === undefined) return;
+    saveModule.mutate({ id: mod.serverId, input: { isActive: !mod.isActive } });
   };
 
   const getRecordCount = (mod: ModuleItem): number | null => {
@@ -1361,7 +1337,7 @@ export function CustomFieldsModule({
           </div>
         </div>
 
-        {/* Tabs: Modules | Web Tabs | Global Sets */}
+        {/* Tabs (Web Tabs and Global Sets will return when they are built) */}
         <div className="mt-6 flex items-center gap-6 border-b border-slate-200 text-sm font-semibold">
           <button
             type="button"
@@ -1374,30 +1350,6 @@ export function CustomFieldsModule({
           >
             <Sparkles size={14} className={activeTab === 'modules' ? 'text-blue-600' : 'text-slate-400'} />
             Modules
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('webtabs')}
-            className={`flex items-center gap-1.5 pb-3 border-b-2 transition ${
-              activeTab === 'webtabs'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Globe size={14} />
-            Web Tabs
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('global_sets')}
-            className={`flex items-center gap-1.5 pb-3 border-b-2 transition ${
-              activeTab === 'global_sets'
-                ? 'border-blue-600 text-blue-600 font-bold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <ListFilter size={14} />
-            Global Sets
           </button>
         </div>
 
@@ -1516,6 +1468,14 @@ export function CustomFieldsModule({
                           <td className="py-3 px-4 text-slate-400">{mod.lastModified}</td>
 
                           <td className="py-3 px-4 text-center">
+                            {mod.serverId === undefined ? (
+                              <span
+                                title="Built-in modules are always on"
+                                className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 border border-emerald-200"
+                              >
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
+                              </span>
+                            ) : (
                             <button
                               type="button"
                               onClick={() => toggleModuleStatus(mod)}
@@ -1533,6 +1493,7 @@ export function CustomFieldsModule({
                                 </span>
                               )}
                             </button>
+                            )}
                           </td>
 
                           <td className="py-3 px-4 text-right">
@@ -1556,33 +1517,6 @@ export function CustomFieldsModule({
           </>
         )}
 
-        {/* Tab: Web Tabs */}
-        {activeTab === 'webtabs' && (
-          <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-8 text-center">
-            <Globe size={28} className="mx-auto text-slate-400 mb-2" />
-            <h3 className="text-sm font-bold text-slate-800">Web Tabs</h3>
-            <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
-              Embed external university portals, library links, or LMS dashboards directly inside your campus navigation.
-            </p>
-            <Button type="button" size="sm" className="mt-4 bg-blue-600 text-white" disabled>
-              <Plus size={14} /> Add Web Tab
-            </Button>
-          </div>
-        )}
-
-        {/* Tab: Global Sets */}
-        {activeTab === 'global_sets' && (
-          <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-8 text-center">
-            <ListFilter size={28} className="mx-auto text-slate-400 mb-2" />
-            <h3 className="text-sm font-bold text-slate-800">Global Picklist Sets</h3>
-            <p className="mt-1 text-xs text-slate-500 max-w-md mx-auto">
-              Define reusable dropdown options across multiple modules (e.g. Blood Groups, Fee Categories, Accreditation Tiers).
-            </p>
-            <Button type="button" size="sm" className="mt-4 bg-blue-600 text-white" disabled>
-              <Plus size={14} /> Add Global Set
-            </Button>
-          </div>
-        )}
       </Card>
 
       {/* Modal: Create New Module */}

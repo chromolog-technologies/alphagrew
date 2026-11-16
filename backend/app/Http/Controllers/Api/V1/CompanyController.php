@@ -7,19 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Companies\SaveCompanyRequest;
 use App\Models\Company;
 use App\Models\CompanyApplication;
+use App\Models\CustomFieldDefinition;
 use App\Models\JobPosting;
 use App\Services\Campus\CampusDataService;
+use App\Services\CustomFields\CustomFieldService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Company drives. Each response returns the caller's refreshed campus dataset.
  */
 class CompanyController extends Controller
 {
-    public function __construct(private readonly CampusDataService $campusData)
-    {
-    }
+    public function __construct(
+        private readonly CampusDataService $campusData,
+        private readonly CustomFieldService $customFields,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -28,18 +32,24 @@ class CompanyController extends Controller
 
     public function store(SaveCompanyRequest $request): JsonResponse
     {
-        Company::query()->create([
-            ...$request->companyAttributes(),
-            'applicants' => 0,
-            'shortlisted' => 0,
-        ]);
+        DB::transaction(function () use ($request): void {
+            $company = Company::query()->create([
+                ...$request->companyAttributes(),
+                'applicants' => 0,
+                'shortlisted' => 0,
+            ]);
+            $this->customFields->save($company, CustomFieldDefinition::ENTITY_COMPANY, $request->customFields());
+        });
 
         return $this->datasetResponse($request, 201);
     }
 
     public function update(SaveCompanyRequest $request, Company $company): JsonResponse
     {
-        $company->update($request->companyAttributes());
+        DB::transaction(function () use ($request, $company): void {
+            $company->update($request->companyAttributes());
+            $this->customFields->save($company, CustomFieldDefinition::ENTITY_COMPANY, $request->customFields());
+        });
 
         return $this->datasetResponse($request);
     }

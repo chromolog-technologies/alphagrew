@@ -64,7 +64,8 @@ class TenantValidationAndAuditTest extends TestCase
             ->latest('id')
             ->firstOrFail();
 
-        $this->assertSame(['old' => '[redacted]', 'new' => '[redacted]'], $log->changes['password']);
+        // assertEquals, not assertSame: MySQL JSON columns store object keys in their own order.
+        $this->assertEquals(['old' => '[redacted]', 'new' => '[redacted]'], $log->changes['password']);
         $this->assertSame('12345', $log->changes['phone']['new']);
         $this->assertStringNotContainsString($user->fresh()->password, json_encode($log->changes));
     }

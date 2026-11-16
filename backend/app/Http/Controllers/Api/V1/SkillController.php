@@ -25,7 +25,9 @@ class SkillController extends Controller
             ->when($search !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
                 ->where('name', 'like', "%{$search}%")
                 ->orWhere('lookup_key', 'like', "{$key}%")
-                ->orWhere('aliases', 'like', '%'.addcslashes($search, '%_').'%')))
+                // aliases is a JSON column: MySQL compares JSON text as binary (case-sensitive),
+                // so lower both sides ("reactjs" must find the alias "ReactJS").
+                ->orWhereRaw('LOWER(CAST(aliases AS CHAR)) like ?', ['%'.addcslashes(mb_strtolower($search), '%_').'%'])))
             ->when($request->validated('category'), fn (Builder $query, string $category) => $query->where('category', $category))
             ->where('needs_review', false)
             ->orderByRaw('lookup_key = ? desc', [$key])

@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\V1\CampusController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\CustomFieldController;
+use App\Models\CustomFieldDefinition;
 use App\Http\Controllers\Api\V1\CustomModuleController;
 use App\Http\Controllers\Api\V1\CustomModuleRecordController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -398,10 +399,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/custom-fields', [CustomFieldController::class, 'store'])->middleware($manageFields);
         Route::patch('/custom-fields/{customField}', [CustomFieldController::class, 'update'])->whereNumber('customField')->middleware($manageFields);
         Route::delete('/custom-fields/{customField}', [CustomFieldController::class, 'destroy'])->whereNumber('customField')->middleware($manageFields);
+        // Built-in record types only; custom module records carry their values themselves.
+        $customFieldEntities = array_keys(CustomFieldDefinition::ENTITIES);
         Route::get('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'showValues'])
-            ->whereIn('entity', ['student', 'staff', 'subject', 'exam', 'company', 'department', 'course', 'designation'])->whereNumber('id');
+            ->whereIn('entity', $customFieldEntities)->whereNumber('id');
         Route::put('/custom-fields/values/{entity}/{id}', [CustomFieldController::class, 'updateValues'])
-            ->whereIn('entity', ['student', 'staff', 'subject', 'exam', 'company', 'department', 'course', 'designation'])->whereNumber('id');
+            ->whereIn('entity', $customFieldEntities)->whereNumber('id');
 
         // Modules admins create, and their records. Managing modules needs custom_fields.manage;
         // record access follows each module's view/edit roles (checked in the controllers).
