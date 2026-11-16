@@ -188,7 +188,8 @@ class StudentAcademicsTest extends TestCase
         $this->ids['sem2'] = $insert('semesters', ['institution_id' => $i, 'academic_year_id' => $year, 'name' => 'Semester 2', 'semester_number' => 2, 'start_date' => '2025-12-01', 'end_date' => '2026-05-31']);
         $department = DB::table('departments')->where('code', 'CSE')->value('id');
         $course = $insert('courses', ['institution_id' => $i, 'name' => 'B.Tech CSE', 'code' => 'BTCSE', 'department_id' => $department, 'duration_years' => 4, 'total_semesters' => 8]);
-        $examType = $insert('exam_types', ['name' => 'End Semester', 'code' => 'ESE']);
+        // Seeded by a migration; shared by every institution.
+        $examType = (int) DB::table('exam_types')->where('code', 'ESE')->value('id');
 
         $subjects = [];
         foreach ([['SUB1', 4, 1], ['SUB2', 3, 1], ['SUB3', 3, 2]] as [$code, $credits, $semesterNumber]) {

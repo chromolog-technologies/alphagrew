@@ -1,186 +1,220 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Calendar, Loader } from 'lucide-react';
-import { semesterApi } from '../../api/apiClient';
+/**
+ * Academic years of the institution. One is active at a time; a year with semesters cannot be
+ * deleted. Semesters are added to a year from the Semesters screen.
+ */
+import { useState, type FormEvent } from 'react';
+import { Calendar, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ApiError } from '../../api/apiError';
+import { useAcademicYears, useDeleteAcademicYear, useSaveAcademicYear, type AcademicYear } from '../../api/academicsApi';
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../ui';
 
-interface AcademicYear {
-  id: number;
-  year: string;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'inactive' | 'upcoming';
-  semesters: number;
-}
+type Draft = { id: number | null; year: string; code: string; startDate: string; endDate: string; isActive: boolean };
 
-export const AcademicYearModule: React.FC = () => {
-  const [years, setYears] = useState<AcademicYear[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function AcademicYearModule({ canManage = true }: { canManage?: boolean }) {
+  const years = useAcademicYears();
+  const save = useSaveAcademicYear();
+  const remove = useDeleteAcademicYear();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState<AcademicYear | null>(null);
 
-  useEffect(() => {
-    const fetchAcademicData = async () => {
-      try {
-        setLoading(true);
-        const data = await semesterApi.getAcademicYears();
-        const list = Array.isArray(data) ? data : (data?.data || []);
-        if (list.length > 0) {
-          setYears(list.map((ay: any) => ({
-            id: ay.id,
-            year: ay.year || ay.name || 'Academic Year',
-            startDate: ay.start_date || ay.startDate || '2025-06-01',
-            endDate: ay.end_date || ay.endDate || '2026-05-31',
-            status: ay.is_active ? 'active' : 'upcoming',
-            semesters: 2,
-          })));
-        } else {
-          // Default initial academic year
-          setYears([
-            {
-              id: 1,
-              year: '2025-2026',
-              startDate: '2025-06-01',
-              endDate: '2026-05-31',
-              status: 'active',
-              semesters: 2,
-            },
-          ]);
-        }
-      } catch (err) {
-        console.warn('Could not load academic years from API, using fallback:', err);
-        setYears([
-          {
-            id: 1,
-            year: '2025-2026',
-            startDate: '2025-06-01',
-            endDate: '2026-05-31',
-            status: 'active',
-            semesters: 2,
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fieldErrors = save.error instanceof ApiError ? save.error.firstFieldErrors : {};
+  const formError = save.error instanceof ApiError && Object.keys(fieldErrors).length === 0 ? save.error.message : null;
+  const error = (field: string) => (fieldErrors[field] ? <p className="text-xs text-destructive">{fieldErrors[field]}</p> : null);
 
-    fetchAcademicData();
-  }, []);
-
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ year: '', startDate: '', endDate: '', semesters: 2 });
-
-  const handleAddYear = () => {
-    if (formData.year && formData.startDate && formData.endDate) {
-      setYears([
-        ...years,
-        {
-          id: years.length + 1,
-          ...formData,
-          status: 'upcoming',
-        },
-      ]);
-      setFormData({ year: '', startDate: '', endDate: '', semesters: 2 });
-      setShowForm(false);
-    }
+  const open = (year?: AcademicYear) => {
+    save.reset();
+    setDraft(
+      year
+        ? { id: year.id, year: year.year, code: year.code, startDate: year.startDate, endDate: year.endDate, isActive: year.isActive }
+        : { id: null, year: '', code: '', startDate: '', endDate: '', isActive: (years.data ?? []).length === 0 },
+    );
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-yellow-100 text-yellow-800';
-    }
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft) return;
+    const { id, ...input } = draft;
+    save.mutate({ id, input: { ...input, year: input.year.trim(), code: input.code.trim() } }, { onSuccess: () => setDraft(null) });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Academic Years</h2>
-          <p className="mt-1 text-sm text-slate-600">Manage academic year and semesters</p>
+          <h1 className="text-xl font-semibold text-foreground">Academic years</h1>
+          <p className="text-sm text-muted-foreground">One year is active at a time. Semesters, exams and results belong to a year.</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          <Plus size={18} /> Add Year
-        </button>
+        {canManage ? (
+          <Button type="button" onClick={() => open()} className="gap-1.5">
+            <Plus size={16} /> Add academic year
+          </Button>
+        ) : null}
       </div>
 
-      {showForm && (
-        <div className="bg-white p-6 rounded-lg border border-slate-200">
-          <h3 className="text-lg font-semibold mb-4">Add New Academic Year</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Academic Year (e.g., 2025-2026)"
-              value={formData.year}
-              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="date"
-              placeholder="Start Date"
-              value={formData.startDate}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="date"
-              placeholder="End Date"
-              value={formData.endDate}
-              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={formData.semesters}
-              onChange={(e) => setFormData({ ...formData, semesters: parseInt(e.target.value) })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={1}>1 Semester</option>
-              <option value={2}>2 Semesters</option>
-            </select>
+      <Card className="p-4">
+        {years.isLoading ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={handleAddYear} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-              Save
-            </button>
-            <button onClick={() => setShowForm(false)} className="bg-slate-300 text-slate-900 px-4 py-2 rounded-lg">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+        ) : years.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{years.error instanceof ApiError ? years.error.message : 'Academic years could not be loaded.'}</AlertDescription>
+          </Alert>
+        ) : (years.data ?? []).length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No academic years yet.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Year</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Dates</TableHead>
+                <TableHead>Semesters</TableHead>
+                <TableHead>Status</TableHead>
+                {canManage ? <TableHead className="text-right">Actions</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(years.data ?? []).map((year) => (
+                <TableRow key={year.id}>
+                  <TableCell className="font-medium">{year.year}</TableCell>
+                  <TableCell className="font-mono text-xs">{year.code}</TableCell>
+                  <TableCell className="whitespace-nowrap text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar size={13} aria-hidden="true" /> {year.startDate} → {year.endDate}
+                    </span>
+                  </TableCell>
+                  <TableCell>{year.semestersCount}</TableCell>
+                  <TableCell>{year.isActive ? <Badge variant="success">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}</TableCell>
+                  {canManage ? (
+                    <TableCell className="text-right">
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${year.year}`} onClick={() => open(year)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete ${year.year}`}
+                        onClick={() => {
+                          remove.reset();
+                          setDeleting(year);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </TableCell>
+                  ) : null}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {years.map((year) => (
-          <div key={year.id} className="bg-white p-6 rounded-lg border border-slate-200 hover:shadow-lg transition">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-900">{year.year}</h3>
-                <p className="mt-2 text-sm text-slate-600 flex items-center gap-1">
-                  <Calendar size={14} /> {year.startDate} to {year.endDate}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  <span className="font-semibold">{year.semesters}</span> Semester(s)
-                </p>
+      <Dialog open={draft !== null} onOpenChange={(isOpen) => !isOpen && setDraft(null)}>
+        <DialogContent className="max-w-lg">
+          {draft ? (
+            <form onSubmit={submit}>
+              <DialogHeader>
+                <DialogTitle>{draft.id === null ? 'Add academic year' : `Edit ${draft.year}`}</DialogTitle>
+                <DialogDescription>Making a year active switches the others off.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ay-year">Name *</Label>
+                  <Input id="ay-year" required maxLength={20} placeholder="2026-2027" value={draft.year} onChange={(e) => setDraft({ ...draft, year: e.target.value })} />
+                  {error('year')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ay-code">Code *</Label>
+                  <Input id="ay-code" required maxLength={20} placeholder="AY2627" value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} />
+                  {error('code')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ay-start">Starts *</Label>
+                  <Input id="ay-start" type="date" required value={draft.startDate} onChange={(e) => setDraft({ ...draft, startDate: e.target.value })} />
+                  {error('startDate')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ay-end">Ends *</Label>
+                  <Input id="ay-end" type="date" required value={draft.endDate} onChange={(e) => setDraft({ ...draft, endDate: e.target.value })} />
+                  {error('endDate')}
+                </div>
+                <label className="flex items-center gap-2 text-sm md:col-span-2">
+                  <input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} />
+                  Active year
+                </label>
               </div>
-              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-semibold ${getStatusColor(year.status)}`}>
-                {year.status}
-              </span>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button className="flex-1 text-blue-600 hover:text-blue-700 px-2 py-2 border border-blue-200 rounded hover:bg-blue-50">
-                <Edit2 size={16} className="mx-auto" />
-              </button>
-              <button className="flex-1 text-red-600 hover:text-red-700 px-2 py-2 border border-red-200 rounded hover:bg-red-50">
-                <Trash2 size={16} className="mx-auto" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+              {formError ? (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              ) : null}
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setDraft(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleting !== null} onOpenChange={(isOpen) => !isOpen && setDeleting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete {deleting?.year}?</DialogTitle>
+            <DialogDescription>
+              {(deleting?.semestersCount ?? 0) > 0 ? 'This year has semesters, so it cannot be deleted. Remove its semesters first.' : 'The year is removed.'}
+            </DialogDescription>
+          </DialogHeader>
+          {remove.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{remove.error instanceof ApiError ? remove.error.message : 'The year could not be deleted.'}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={remove.isPending || (deleting?.semestersCount ?? 0) > 0}
+              onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+}

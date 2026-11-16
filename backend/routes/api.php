@@ -21,7 +21,10 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CampusController;
 use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\CourseController;
+use App\Http\Controllers\Api\V1\AcademicYearController;
+use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\CustomFieldController;
+use App\Http\Controllers\Api\V1\SubjectAllocationController;
 use App\Models\CustomFieldDefinition;
 use App\Http\Controllers\Api\V1\CustomModuleController;
 use App\Http\Controllers\Api\V1\CustomModuleRecordController;
@@ -243,6 +246,22 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum');
         Route::get('/semesters/list/options', [SemesterController::class, 'getSemesterOptions'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum');
+
+        // Academic years, classes and subject allocations: same access as semesters and subjects.
+        $academicView = 'permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum';
+        $academicManage = 'permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum';
+        Route::get('/academic-years', [AcademicYearController::class, 'index'])->middleware($academicView);
+        Route::post('/academic-years', [AcademicYearController::class, 'store'])->middleware($academicManage);
+        Route::put('/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->whereNumber('academicYear')->middleware($academicManage);
+        Route::delete('/academic-years/{academicYear}', [AcademicYearController::class, 'destroy'])->whereNumber('academicYear')->middleware($academicManage);
+        Route::get('/classes', [ClassController::class, 'index'])->middleware($academicView);
+        Route::post('/classes', [ClassController::class, 'store'])->middleware($academicManage);
+        Route::put('/classes/{class}', [ClassController::class, 'update'])->whereNumber('class')->middleware($academicManage);
+        Route::delete('/classes/{class}', [ClassController::class, 'destroy'])->whereNumber('class')->middleware($academicManage);
+        Route::get('/subject-allocations', [SubjectAllocationController::class, 'index'])->middleware($academicView);
+        Route::post('/subject-allocations', [SubjectAllocationController::class, 'store'])->middleware($academicManage);
+        Route::put('/subject-allocations/{subjectAllocation}', [SubjectAllocationController::class, 'update'])->whereNumber('subjectAllocation')->middleware($academicManage);
+        Route::delete('/subject-allocations/{subjectAllocation}', [SubjectAllocationController::class, 'destroy'])->whereNumber('subjectAllocation')->middleware($academicManage);
 
         // Improved Department Routes (V1)
         Route::prefix('departments')->group(function (): void {
@@ -726,8 +745,14 @@ Route::prefix('v1')->group(function (): void {
         $marksApprove = 'permission:'.CampusPermission::MARKS_APPROVE.',sanctum';
         $marksPublish = 'permission:'.CampusPermission::MARKS_PUBLISH.',sanctum';
 
-        // Exams to enter marks against (read-only until exam scheduling is built)
+        // Exams: listed for mark entry; scheduled by admins (exams.*) and exam coordinators
+        // (marks.publish), checked in the controller.
         Route::get('/exams', [ExamController::class, 'index'])->middleware($marksView);
+        Route::get('/exam-types', [ExamController::class, 'types'])->middleware($marksView);
+        Route::get('/exams/{exam}', [ExamController::class, 'show'])->whereNumber('exam')->middleware($marksView);
+        Route::post('/exams', [ExamController::class, 'store']);
+        Route::put('/exams/{exam}', [ExamController::class, 'update'])->whereNumber('exam');
+        Route::delete('/exams/{exam}', [ExamController::class, 'destroy'])->whereNumber('exam');
 
         // Stage 1: grading scale and mark schemes.
         Route::prefix('grade-rules')->group(function () use ($marksView, $marksCreate): void {

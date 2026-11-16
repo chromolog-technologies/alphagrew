@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, AlertCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, AlertCircle, Users } from 'lucide-react';
 import { apiCall } from '../../api/apiClient';
 import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
 import { CustomFieldInputs } from '../shared/CustomFieldInputs';
+import { SubjectAllocationsDialog } from './SubjectAllocationsDialog';
 
 interface Course {
   id: number;
@@ -48,6 +49,8 @@ export const SubjectsModule: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  // Subject whose faculty allocations are open (who can enter its marks).
+  const [allocating, setAllocating] = useState<{ id: number; name: string; code: string } | null>(null);
   const customFields = useRecordCustomFields('subject', editingId, showForm);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -414,6 +417,13 @@ export const SubjectsModule: React.FC = () => {
                   </td>
                   <td className="px-6 py-3 text-sm space-x-2">
                     <button
+                      onClick={() => setAllocating({ id: subject.id, name: subject.name, code: subject.code })}
+                      className="text-slate-700 hover:text-slate-900 inline-flex items-center gap-1"
+                      aria-label={`Faculty for ${subject.name}`}
+                    >
+                      <Users size={16} /> Faculty
+                    </button>
+                    <button
                       onClick={() => handleEditSubject(subject)}
                       className="text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
                     >
@@ -432,6 +442,7 @@ export const SubjectsModule: React.FC = () => {
           </table>
         )}
       </div>
+      <SubjectAllocationsDialog subject={allocating} onClose={() => setAllocating(null)} />
     </div>
   );
 };
