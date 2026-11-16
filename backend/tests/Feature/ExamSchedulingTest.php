@@ -75,7 +75,9 @@ class ExamSchedulingTest extends TestCase
 
         // A subject of another institution does not exist here.
         $other = DB::table('institutions')->insertGetId(['name' => 'Other', 'code' => 'OTH', 'slug' => 'oth', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
-        $foreignCourse = DB::table('courses')->insertGetId(['institution_id' => $other, 'name' => 'X', 'code' => 'X1', 'department_id' => 1, 'duration_years' => 4, 'total_semesters' => 8, 'created_at' => now(), 'updated_at' => now()]);
+        // Real ids, not literals: MySQL does not reset auto-increment between tests.
+        $foreignDepartment = DB::table('departments')->insertGetId(['institution_id' => $other, 'name' => 'X', 'code' => 'X', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()]);
+        $foreignCourse = DB::table('courses')->insertGetId(['institution_id' => $other, 'name' => 'X', 'code' => 'X1', 'department_id' => $foreignDepartment,'duration_years' => 4, 'total_semesters' => 8, 'created_at' => now(), 'updated_at' => now()]);
         $foreignSubject = DB::table('subjects')->insertGetId(['institution_id' => $other, 'name' => 'X', 'code' => 'X101', 'course_id' => $foreignCourse, 'semester_number' => 1, 'credit_hours' => 3, 'lecture_hours' => 3, 'created_at' => now(), 'updated_at' => now()]);
         $this->asUser('admin@demo.com')->postJson('/api/v1/exams', [...$this->payload(), 'subjectId' => $foreignSubject])
             ->assertJsonValidationErrors('subjectId');
