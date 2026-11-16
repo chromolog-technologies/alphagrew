@@ -66,6 +66,8 @@ class AcademicStructureTest extends TestCase
             ->json('data.id');
 
         $this->asUser('admin@demo.com')->postJson('/api/v1/classes', $payload)->assertJsonValidationErrors('code');
+        // Same course, batch and admission year as an existing class (unique in the schema).
+        $this->asUser('admin@demo.com')->postJson('/api/v1/classes', [...$payload, 'code' => 'DS25-1B'])->assertJsonValidationErrors('batch');
         $this->asUser('admin@demo.com')->postJson('/api/v1/classes', [])->assertJsonValidationErrors(['name', 'code', 'courseId', 'semesterId', 'batch', 'admissionYear']);
 
         $this->asUser('admin@demo.com')->putJson("/api/v1/classes/{$id}", ['name' => 'DS 2025 · A'])->assertOk()->assertJsonPath('data.name', 'DS 2025 · A');

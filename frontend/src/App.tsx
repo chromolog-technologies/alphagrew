@@ -1772,6 +1772,7 @@ export default function App() {
       onUpdateDesignation={handleUpdateDesignation}
       onDeleteDesignation={handleDeleteDesignation}
       onCreateStaff={handleCreateStaff}
+      onReloadData={apiConfigured ? () => replaceDataFromApi((token) => fetchCampusBootstrap(token)).catch(() => undefined) : undefined}
       onUpdateStaff={handleUpdateStaff}
       onDeleteStaff={handleDeleteStaff}
       onApplyToCompany={handleApplyToCompany}

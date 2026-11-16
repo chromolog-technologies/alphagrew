@@ -53,10 +53,13 @@ enum UserRole: string
         return $this === self::Staff || $this === self::PlacementOfficer;
     }
 
-    /** Platform users and recruiters sit outside any institution. */
+    /**
+     * Platform users sit outside any institution. Recruiters are created by an institution's
+     * placement office for one of its companies, so they belong to that institution.
+     */
     public function requiresInstitution(): bool
     {
-        return ! $this->isPlatform() && $this !== self::Recruiter;
+        return ! $this->isPlatform();
     }
 
     /** Chromolog's own operators: the owner console, never institution data screens. */
@@ -65,9 +68,9 @@ enum UserRole: string
         return $this === self::SuperAdmin || $this === self::PlatformStaff;
     }
 
-    /** Whether the web app has a portal for this role today. */
+    /** Whether the web app has a portal for this role (every role, now that recruiters have theirs). */
     public function hasPortal(): bool
     {
-        return $this !== self::Recruiter;
+        return true;
     }
 }

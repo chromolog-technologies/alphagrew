@@ -9,4 +9,3 @@ export { SubjectsModule } from './SubjectsModule';
 export { SystemSettingsModule } from './SystemSettingsModule';
 export { TimetableModule } from './TimetableModule';
 export { DepartmentsModule } from './DepartmentsModule';
-export { DesignationsModule } from './DesignationsModule';

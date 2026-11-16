@@ -118,7 +118,7 @@ return new class extends Migration
                 $table->foreignId('semester_id')->constrained('semesters')->onDelete('cascade');
                 $table->foreignId('hod_id')->nullable()->constrained('users')->onDelete('set null');
                 $table->integer('total_students')->default(0);
-                $table->enum('batch', ['A', 'B', 'C', 'D', 'E', 'F']);
+                $table->string('batch', 50);
                 $table->year('admission_year');
                 $table->timestamps();
                 $table->softDeletes();

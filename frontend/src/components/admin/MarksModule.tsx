@@ -1,3 +1,4 @@
+import { GradeScalesPanel } from './GradeScalesPanel';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search,
@@ -29,9 +30,6 @@ import {
   publishSemesterResults,
   unlockSemesterResults,
   fetchPublishingLogs,
-  fetchGradeRules,
-  setupDefaultGradeRules,
-  fetchMarkSchemes,
 } from '../../api/campusApi';
 import { TeacherMarkEntry } from '../marks/TeacherMarkEntry';
 import { getStoredToken } from '../../api/core';
@@ -60,8 +58,6 @@ export const MarksModule: React.FC<MarksModuleProps> = ({ canEnterMarks = false 
   const [entries, setEntries] = useState<any[]>([]);
   const [reviewQueue, setReviewQueue] = useState<any[]>([]);
   const [reviewStats, setReviewStats] = useState<Record<string, number>>({});
-  const [gradeRules, setGradeRules] = useState<any[]>([]);
-  const [markSchemes, setMarkSchemes] = useState<any[]>([]);
 
   // Publishing State
   const [selectedSemesterId, setSelectedSemesterId] = useState<number>(1);
@@ -109,13 +105,6 @@ export const MarksModule: React.FC<MarksModuleProps> = ({ canEnterMarks = false 
         ]);
         if (statusRes?.data) setPublishingReadiness(statusRes.data);
         if (logsRes?.data) setPublishingLogs(Array.isArray(logsRes.data) ? logsRes.data : []);
-      } else if (activeTab === 'scales') {
-        const [rulesRes, schemesRes] = await Promise.all([
-          fetchGradeRules(token).catch(() => null),
-          fetchMarkSchemes(token).catch(() => null),
-        ]);
-        if (rulesRes?.data) setGradeRules(Array.isArray(rulesRes.data) ? rulesRes.data : []);
-        if (schemesRes?.data) setMarkSchemes(Array.isArray(schemesRes.data) ? schemesRes.data : []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch marks data');
@@ -239,23 +228,6 @@ export const MarksModule: React.FC<MarksModuleProps> = ({ canEnterMarks = false 
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unlock failed');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleSetupDefaultScales = async () => {
-    try {
-      setActionLoading(true);
-      const token = getTokenFromStorage();
-      if (!token) return;
-
-      await setupDefaultGradeRules(token);
-      setSuccessMessage('Default 10-point scale initialized successfully.');
-      setTimeout(() => setSuccessMessage(null), 3000);
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to initialize default scale');
     } finally {
       setActionLoading(false);
     }
@@ -770,84 +742,7 @@ export const MarksModule: React.FC<MarksModuleProps> = ({ canEnterMarks = false 
       )}
 
       {/* TAB 4: GRADE SCALE & MARK SCHEMES */}
-      {activeTab === 'scales' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Grade Rules */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-900 text-base">Grading Scale (10-Point System)</h3>
-                <p className="text-xs text-slate-500">Official percentage to grade letter and grade point mapping</p>
-              </div>
-              <button
-                onClick={handleSetupDefaultScales}
-                disabled={actionLoading}
-                className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-semibold"
-              >
-                Reset Default Scale
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-semibold uppercase">
-                  <tr>
-                    <th className="px-3 py-2">Grade</th>
-                    <th className="px-3 py-2">Point</th>
-                    <th className="px-3 py-2">Score Range</th>
-                    <th className="px-3 py-2">Classification</th>
-                    <th className="px-3 py-2">Result</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {gradeRules.map((rule) => (
-                    <tr key={rule.id}>
-                      <td className="px-3 py-2 font-bold text-slate-900">{rule.grade}</td>
-                      <td className="px-3 py-2 text-slate-700">{rule.grade_point}</td>
-                      <td className="px-3 py-2 text-slate-600">{rule.min_score}% – {rule.max_score}%</td>
-                      <td className="px-3 py-2 text-slate-600">{rule.description || 'Standard'}</td>
-                      <td className="px-3 py-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${rule.is_pass ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                          {rule.is_pass ? 'PASS' : 'FAIL'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Mark Schemes */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">Subject Mark Schemes</h3>
-              <p className="text-xs text-slate-500">Internal, external, and pass criteria by subject and semester</p>
-            </div>
-
-            {markSchemes.length === 0 ? (
-              <p className="text-xs text-slate-500">No subject mark schemes configured yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {markSchemes.map((scheme) => (
-                  <div key={scheme.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs flex justify-between items-center">
-                    <div>
-                      <p className="font-bold text-slate-900">{scheme.subject?.name || `Subject #${scheme.subject_id}`}</p>
-                      <p className="text-slate-500">Semester {scheme.semester?.semester_number || scheme.semester_id}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-semibold text-slate-800">
-                        Int: {scheme.internal_max} | Ext: {scheme.external_max} | Total: {scheme.total_max}
-                      </span>
-                      <p className="text-slate-400">Pass: {scheme.total_pass} marks</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {activeTab === 'scales' && <GradeScalesPanel canEdit={canEnterMarks} />}
 
       {/* VERIFY MODERATION MODAL */}
       {verifyModalData && (

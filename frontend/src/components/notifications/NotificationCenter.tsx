@@ -173,24 +173,32 @@ function PreferencesPanel() {
   const preferences = useNotificationPreferences();
   const save = useNotificationMutation((items: NotificationPreference[]) => notificationsApi.savePreferences(items));
   const [draft, setDraft] = useState<NotificationPreference[] | null>(null);
-  const items = draft ?? preferences.data ?? [];
+  const items = draft ?? preferences.data?.data ?? [];
+  const sms = preferences.data?.meta ?? { smsAvailable: false, smsPhone: null };
+  const smsUsable = sms.smsAvailable && sms.smsPhone !== null;
 
-  const toggle = (category: string, key: 'inApp' | 'mail') =>
+  const toggle = (category: string, key: 'inApp' | 'mail' | 'sms') =>
     setDraft(items.map((item) => (item.category === category ? { ...item, [key]: !item[key] } : item)));
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-card">
       <h2 className="text-sm font-semibold text-foreground">Preferences</h2>
-      <p className="mt-0.5 text-xs text-muted-foreground">Choose what appears here and what is also emailed to you.</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Choose what appears here and what is also emailed{sms.smsAvailable ? ' or texted' : ''} to you.
+        {sms.smsAvailable ? (smsUsable ? ` Texts go to ${sms.smsPhone}.` : ' Add a phone number to your profile to receive texts.') : null}
+      </p>
       {preferences.isPending ? <Skeleton className="mt-3 h-24" /> : (
         <table className="mt-3 w-full text-sm">
-          <thead><tr><th className="text-left">Category</th><th className="text-center">In the app</th><th className="text-center">Email</th></tr></thead>
+          <thead><tr><th className="text-left">Category</th><th className="text-center">In the app</th><th className="text-center">Email</th>{sms.smsAvailable ? <th className="text-center">SMS</th> : null}</tr></thead>
           <tbody>
             {items.map((item) => (
               <tr key={item.category}>
                 <td><p className="font-medium text-foreground">{item.label}</p><p className="text-2xs text-muted-foreground">{item.description}</p></td>
                 <td className="text-center"><input type="checkbox" aria-label={`${item.label} in the app`} checked={item.inApp} onChange={() => toggle(item.category, 'inApp')} className="h-4 w-4 accent-primary" /></td>
                 <td className="text-center"><input type="checkbox" aria-label={`${item.label} by email`} checked={item.mail} onChange={() => toggle(item.category, 'mail')} className="h-4 w-4 accent-primary" /></td>
+                {sms.smsAvailable ? (
+                  <td className="text-center"><input type="checkbox" aria-label={`${item.label} by SMS`} checked={item.sms} disabled={!smsUsable} onChange={() => toggle(item.category, 'sms')} className="h-4 w-4 accent-primary" /></td>
+                ) : null}
               </tr>
             ))}
           </tbody>

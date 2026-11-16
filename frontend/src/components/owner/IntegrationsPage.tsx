@@ -47,6 +47,7 @@ export function IntegrationsPage({ can }: OwnerPageProps) {
   const testIntMut = useOwnerMutation((id: number) => ownerOperationsApi.testIntegration(id));
   const revokeClientMut = useOwnerMutation((id: number) => ownerOperationsApi.revokeApiClient(id));
   const testWebhookMut = useOwnerMutation((id: number) => ownerOperationsApi.testWebhook(id));
+  const toggleWebhookMut = useOwnerMutation((id: number) => ownerOperationsApi.toggleWebhook(id));
 
   return (
     <div className="space-y-5">
@@ -193,9 +194,14 @@ export function IntegrationsPage({ can }: OwnerPageProps) {
                       </p>
                     </div>
                     {canManage ? (
-                      <Button size="sm" variant="outline" disabled={testWebhookMut.isPending} onClick={() => void testWebhookMut.mutateAsync(wh.id)}>
-                        <Play size={12} /> Send test
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" disabled={toggleWebhookMut.isPending} onClick={() => void toggleWebhookMut.mutateAsync(wh.id)}>
+                          {wh.isActive ? 'Disable' : 'Enable'}
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={testWebhookMut.isPending} onClick={() => void testWebhookMut.mutateAsync(wh.id)}>
+                          <Play size={12} /> Send test
+                        </Button>
+                      </div>
                     ) : null}
                   </CardContent>
                 </Card>

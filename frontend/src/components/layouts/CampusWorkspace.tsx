@@ -98,6 +98,14 @@ import { isApiConfigured } from '../../api/http';
 import { toPayload, useCustomFieldDefinitions, useCustomFieldValues, type CustomFieldValues } from '../../api/customFieldsApi';
 import { CustomFieldInputs } from '../shared/CustomFieldInputs';
 import { useRecordCustomFields } from '../../hooks/useRecordCustomFields';
+import { StudentProfileDialog } from '../students/StudentProfileDialog';
+import { StudentFeesView } from '../students/StudentFeesView';
+import { StudentDocumentsView } from '../students/StudentDocumentsView';
+import { StudentLmsView } from '../lms/StudentLmsView';
+import { TeachingLmsView } from '../lms/TeachingLmsView';
+import { RecruiterPortal } from '../recruiter/RecruiterPortal';
+import { ImportDialog, type ImportType } from '../shared/ImportDialog';
+import { ExportButton } from '../shared/ExportButton';
 import { customModuleIdFromTab, customModuleTabId, useCustomModules, useReorderCustomModules } from '../../api/customModulesApi';
 import {
   arrangeItems,
@@ -207,6 +215,7 @@ export default function CampusWorkspace({
   onCreateDesignation,
   onUpdateDesignation,
   onDeleteDesignation,
+  onReloadData,
   onCreateStaff,
   onUpdateStaff,
   onDeleteStaff,
@@ -235,7 +244,11 @@ export default function CampusWorkspace({
   };
 
   const can = (permission: CampusPermission) => user.permissions.includes(permission);
-  const availableNav = navByRole[user.role];
+  // Staff menus are fixed per role; Accounts staff (fees.view / fees.manage through a designation) also get Fees.
+  const availableNav =
+    user.role === 'staff' && (can('fees.view') || can('fees.manage'))
+      ? [...navByRole.staff, ...navByRole.institution_admin.filter((item) => item.id === 'fees')]
+      : navByRole[user.role];
   // Modules the institution created and this user can view (the API filters by role), in their
   // saved order. Each opens /app/module_{id}; switched-off modules stay out of the sidebar.
   const hasInstitutionModules = isApiConfigured() && user.role !== 'super_admin' && user.role !== 'platform_staff';
@@ -409,6 +422,9 @@ export default function CampusWorkspace({
   const [studentPage, setStudentPage] = useState(1);
   const [studentsPerPage, setStudentsPerPage] = useState(STUDENTS_PER_PAGE_OPTIONS[0]);
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(user.studentId ?? data.students[0]?.id ?? null);
+  // Career profile and academics of one student (staff view, live API).
+  const [profileStudent, setProfileStudent] = useState<{ id: number; name: string } | null>(null);
+  const [importing, setImporting] = useState<ImportType | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState<number | null>(null);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | null>(data.departments[0]?.id ?? null);
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -2667,6 +2683,17 @@ export default function CampusWorkspace({
         description="Search, filter, and showcase rich student records."
         action={
           can('students.create') ? (
+            <div className="flex gap-2">
+            {isApiConfigured() ? <ExportButton type="students" /> : null}
+            {isApiConfigured() ? (
+              <button
+                type="button"
+                onClick={() => setImporting('students')}
+                className="inline-flex items-center gap-2 rounded-[18px] border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Import CSV
+              </button>
+            ) : null}
               <button
                 type="button"
                 onClick={() => openStudentEditor()}
@@ -2675,6 +2702,7 @@ export default function CampusWorkspace({
                 <Plus size={16} />
               Add student
             </button>
+            </div>
           ) : null
         }
       />
@@ -2745,6 +2773,16 @@ export default function CampusWorkspace({
                         >
                           View
                         </button>
+                        {isApiConfigured() ? (
+                          <button
+                            type="button"
+                            onClick={() => setProfileStudent({ id: student.id, name: student.name })}
+                            className="rounded-[18px] border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white"
+                            aria-label={`Profile of ${student.name}`}
+                          >
+                            Profile
+                          </button>
+                        ) : null}
                         {can('students.create') ? (
                           <>
                             <button
@@ -2900,6 +2938,17 @@ export default function CampusWorkspace({
         description="Faculty coordinators, ownership details, and shareable login access."
         action={
           can('departments.create') ? (
+            <div className="flex gap-2">
+            {isApiConfigured() ? <ExportButton type="staff" /> : null}
+            {isApiConfigured() && isAdminRole(user.role) ? (
+              <button
+                type="button"
+                onClick={() => setImporting('staff')}
+                className="inline-flex items-center gap-2 rounded-[18px] border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Import CSV
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => openStaffEditor()}
@@ -2908,6 +2957,7 @@ export default function CampusWorkspace({
               <Plus size={16} />
               Add staff
             </button>
+            </div>
           ) : null
         }
       />
@@ -4561,7 +4611,12 @@ export default function CampusWorkspace({
           : <MarksModule canEnterMarks={isApiConfigured() && user.role === 'staff' && can('marks.create')} />;
 
       case 'fees':
-        return <FeesModule />;
+        // Live fees for users with fees.view / fees.manage (admins hold both); the offline demo keeps the static screen.
+        return <FeesModule canManage={isAdminRole(user.role) || can('fees.manage')} />;
+      case 'student_fees':
+        return <StudentFeesView />;
+      case 'student_documents':
+        return <StudentDocumentsView />;
       case 'settings':
         return isApiConfigured() ? <InstitutionSettingsModule /> : <SystemSettingsModule />;
       case 'onboarding':
@@ -4583,7 +4638,12 @@ export default function CampusWorkspace({
       case 'student_timetable':
         return <StudentTimetableView />;
       case 'student_assignments':
-        return <StudentAssignmentsMaterials />;
+        // Live: real materials and assignments; the offline demo keeps the sample screen.
+        return isApiConfigured() ? <StudentLmsView /> : <StudentAssignmentsMaterials />;
+      case 'lms':
+        return <TeachingLmsView />;
+      case 'recruiter_jobs':
+        return <RecruiterPortal />;
       case 'student_notifications':
         return isApiConfigured() ? <NotificationCenter onNavigate={(tab) => handleNavSelection(tab)} /> : <StudentNotifications />;
       case 'attendance':
@@ -5245,6 +5305,9 @@ export default function CampusWorkspace({
             </button>
           </div>
         </Modal>
+
+        <StudentProfileDialog student={profileStudent} canEdit={isAdminRole(user.role)} onClose={() => setProfileStudent(null)} />
+        <ImportDialog type={importing ?? 'students'} open={importing !== null} onClose={() => setImporting(null)} onImported={() => onReloadData?.()} />
 
         <Modal
           open={showStudentModal}

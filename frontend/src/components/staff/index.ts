@@ -1,5 +1,3 @@
-export { StaffDashboard } from './StaffDashboard';
-export { AttendanceMarking } from './AttendanceMarking';
 export { default as AttendanceMarkForm } from './AttendanceMarkForm';
 export { default as AttendanceModule } from './AttendanceModule';
 export { default as AttendanceReport } from './AttendanceReport';

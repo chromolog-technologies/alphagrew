@@ -1,254 +1,124 @@
-import React, { useState, useEffect } from 'react';
-import { Users, BarChart3, TrendingUp, AlertCircle } from 'lucide-react';
-import { fetchDepartmentOverview, fetchDepartmentPerformance, fetchDepartmentBudget } from '../../api/campusApi';
-import { apiFetch, getStoredToken } from '../../api/core';
+/**
+ * Department overview for staff: real figures for the signed-in staff member's own department
+ * (GET /department-portal/summary). It used to show the first department in the list, or sample data.
+ */
+import { BookOpen, CalendarClock, GraduationCap, TrendingUp, Users } from 'lucide-react';
+import { ApiError } from '../../api/apiError';
+import { useDepartmentSummary } from '../../api/departmentPortalApi';
+import { Alert, AlertDescription, Card, Skeleton, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui';
 
-interface DepartmentStats {
-  totalStudents: number;
-  totalFaculty: number;
-  averageCGPA: number;
-  placementRate: number;
+function Metric({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Users }) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <Icon size={18} className="text-primary" aria-hidden="true" />
+      </div>
+      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+    </Card>
+  );
 }
 
-interface SchoolPerformance {
-  semester: string;
-  averageCGPA: number;
-  enrolledStudents: number;
-  passPercentage: number;
-}
+export function DepartmentOverview({ departmentCode }: { departmentCode?: string } = {}) {
+  const summary = useDepartmentSummary(departmentCode);
 
-
-export const DepartmentOverview: React.FC = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [performance, setPerformance] = useState<any>(null);
-  const [departmentName, setDepartmentName] = useState<string>('Computer Science & Engineering Department');
-  const [isLiveStats, setIsLiveStats] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = getStoredToken();
-
-        if (!token) {
-          setError('Authentication token not found');
-          return;
-        }
-
-        // Attempt to fetch real persisted department stats
-        let liveStatsLoaded = false;
-        try {
-          const deptsPayload = await apiFetch<any>('/departments', { token });
-          {
-            const deptsList = Array.isArray(deptsPayload?.data) ? deptsPayload.data : (Array.isArray(deptsPayload) ? deptsPayload : []);
-            if (deptsList.length > 0) {
-              const primaryDept = deptsList[0];
-              const statsPayload = await apiFetch<any>(`/departments/${primaryDept.id}/stats`, { token });
-              {
-                if (statsPayload?.data) {
-                  setStats(statsPayload.data);
-                  setDepartmentName(statsPayload.data.name || primaryDept.name || departmentName);
-                  setIsLiveStats(true);
-                  liveStatsLoaded = true;
-                }
-              }
-            }
-          }
-        } catch {
-          // If real stats endpoint is unreachable, fallback to sample data
-        }
-
-        if (!liveStatsLoaded) {
-          const [overviewResponse, performanceResponse] = await Promise.all([
-            fetchDepartmentOverview(token),
-            fetchDepartmentPerformance(token)
-          ]);
-
-          if (overviewResponse?.data) {
-            setStats(overviewResponse.data);
-          }
-
-          if (performanceResponse?.data) {
-            setPerformance(performanceResponse.data);
-          }
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch department data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  if (loading) {
+  if (summary.isLoading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-slate-600">Loading department data...</p>
-        </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-24" />
+        ))}
       </div>
     );
   }
 
-  if (error) {
+  if (summary.error || !summary.data) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">Error: {error}</p>
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription>{summary.error instanceof ApiError ? summary.error.message : 'Department figures could not be loaded.'}</AlertDescription>
+      </Alert>
     );
   }
 
-  const defaultStats = {
-    totalStudents: stats?.total_students ?? stats?.totalStudents ?? 0,
-    totalFaculty: stats?.total_faculty ?? stats?.staff_count ?? stats?.totalFaculty ?? 0,
-    averageCGPA: stats?.average_cgpa ?? stats?.averageCGPA ?? 0,
-    placementRate: stats?.placement_rate ?? stats?.placementRate ?? 0,
-  };
-
-  const schoolPerformance: SchoolPerformance[] = performance?.schoolPerformance || [];
-  const coursePerformance: any[] = performance?.coursePerformance || [];
-  const placementData: any[] = performance?.placementData || [];
+  const { department, counts, averages, placedStudents, studentsByYear, courses } = summary.data;
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Department Overview</h2>
-        <p className="mt-1 text-sm text-slate-600">{departmentName}</p>
+        <h1 className="text-xl font-semibold text-foreground">{department.name}</h1>
+        <p className="text-sm text-muted-foreground">
+          {department.code}
+          {department.hodName ? ` · HOD ${department.hodName}` : ''}
+          {department.intakeCapacity ? ` · Intake ${department.intakeCapacity}` : ''}
+        </p>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-700 font-medium">Total Students</p>
-              <p className="text-3xl font-bold text-blue-900 mt-2">{defaultStats.totalStudents}</p>
-            </div>
-            <Users size={32} className="text-blue-300" />
-          </div>
-        </div>
-        <div className="bg-purple-50 p-6 rounded-lg border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-700 font-medium">Faculty Members</p>
-              <p className="text-3xl font-bold text-purple-900 mt-2">{defaultStats.totalFaculty}</p>
-            </div>
-            <Users size={32} className="text-purple-300" />
-          </div>
-        </div>
-        <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-green-700 font-medium">Avg. CGPA</p>
-              <p className="text-3xl font-bold text-green-900 mt-2">{defaultStats.averageCGPA}/10</p>
-            </div>
-            <TrendingUp size={32} className="text-green-300" />
-          </div>
-        </div>
-        <div className="bg-orange-50 p-6 rounded-lg border border-orange-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-orange-700 font-medium">Placement Rate</p>
-              <p className="text-3xl font-bold text-orange-900 mt-2">{defaultStats.placementRate}%</p>
-            </div>
-            <BarChart3 size={32} className="text-orange-300" />
-          </div>
-        </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Metric label="Students" value={counts.students} icon={GraduationCap} />
+        <Metric label="Staff" value={counts.staff} icon={Users} />
+        <Metric label="Average CGPA" value={averages.cgpa.toFixed(2)} icon={TrendingUp} />
+        <Metric label="Placement rate" value={`${averages.placementRate}% (${placedStudents})`} icon={TrendingUp} />
+        <Metric label="Courses" value={counts.courses} icon={BookOpen} />
+        <Metric label="Subjects" value={counts.subjects} icon={BookOpen} />
+        <Metric label="Average attendance" value={`${averages.attendance}%`} icon={CalendarClock} />
+        <Metric label="Upcoming exams" value={counts.upcomingExams} icon={CalendarClock} />
       </div>
 
-      {/* Semester Performance */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Semester Performance Trend</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-4 py-2 text-left font-semibold text-slate-900">Semester</th>
-                <th className="px-4 py-2 text-right font-semibold text-slate-900">Avg. CGPA</th>
-                <th className="px-4 py-2 text-right font-semibold text-slate-900">Enrolled</th>
-                <th className="px-4 py-2 text-right font-semibold text-slate-900">Pass %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schoolPerformance.map((perf, idx) => (
-                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="px-4 py-3 font-medium text-slate-900">{perf.semester}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="font-semibold text-green-600">{perf.averageCGPA}/10</span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-slate-600">{perf.enrolledStudents}</td>
-                  <td className="px-4 py-3 text-right">
-                    <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                      {perf.passPercentage}%
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Students by year</h2>
+          {studentsByYear.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No students yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Year</TableHead>
+                  <TableHead>Students</TableHead>
+                  <TableHead>Average CGPA</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {studentsByYear.map((row) => (
+                  <TableRow key={row.year}>
+                    <TableCell>{row.year}</TableCell>
+                    <TableCell>{row.students}</TableCell>
+                    <TableCell>{row.averageCgpa.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
 
-      {/* Course-wise Performance */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Course-wise Performance</h3>
-        <div className="space-y-4">
-          {coursePerformance.map((course, idx) => (
-            <div key={idx} className="p-4 border border-slate-200 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-semibold text-slate-900">{course.course}</h4>
-                <span className="text-sm font-semibold text-slate-600">{course.students} students</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full"
-                    style={{ width: `${(course.avgCGPA / 10) * 100}%` }}
-                  />
-                </div>
-                <span className="font-bold text-slate-900 w-16 text-right">{course.avgCGPA}/10</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Placement Distribution */}
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-4">Placement Package Distribution</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {placementData.map((data, idx) => (
-            <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-              <span className="font-medium text-slate-900">{data.packageRange}</span>
-              <div className="flex items-center gap-3">
-                <div className="w-24 bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-green-600 h-2 rounded-full"
-                    style={{ width: `${(data.count / 68) * 100}%` }}
-                  />
-                </div>
-                <span className="font-bold text-slate-900 w-8 text-right">{data.count}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Alerts */}
-      <div className="space-y-3">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <h4 className="font-semibold text-yellow-900">Action Required</h4>
-            <p className="text-sm text-yellow-800 mt-1">3 faculty members have pending appraisals</p>
-          </div>
-        </div>
+        <Card className="p-4">
+          <h2 className="mb-3 text-sm font-semibold text-foreground">Courses</h2>
+          {courses.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No courses yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Semesters</TableHead>
+                  <TableHead>Subjects</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {courses.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      {c.code} · {c.name}
+                    </TableCell>
+                    <TableCell>{c.semesters}</TableCell>
+                    <TableCell>{c.subjects}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
       </div>
     </div>
   );
-};
+}

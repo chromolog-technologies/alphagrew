@@ -4,10 +4,11 @@
  */
 import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { ApiError } from '../../api/apiError';
 import { apiCall, semesterApi } from '../../api/apiClient';
 import { useClasses, useDeleteClass, useSaveClass, type SchoolClass } from '../../api/academicsApi';
+import { ClassRosterDialog } from './ClassRosterDialog';
 import {
   Alert,
   AlertDescription,
@@ -45,6 +46,7 @@ export function ClassesModule({ canManage = true }: { canManage?: boolean }) {
   const remove = useDeleteClass();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [deleting, setDeleting] = useState<SchoolClass | null>(null);
+  const [roster, setRoster] = useState<SchoolClass | null>(null);
 
   const fieldErrors = save.error instanceof ApiError ? save.error.firstFieldErrors : {};
   const formError = save.error instanceof ApiError && Object.keys(fieldErrors).length === 0 ? save.error.message : null;
@@ -131,6 +133,9 @@ export function ClassesModule({ canManage = true }: { canManage?: boolean }) {
                   <TableCell>{c.totalStudents}</TableCell>
                   {canManage ? (
                     <TableCell className="text-right">
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Students of ${c.name}`} onClick={() => setRoster(c)}>
+                        <Users size={14} />
+                      </Button>
                       <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${c.name}`} onClick={() => open(c)}>
                         <Pencil size={14} />
                       </Button>
@@ -248,6 +253,7 @@ export function ClassesModule({ canManage = true }: { canManage?: boolean }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ClassRosterDialog schoolClass={roster} onClose={() => setRoster(null)} />
     </div>
   );
 }
