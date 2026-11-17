@@ -72,7 +72,7 @@ abstract class CampusNotification extends Notification implements ShouldQueue
             ->line($this->body());
 
         if ($link = $this->link()) {
-            $mail->action('Open Alpha Grew', config('app.frontend_url').'/?tab='.$link);
+            $mail->action('Open AlphaGrew', config('app.frontend_url').'/?tab='.$link);
         }
 
         return $mail->line('You can change which emails you receive under Notifications → Preferences.');

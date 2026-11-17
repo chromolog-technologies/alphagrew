@@ -1,5 +1,5 @@
 /*
- * Alphagrew marketing site design system.
+ * AlphaGrew marketing site design system.
  *
  * Imported from index.css so Tailwind generates utilities for these tokens
  * (bg-navy-900, text-iris-600, font-display, ...). Token names are unique to the
@@ -27,7 +27,7 @@
 }
 
 @theme {
-  /* Palette from the ALPHA GREW Figma design: royal blue on white and pale blue, deep navy footer. */
+  /* Palette from the AlphaGrew Figma design: royal blue on white and pale blue, deep navy footer. */
 
   /* Deep navy foundations (footer, emphasis bands, mockup surfaces) */
   --color-navy-950: #041a38;
@@ -928,6 +928,7 @@
     border-radius: 0.625rem;
     font-size: 0.9375rem;
     font-weight: 500;
+    white-space: nowrap;
     color: var(--color-ink-500);
     background: transparent;
     border: 0;
@@ -948,8 +949,9 @@
     font-weight: 600;
   }
 
-  /* Underline marker under the current desktop link, as in the Figma navigation. */
-  @media (min-width: 1024px) {
+  /* Underline marker under the current desktop link, as in the Figma navigation. The full
+     navigation shows from 1280px; narrower screens use the menu panel. */
+  @media (min-width: 80rem) {
     .mk-header nav .mk-nav-link[aria-current='page']::after,
     .mk-header nav .mk-nav-link.mk-active::after {
       content: '';

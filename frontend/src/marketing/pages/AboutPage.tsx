@@ -216,7 +216,7 @@ export default function AboutPage() {
         />
       </Section>
 
-      <CtaBand title="Shape Alphagrew with us" lede="We are looking for institutions that want to help shape the product. Book a walkthrough of the current build." />
+      <CtaBand title="Shape AlphaGrew with us" lede="We are looking for institutions that want to help shape the product. Book a walkthrough of the current build." />
     </>
   );
 }

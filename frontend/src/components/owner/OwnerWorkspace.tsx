@@ -184,7 +184,7 @@ export default function OwnerWorkspace({ user, onLogout }: { user: CampusSession
             <img src="/alpha-logo.png" alt="" className="h-7 w-7 object-contain" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold tracking-tight text-foreground">Alpha Grew</span>
+            <span className="block text-sm font-bold tracking-tight text-foreground">AlphaGrew</span>
             <span className="block truncate text-2xs text-muted-foreground">Owner console</span>
           </span>
           <button

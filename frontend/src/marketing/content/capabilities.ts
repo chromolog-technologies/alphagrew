@@ -26,8 +26,8 @@ export const CAPABILITIES = {
   },
   tenantIsolation: {
     name: 'Institution data isolation',
-    status: 'building',
-    summary: "Every record belongs to one institution, and each request is designed to reach only that institution's data.",
+    status: 'available',
+    summary: "Every record belongs to one institution, and every request is checked so it reaches only that institution's data.",
   },
   onboarding: {
     name: 'Staff invitations and student registration',
@@ -46,13 +46,35 @@ export const CAPABILITIES = {
   },
   multiCampus: {
     name: 'Multiple campuses',
-    status: 'building',
+    status: 'available',
     summary: 'Campuses and batches under one institution, with records kept to the right campus.',
   },
   bulkImport: {
     name: 'Bulk import',
     status: 'planned',
     summary: 'Bring in students and staff from spreadsheets, with an error report for rows that need fixing.',
+  },
+
+  // Customisation: fitting the platform to the institution
+  customFields: {
+    name: 'Custom fields',
+    status: 'available',
+    summary: 'Add the fields your institution tracks to students, staff, courses, exams and other records, without code.',
+  },
+  customModules: {
+    name: 'Custom modules',
+    status: 'available',
+    summary: 'Create modules of your own, such as hostel requests or internships, with their own records and fields.',
+  },
+  dashboardBuilder: {
+    name: 'Dashboard builder',
+    status: 'available',
+    summary: 'Build dashboards from charts and figures, and share them with the roles that need them.',
+  },
+  sidebarLayout: {
+    name: 'Arrangeable navigation',
+    status: 'available',
+    summary: 'Administrators reorder and hide menu items so each role sees what it uses most.',
   },
 
   // Student profiles and resumes

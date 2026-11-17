@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Product | Alphagrew |
+| Product | AlphaGrew |
 | Organization | Chromolog Technologies |
 | Document | Backend workflow analysis and the frontend built on it |
 | Based on | `main` after commit `116a1a5`, Campus Academics addendum (A3, A5, A9) |

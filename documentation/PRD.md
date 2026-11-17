@@ -1,4 +1,4 @@
-# ALPHAGREW — Smart Campus & Career Intelligence Platform
+# AlphaGrew — Smart Campus & Career Intelligence Platform
 
 **Master Product Requirements, SRS, Technical Architecture & Delivery Plan**
 
@@ -19,7 +19,7 @@ Chromolog Technologies · Version 1.1 · October 2026
 
 | Item | Value |
 |---|---|
-| Product | Alphagrew |
+| Product | AlphaGrew |
 | Organization | Chromolog Technologies |
 | Document | Master Product Documentation / PRD / SRS / Technical Blueprint |
 | Version | 1.1 |
@@ -29,7 +29,7 @@ Chromolog Technologies · Version 1.1 · October 2026
 
 ## 2. Executive Summary
 
-Alphagrew is a unified Campus Management, Placement Management, Student Development and AI Career Readiness platform. It connects institution administration, student profiles, assessments, resumes, skills, job opportunities, placement workflows and AI-powered interview practice.
+AlphaGrew is a unified Campus Management, Placement Management, Student Development and AI Career Readiness platform. It connects institution administration, student profiles, assessments, resumes, skills, job opportunities, placement workflows and AI-powered interview practice.
 
 Core product equation:
 
@@ -482,7 +482,7 @@ Keep AI provider calls behind an internal adapter/service layer so models can be
 
 Every institution-owned record should be associated with a tenant/institution identifier. Tenant context must be established server-side and enforced through authorization/query scopes.
 
-Alphagrew → Institution A / Institution B / Institution C → Departments → Students / Faculty / Placement data
+AlphaGrew → Institution A / Institution B / Institution C → Departments → Students / Faculty / Placement data
 
 Future SaaS layers: plans, subscriptions, usage limits, AI credits, billing, institution onboarding and platform analytics.
 
@@ -761,7 +761,7 @@ Recurring cost centers: compute, database, object storage, AI inference, speech 
 
 ## 28. Product Differentiation
 
-Alphagrew should be positioned as an AI-powered Campus & Career Readiness Platform rather than only a college administration system.
+AlphaGrew should be positioned as an AI-powered Campus & Career Readiness Platform rather than only a college administration system.
 
 Its product loop is: Manage → Measure → Identify Gaps → Practice → Interview → Match → Place → Improve.
 
@@ -833,7 +833,7 @@ Its product loop is: Manage → Measure → Identify Gaps → Practice → Inter
 
 ## 31. Final Product Definition
 
-Alphagrew is an AI-powered Campus & Career Readiness Platform that connects student management, assessments, skill development, resume intelligence, AI interviews and placement management into one unified ecosystem, delivered as one web application for every role.
+AlphaGrew is an AI-powered Campus & Career Readiness Platform that connects student management, assessments, skill development, resume intelligence, AI interviews and placement management into one unified ecosystem, delivered as one web application for every role.
 
 The recommended build strategy is modular: first establish the campus and placement foundation, then add career intelligence, then the AI interviewer, and finally multi-tenant SaaS and the broader recruiter/career ecosystem.
 

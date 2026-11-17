@@ -1,8 +1,8 @@
-# Alphagrew: Backend and Frontend Workflow Analysis & Frontend Roadmap
+# AlphaGrew: Backend and Frontend Workflow Analysis & Frontend Roadmap
 
 | Item | Value |
 |---|---|
-| Product | Alphagrew Campus Management & Placement Ecosystem |
+| Product | AlphaGrew Campus Management & Placement Ecosystem |
 | Organization | Chromolog Technologies |
 | Document | Comprehensive Backend-Frontend Workflow Analysis & Frontend Changes Roadmap |
 | Based on | Codebase commit `116a1a5`, PRD Addenda (Academics, Roles & Tenancy, Data Model) |
@@ -15,7 +15,7 @@
 
 ## 1. Executive Summary & System Baseline
 
-An in-depth inspection of the Alphagrew codebase reveals a system operating across **three disparate implementation tiers**:
+An in-depth inspection of the AlphaGrew codebase reveals a system operating across **three disparate implementation tiers**:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -75,7 +75,7 @@ The following matrix contrasts every backend capability against the current fron
 
 ## 3. Detailed Role & Portal Workflow Mapping
 
-Alphagrew defines six distinct roles. The frontend must guide each role through its designated workflow without permission leaks or missing interfaces:
+AlphaGrew defines six distinct roles. The frontend must guide each role through its designated workflow without permission leaks or missing interfaces:
 
 ```
                   ┌───────────────────────────────┐

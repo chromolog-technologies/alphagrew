@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\Event;
  *
  * - Designations "Faculty", "Head of Department" and "Exam Coordinator", and the accounts
  *   hod.cse@demo.com (CSE), exam@demo.com and one faculty member each for ECE, ME and MBA
- *   (password demo123). staff@demo.com becomes CSE faculty.
+ *   (password: config app.demo_password, default demo123). staff@demo.com becomes CSE faculty.
  * - A course per department with six subjects, taught over three terms: two published
  *   terms in 2025-26 and the current term (Jul to Nov 2026).
  * - Past terms: end-semester exams, graded marks, published through the real publishing
@@ -41,7 +41,11 @@ use Illuminate\Support\Facades\Event;
  */
 class AcademicDemoSeeder extends Seeder
 {
-    private const PASSWORD = 'demo123';
+    /** The demo password (config app.demo_password, DEMO_PASSWORD). */
+    private function password(): string
+    {
+        return (string) config('app.demo_password');
+    }
 
     /** Department code => [course name, course code, years, six subjects as [code, name, credits]]. */
     private const CURRICULUM = [
@@ -152,7 +156,7 @@ class AcademicDemoSeeder extends Seeder
         $account = fn (string $email, string $name, string $title, ?string $department, int $designationId) => User::query()->updateOrCreate(
             ['email' => $email],
             [
-                'name' => $name, 'password' => self::PASSWORD, 'role' => UserRole::Staff->value,
+                'name' => $name, 'password' => $this->password(), 'role' => UserRole::Staff->value,
                 'institution_id' => $this->institutionId, 'title' => $title, 'department_code' => $department,
                 'designation_id' => $designationId, 'email_verified_at' => now(),
             ],

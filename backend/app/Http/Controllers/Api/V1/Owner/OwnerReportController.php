@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Owner;
 
+use App\Support\Csv;
 use App\Http\Controllers\Controller;
 use App\Models\ExportJob;
 use App\Models\ReportSchedule;
@@ -96,9 +97,9 @@ class OwnerReportController extends Controller
         return response()->streamDownload(function () use ($report): void {
             $out = fopen('php://output', 'wb');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $report['columns']);
+            fputcsv($out, Csv::row($report['columns']));
             foreach ($report['rows'] as $row) {
-                fputcsv($out, array_map([$this, 'csvSafe'], $row));
+                fputcsv($out, Csv::row($row));
             }
             fclose($out);
         }, $filename, [
@@ -236,16 +237,6 @@ class OwnerReportController extends Controller
         ]);
 
         return response()->json(['data' => $items]);
-    }
-
-    private function csvSafe(mixed $value): string
-    {
-        $text = (string) ($value ?? '');
-        if ($text !== '' && in_array($text[0], ['=', '+', '-', '@'], true)) {
-            return "'{$text}";
-        }
-
-        return $text;
     }
 
     /** @param array{key: string, label: string, columns: list<string>, rows: list<list<mixed>>} $report */

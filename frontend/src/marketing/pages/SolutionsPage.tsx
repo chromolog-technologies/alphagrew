@@ -36,7 +36,7 @@ export default function SolutionsPage() {
         page="solutions"
         eyebrow="Solutions"
         title="One platform, five very different days at work."
-        lede="Placement involves leadership, the placement cell, faculty, students and the companies that hire them. Choose your role to see what Alphagrew does for you."
+        lede="Placement involves leadership, the placement cell, faculty, students and the companies that hire them. Choose your role to see what AlphaGrew does for you."
         actions={<SolutionNav />}
       />
 

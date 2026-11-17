@@ -5,6 +5,7 @@ import { CapabilityList, RelatedLinks, StatusLegend } from '../components/Cards'
 import { CtaBand } from '../components/CtaBand';
 import { PageHero, Section, SectionHeader, Split, type SectionTone } from '../components/Layout';
 import {
+  CustomizationMockup,
   DriveBoardMockup,
   EligibilityMockup,
   FeedbackMockup,
@@ -71,6 +72,14 @@ const GROUPS: FeatureGroup[] = [
     link: { to: SITE_PAGES.careerIntelligence.path, label: 'Explore Career Intelligence' },
   },
   {
+    id: 'customization',
+    eyebrow: 'Fits how your institution works',
+    title: 'Your fields, your modules, your dashboards',
+    lede: 'Every institution runs placements a little differently. Add the fields you track, create modules for your own processes, build dashboards for each role and arrange the menu, all without code.',
+    ids: ['customFields', 'customModules', 'dashboardBuilder', 'sidebarLayout'],
+    visual: <CustomizationMockup />,
+  },
+  {
     id: 'notifications-reporting',
     eyebrow: 'Notifications and reporting',
     title: 'The right notice to the right students, and numbers already counted',
@@ -84,6 +93,7 @@ const FOUNDATIONS: CapabilityId[] = [
   'onboarding',
   'academicStructure',
   'academicRecords',
+  'multiCampus',
   'tenantIsolation',
   'bulkImport',
   'recruiterPortal',
@@ -154,7 +164,7 @@ export default function PlatformPage() {
         page="platform"
         eyebrow="Platform and features"
         title="Everything a placement season needs, on one student record."
-        lede="Six feature areas that share the same data, so each step uses what the previous one learned. Every feature is labelled with where it stands today."
+        lede="Seven feature areas that share the same data, so each step uses what the previous one learned. Every feature is labelled with where it stands today."
         actions={
           <nav aria-label="Feature areas" className="flex flex-wrap gap-2">
             {GROUPS.map((group) => (

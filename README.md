@@ -1,6 +1,6 @@
-# Alphagrew
+# AlphaGrew
 
-Alphagrew is a multi-tenant campus management and career readiness platform. It covers institution setup, students and staff, attendance, marks and result publishing, placement drives, resume analysis and AI mock interviews.
+AlphaGrew is a multi-tenant campus management and career readiness platform. It covers institution setup, students and staff, attendance, marks and result publishing, placement drives, resume analysis and AI mock interviews.
 
 The repository holds two applications:
 
@@ -177,8 +177,9 @@ Run the same checks locally before opening a PR. If you add a migration, make su
 
 ## Deployment
 
-- **Backend**: [backend/Dockerfile](backend/Dockerfile) builds a production PHP 8.4 image. One container runs Apache with OPcache, the queue worker and the scheduler under supervisord ([backend/docker/](backend/docker/)). At start it migrates, seeds roles and permissions, and builds the config, route, event and view caches. It listens on `$PORT` (default 10000) and reports health at `/up`. Set `APP_KEY`, the `DB_*` variables, `FRONTEND_URL`, `APP_URL`, mail settings and `ANTHROPIC_API_KEY`; keep `DEMO_SEED_ENABLED` and `DEMO_RESET_ENABLED` off in production. Under heavy load, run the queue worker as its own service instead.
+- **Backend**: [backend/Dockerfile](backend/Dockerfile) builds a production PHP 8.4 image. One container runs Apache with OPcache, the queue worker and the scheduler under supervisord ([backend/docker/](backend/docker/)). At start it migrates, seeds roles and permissions, and builds the config, route, event and view caches. It listens on `$PORT` (default 10000) and reports health at `/up`. Uploads (resumes, photos, logos, attachments) are stored in `storage/app`: mount a persistent disk there, or they are lost on every redeploy. Set `APP_KEY`, the `DB_*` variables, `FRONTEND_URL`, `APP_URL`, mail settings and `ANTHROPIC_API_KEY`; keep `DEMO_SEED_ENABLED` and `DEMO_RESET_ENABLED` off in production. Under heavy load, run the queue worker as its own service instead.
 - **Frontend**: [frontend/vercel.json](frontend/vercel.json) configures a Vercel deployment with SPA rewrites, long-lived caching for hashed assets, and security headers (Content Security Policy, HSTS, `X-Frame-Options`, `Permissions-Policy` allowing the microphone for voice interviews). Set `VITE_API_BASE_URL` to the deployed API URL at build time.
+- **Hostinger demo** (alphagrew.chromologtechnologies.com): a GitHub Action builds a ready-to-run copy into the `hostinger-deploy` branch, which Hostinger's Git deployment pulls. Setup and update steps: [documentation/deployment/hostinger.md](documentation/deployment/hostinger.md).
 - **CORS**: the API accepts browser requests only from `CORS_ALLOWED_ORIGINS` (comma-separated; defaults to `FRONTEND_URL`) and exposes `Content-Disposition`, `X-Data-Source`, `Deprecation` and `Link` to the app ([backend/config/cors.php](backend/config/cors.php)).
 
 ## Documentation

@@ -19,6 +19,7 @@ use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use LogicException;
@@ -354,15 +355,51 @@ class AuthOnboardingTest extends TestCase
             'email' => 'meera.new@example.com',
             'title' => 'Department Coordinator',
             'password' => 'another-pass-1',
+            'currentPassword' => 'demo123',
         ])->assertOk()->assertJsonPath('user.emailVerified', false);
 
         Notification::assertSentTo(User::query()->where('email', 'meera.new@example.com')->firstOrFail(), VerifyEmail::class);
+        // The old address is told about the change.
+        Notification::assertSentOnDemand(
+            \App\Notifications\EmailAddressChanged::class,
+            fn ($notification, array $channels, AnonymousNotifiable $notifiable): bool => $notifiable->routes['mail'] === 'staff@demo.com',
+        );
 
         // The password change signed out the other device but kept this one.
         $this->app['auth']->forgetGuards();
         $this->withToken($other)->getJson('/api/v1/auth/me')->assertUnauthorized();
         $this->app['auth']->forgetGuards();
         $this->withToken($token)->getJson('/api/v1/auth/me')->assertOk();
+    }
+
+    public function test_changing_the_email_or_password_needs_the_current_password(): void
+    {
+        $token = $this->tokenFor('staff@demo.com');
+        $profile = ['name' => 'Staff Member', 'email' => 'staff@demo.com', 'title' => 'Faculty'];
+
+        // A held session alone cannot change the sign-in email or the password.
+        $this->withToken($token)->putJson('/api/v1/auth/profile', [...$profile, 'email' => 'attacker@example.com'])
+            ->assertUnprocessable()->assertJsonValidationErrors('currentPassword');
+        $this->withToken($token)->putJson('/api/v1/auth/profile', [...$profile, 'password' => 'attacker-pass-1'])
+            ->assertUnprocessable()->assertJsonValidationErrors('currentPassword');
+        $this->withToken($token)->putJson('/api/v1/auth/profile', [...$profile, 'password' => 'attacker-pass-1', 'currentPassword' => 'wrong-guess'])
+            ->assertUnprocessable()->assertJsonPath('errors.currentPassword.0', 'Your current password is not correct.');
+        $this->assertTrue(Hash::check('demo123', User::query()->where('email', 'staff@demo.com')->value('password')));
+
+        // Name and title alone do not need it.
+        $this->withToken($token)->putJson('/api/v1/auth/profile', [...$profile, 'title' => 'Senior Faculty'])->assertOk();
+    }
+
+    public function test_profile_changes_are_rate_limited(): void
+    {
+        $token = $this->tokenFor('staff@demo.com');
+        $attempt = ['name' => 'Staff Member', 'email' => 'staff@demo.com', 'title' => 'Faculty', 'password' => 'guess-pass-1', 'currentPassword' => 'wrong-guess'];
+
+        // 5 attempts a minute, so the current password cannot be guessed through this form.
+        for ($i = 0; $i < 5; $i++) {
+            $this->withToken($token)->putJson('/api/v1/auth/profile', $attempt)->assertUnprocessable();
+        }
+        $this->withToken($token)->putJson('/api/v1/auth/profile', $attempt)->assertTooManyRequests();
     }
 
     private function sentInvitationToken(string $email): string

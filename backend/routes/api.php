@@ -103,6 +103,8 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/owner/auth/login', [AuthController::class, 'ownerLogin'])->middleware('throttle:login');
     Route::post('/auth/mfa/verify', [MfaController::class, 'verify'])->middleware('throttle:login');
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    // Website "Book a demo" form: saved as an Owner Console lead and emailed to sales.
+    Route::post('/demo-requests', [\App\Http\Controllers\Api\V1\DemoRequestController::class, 'store'])->middleware('throttle:demo-requests');
     Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:password-reset');
     Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:password-reset');
 
@@ -119,19 +121,20 @@ Route::prefix('v1')->group(function (): void {
     // Signed, short-lived link from photoUrl; no token so <img> tags can load it.
     Route::get('/files/student-photos/{student}', [StudentProfileController::class, 'photo'])
         ->whereNumber('student')
-        ->middleware('signed')
+        ->middleware(['signed', 'throttle:files'])
         ->name('students.photo');
 
     Route::get('/files/resumes/{resume}', [ResumeController::class, 'file'])
         ->whereNumber('resume')
-        ->middleware('signed')
+        ->middleware(['signed', 'throttle:files'])
         ->name('resumes.download');
 
     // tenant: limits every query to the signed-in user's institution (see App\Http\Middleware\SetTenant).
     Route::middleware(['auth:sanctum', 'tenant', 'throttle:api'])->group(function (): void {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
-        Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
+        // Also changes the email and password, so attempts are limited like a sign-in.
+        Route::put('/auth/profile', [AuthController::class, 'updateProfile'])->middleware('throttle:account');
         Route::post('/auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
             ->middleware('throttle:verification');
 

@@ -87,13 +87,13 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
 
                   <img
                     src="/alpha-logo.png"
-                    alt="Alpha Grew logo"
+                    alt="AlphaGrew logo"
                     className="h-8 w-8 rounded-xl object-contain"
                   />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                    <span className="text-[11px] font-bold tracking-wide text-blue-600">
                       {campusBrand.companyName}
                     </span>
                     <Badge variant="info" className="gap-1 py-0 px-1.5 text-[9px] font-bold rounded-full">
@@ -191,6 +191,7 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
                       className="pl-10 pr-10 h-10 text-sm bg-slate-50/60 focus:bg-white"
                       placeholder="Enter password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
                       required
                     />
                     <Button

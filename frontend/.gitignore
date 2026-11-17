@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Temporary server build used to pre-render the public pages (scripts/prerender.mjs)
+dist-ssr/

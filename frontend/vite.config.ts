@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { SITE_URL_DEFAULT } from './src/marketing/config';
 import { SITE_PAGES } from './src/marketing/siteMap';
 import { APP_ROUTE_PATTERNS } from './src/routes';
 
@@ -45,7 +46,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: frontendRoot,
     envDir: __dirname,
-    plugins: [react(), tailwindcss(), marketingSeoFiles(env.VITE_SITE_URL ?? '')],
+    plugins: [react(), tailwindcss(), marketingSeoFiles(env.VITE_SITE_URL || SITE_URL_DEFAULT)],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, 'src'),

@@ -38,7 +38,7 @@ const STEPS: WorkflowStep[] = [
     capability: 'resumeUpload',
   },
   {
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     title: 'Read skills, projects and experience',
     body: 'The resume is parsed into skills, projects, experience and education. A screen to check and correct what was read is planned.',
     capability: 'resumeParsing',
@@ -50,7 +50,7 @@ const STEPS: WorkflowStep[] = [
     capability: 'interviewSetup',
   },
   {
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     title: 'Plan the questions',
     body: 'The interview is planned from the role and the resume. Without an AI provider configured, questions come from a curated question bank.',
     capability: 'aiInterviewText',
@@ -62,7 +62,7 @@ const STEPS: WorkflowStep[] = [
     capability: 'difficultySteps',
   },
   {
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     title: 'Show feedback and next steps',
     body: 'A report with rubric scores, strengths, areas to improve and per-question notes, plus a skill-gap view for the role.',
     capability: 'interviewFeedback',
@@ -286,10 +286,10 @@ const FAQS: FaqItem[] = [
   },
   {
     question: 'Which AI does it use?',
-    text: 'AI requests are made only from the Alphagrew server, through a provider configured for each deployment. Without one, questions come from a curated question bank and scoring uses rule-based signals.',
+    text: 'AI requests are made only from the AlphaGrew server, through a provider configured for each deployment. Without one, questions come from a curated question bank and scoring uses rule-based signals.',
     answer: (
       <p>
-        AI requests are made only from the Alphagrew server, through a provider configured for each deployment, and keys never
+        AI requests are made only from the AlphaGrew server, through a provider configured for each deployment, and keys never
         reach the browser. Without a provider, questions come from a curated question bank and scoring uses rule-based signals.
         Answer quality with a live provider is still being evaluated, so ask to see it in your demo.
       </p>
@@ -457,7 +457,7 @@ export default function AiInterviewerPage() {
               student and the staff who support them.
             </li>
             <li>
-              <strong className="text-ink-900">It does not expose AI keys.</strong> Every AI request is made from the Alphagrew
+              <strong className="text-ink-900">It does not expose AI keys.</strong> Every AI request is made from the AlphaGrew
               server.
             </li>
             <li>

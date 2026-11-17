@@ -6,8 +6,8 @@ import { Container } from './Layout';
 
 /** Closing call to action used at the end of most pages: a full-width royal-blue band. */
 export function CtaBand({
-  title = 'See Alphagrew with your own departments and batches',
-  lede = 'Book a walkthrough and we will show you how a placement season could run on Alphagrew, using your eligibility rules.',
+  title = 'See AlphaGrew with your own departments and batches',
+  lede = 'Book a walkthrough and we will show you how a placement season could run on AlphaGrew, using your eligibility rules.',
   primary = { to: DEMO_PATH, label: 'Book a demo' },
   secondary = { to: SITE_PAGES.howItWorks.path, label: 'See how it works' },
 }: {
