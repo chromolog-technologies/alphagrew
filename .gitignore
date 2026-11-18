@@ -1,0 +1,9 @@
+.env
+/storage/app/public/*
+/storage/app/private/*
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/bootstrap/cache/*.php
+!.gitkeep

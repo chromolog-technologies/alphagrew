@@ -1,0 +1,40 @@
+<?php
+
+use App\Http\Middleware\MarkSampleData;
+use App\Http\Middleware\SetTenant;
+use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
+use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+
+return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+        api: __DIR__.'/../routes/api.php',
+        commands: __DIR__.'/../routes/console.php',
+        health: '/up',
+    )
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+            'permission' => PermissionMiddleware::class,
+            'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'sample-data' => MarkSampleData::class,
+            'deprecated' => \App\Http\Middleware\MarkDeprecated::class,
+            'tenant' => SetTenant::class,
+            'owner' => \App\Http\Middleware\EnsureOwnerPermission::class,
+        ]);
+
+        // The tenant must be known before route-model binding runs, or {student}, {company} etc.
+        // would resolve records of other institutions. SetTenant still runs after authentication.
+        $middleware->prependToPriorityList(SubstituteBindings::class, SetTenant::class);
+
+        // Platform maintenance mode (owner console setting) for every API request.
+        $middleware->appendToGroup('api', \App\Http\Middleware\MaintenanceMode::class);
+    })
+    ->withExceptions(function (Exceptions $exceptions): void {
+        //
+    })->create();
