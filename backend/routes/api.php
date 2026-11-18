@@ -938,6 +938,8 @@ Route::prefix('v1')->group(function (): void {
                     ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
                 Route::get('/statistics', [StudentAttendanceController::class, 'getStatistics'])
                     ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
+                Route::get('/calendar', [StudentAttendanceController::class, 'calendar'])
+                    ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
             });
 
             // Student Marks

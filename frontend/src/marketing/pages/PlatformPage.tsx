@@ -214,7 +214,7 @@ export default function PlatformPage() {
           lede="The intended default for each role. Institution admins can adjust roles for their campus."
         />
         <div className="overflow-x-auto rounded-2xl border border-line" tabIndex={0} role="region" aria-label="Access by role table (scrolls sideways on small screens)">
-          <table className="w-full min-w-[44rem] text-left text-sm">
+          <table className="w-full min-w-176 text-left text-sm">
             <caption className="sr-only">Default access for each role</caption>
             <thead className="bg-mist-50 text-ink-700">
               <tr>

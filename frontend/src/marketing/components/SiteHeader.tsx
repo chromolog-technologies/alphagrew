@@ -138,7 +138,7 @@ export function SiteHeader({
 
   return (
     <header className="mk-header">
-      <Container className="flex h-16 items-center justify-between gap-4 lg:h-[4.5rem]">
+      <Container className="flex h-16 items-center justify-between gap-4 lg:h-18">
         <Logo />
 
         <nav aria-label="Main" className="hidden lg:block">
@@ -171,7 +171,7 @@ export function SiteHeader({
           <button
             ref={toggleRef}
             type="button"
-            className="mk-nav-link !p-2 lg:hidden"
+            className="mk-nav-link p-2! lg:hidden"
             aria-expanded={mobileOpen}
             aria-controls={mobileId}
             onClick={() => onMobileOpenChange(!mobileOpen)}
@@ -196,7 +196,7 @@ export function SiteHeader({
                 <ul className="flex flex-col">
                   {entry.items.map((item) => (
                     <li key={item.to}>
-                      <NavLink to={item.to} end className="mk-nav-link w-full !justify-start !py-3 text-base">
+                      <NavLink to={item.to} end className="mk-nav-link w-full justify-start! py-3! text-base">
                         {item.label}
                       </NavLink>
                     </li>
@@ -209,7 +209,7 @@ export function SiteHeader({
             {PRIMARY_NAV.filter((entry) => !isNavGroup(entry)).map((entry) =>
               isNavGroup(entry) ? null : (
                 <li key={entry.to}>
-                  <NavLink to={entry.to} end className="mk-nav-link w-full !justify-start !py-3 text-base">
+                  <NavLink to={entry.to} end className="mk-nav-link w-full justify-start! py-3! text-base">
                     {entry.label}
                   </NavLink>
                 </li>

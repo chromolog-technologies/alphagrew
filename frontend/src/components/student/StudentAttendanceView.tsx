@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, CheckCircle2, AlertCircle, BarChart3, Filter } from 'lucide-react';
+import { Calendar, AlertCircle, CalendarDays, List } from 'lucide-react';
 import { fetchStudentAttendance, fetchStudentAttendanceDetailed } from '../../api/campusApi';
 import { getStoredAuthToken } from '../../utils/auth';
+import { AttendanceCalendar } from './AttendanceCalendar';
 import {
   Card,
   CardHeader,
@@ -27,11 +28,12 @@ interface AttendanceRecord {
   id: number;
   subject: string;
   date: string;
-  status: 'present' | 'absent' | 'late';
+  status: string;
   markedBy: string;
 }
 
 interface AttendanceSummary {
+  subjectId: number | null;
   subject: string;
   total: number;
   present: number;
@@ -43,6 +45,7 @@ interface AttendanceSummary {
 
 export const StudentAttendanceView: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [view, setView] = useState<'calendar' | 'log'>('calendar');
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [summary, setSummary] = useState<AttendanceSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,27 +72,28 @@ export const StudentAttendanceView: React.FC = () => {
         ]);
 
         // Format summary data
-        if (summaryResponse.success && summaryResponse.data) {
-          const summaryData = Object.entries(summaryResponse.data).map(([subject, data]: any) => ({
-            subject,
-            total: data.total || 0,
+        if (summaryResponse.success && Array.isArray(summaryResponse.data)) {
+          const summaryData: AttendanceSummary[] = summaryResponse.data.map((data: any) => ({
+            subjectId: data.subject_id ?? null,
+            subject: data.subject || data.subject_code || 'Unknown subject',
+            total: data.total_classes || 0,
             present: data.present || 0,
             absent: data.absent || 0,
             late: data.late || 0,
             percentage: data.percentage || 0,
-            status: data.status || 'warning',
+            status: data.status,
           }));
           setSummary(summaryData);
         }
 
         // Format detailed records
         if (detailedResponse.success && Array.isArray(detailedResponse.data)) {
-          const recordsData = detailedResponse.data.map((record: any, idx: number) => ({
-            id: idx + 1,
+          const recordsData: AttendanceRecord[] = detailedResponse.data.map((record: any, idx: number) => ({
+            id: record.id ?? idx + 1,
             subject: record.subject || 'Unknown',
-            date: record.date || new Date().toISOString().split('T')[0],
-            status: record.status || 'absent',
-            markedBy: record.marked_by || 'Faculty',
+            date: record.date ?? '',
+            status: record.status ?? 'other',
+            markedBy: record.marked_by || '—',
           }));
           setRecords(recordsData);
         }
@@ -112,6 +116,8 @@ export const StudentAttendanceView: React.FC = () => {
         return <Badge variant="destructive">Absent</Badge>;
       case 'late':
         return <Badge variant="warning">Late</Badge>;
+      case 'leave':
+        return <Badge variant="info">Leave</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -138,6 +144,8 @@ export const StudentAttendanceView: React.FC = () => {
       </Badge>
     );
   };
+
+  const selectedSubjectId = summary.find((s) => s.subject === selectedSubject)?.subjectId ?? null;
 
   const filteredRecords = selectedSubject
     ? records.filter((r) => r.subject === selectedSubject)
@@ -193,13 +201,21 @@ export const StudentAttendanceView: React.FC = () => {
         </div>
       </div>
 
+      {summary.length === 0 && (
+        <Card className="rounded-2xl border-slate-200 p-8 text-center">
+          <Calendar size={32} className="mx-auto mb-2 text-slate-300" />
+          <p className="font-semibold text-slate-800">No attendance recorded yet</p>
+          <p className="mt-1 text-xs text-slate-500">Your attendance will appear here once your faculty start marking it.</p>
+        </Card>
+      )}
+
       {/* Summary Course Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
         {summary.map((item, idx) => {
           const isSelected = selectedSubject === item.subject;
           return (
             <Card
-              key={idx}
+              key={item.subjectId ?? idx}
               onClick={() => setSelectedSubject(isSelected ? null : item.subject)}
               className={`rounded-2xl cursor-pointer transition-all hover:shadow-md border ${
                 isSelected
@@ -264,7 +280,37 @@ export const StudentAttendanceView: React.FC = () => {
         </Alert>
       )}
 
+      {/* Calendar / log switch */}
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium text-slate-500">
+          {selectedSubject ? `Filtered to ${selectedSubject}. Choose the card again to clear.` : 'Choose a subject card to filter.'}
+        </p>
+        <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 p-1" role="group" aria-label="Attendance view">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-pressed={view === 'calendar'}
+            onClick={() => setView('calendar')}
+            className={`h-7 gap-1.5 rounded-lg px-3 text-xs font-bold ${view === 'calendar' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'}`}
+          >
+            <CalendarDays size={14} /> Calendar
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-pressed={view === 'log'}
+            onClick={() => setView('log')}
+            className={`h-7 gap-1.5 rounded-lg px-3 text-xs font-bold ${view === 'log' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'}`}
+          >
+            <List size={14} /> Log
+          </Button>
+        </div>
+      </div>
+
+      {view === 'calendar' && <AttendanceCalendar subjectId={selectedSubjectId} subjectName={selectedSubject} />}
+
       {/* Detailed Records Table */}
+      {view === 'log' && (
       <Card className="rounded-2xl border-slate-200/90 shadow-xs overflow-hidden">
         <CardHeader className="p-5 pb-3 bg-slate-50/70 border-b border-slate-100 flex flex-row items-center justify-between">
           <div>
@@ -330,6 +376,7 @@ export const StudentAttendanceView: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };

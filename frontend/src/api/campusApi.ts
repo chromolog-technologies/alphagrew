@@ -524,6 +524,45 @@ export function fetchStudentAttendanceDetailed(token: string, subjectId?: number
   );
 }
 
+export type AttendanceDayStatus = 'present' | 'absent' | 'partial' | 'leave' | 'none';
+
+export interface AttendanceCalendarSession {
+  id: number;
+  subject_id: number | null;
+  subject: string | null;
+  subject_code: string | null;
+  status: string;
+  marked_by: string | null;
+  remarks: string | null;
+}
+
+export interface AttendanceCalendarDay {
+  date: string;
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+  other: number;
+  status: AttendanceDayStatus;
+  sessions: AttendanceCalendarSession[];
+}
+
+export interface AttendanceCalendar {
+  month: string;
+  from: string;
+  to: string;
+  summary: { total: number; present: number; absent: number; late: number; leave: number; other: number; days_recorded: number; percentage: number | null };
+  days: AttendanceCalendarDay[];
+}
+
+/** One month (YYYY-MM) of the student's own attendance, grouped by day. */
+export function fetchStudentAttendanceCalendar(token: string, month: string, subjectId?: number | null) {
+  const params = new URLSearchParams({ month });
+  if (subjectId) params.set('subject_id', String(subjectId));
+  return request<{ success: boolean; data: AttendanceCalendar }>(`/student/attendance/calendar?${params}`, undefined, token);
+}
+
 export function fetchStudentAttendanceStats(token: string) {
   return request<any>(
     '/student/attendance/statistics',

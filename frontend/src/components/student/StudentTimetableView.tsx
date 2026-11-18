@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, MapPin, User, Clock, AlertCircle, Download, BookOpen, Layers } from 'lucide-react';
+import { Calendar, MapPin, User, Clock, AlertCircle, Download, BookOpen, Info } from 'lucide-react';
 import { fetchStudentTimetable } from '../../api/campusApi';
 import { getStoredAuthToken } from '../../utils/auth';
 import {
@@ -24,24 +24,49 @@ import {
 } from '@/components/ui';
 
 
+/** One weekly session from GET /student/timetable (all_slots). Times are 24-hour "HH:MM". */
 interface ClassSession {
   id: number;
-  courseCode: string;
+  courseCode: string | null;
   courseName: string;
-  faculty: string;
+  faculty: string | null;
   day: string;
   startTime: string;
   endTime: string;
-  room: string;
-  building: string;
-  semester: number;
+  durationMinutes: number;
+  sessionType: string | null;
+  room: string | null;
+}
+
+interface StudentClass {
+  id: number;
+  name: string;
+  code: string | null;
+  semester: string | null;
+}
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** Monday to Saturday; on Sunday show Monday. */
+function todayOrMonday() {
+  const day = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  return DAYS.includes(day) ? day : 'Monday';
+}
+
+function formatDuration(minutes: number) {
+  if (minutes <= 0) return 'Duration not set';
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return [hours && `${hours} hr`, rest && `${rest} min`].filter(Boolean).join(' ');
 }
 
 export const StudentTimetableView: React.FC = () => {
   const [classes, setClasses] = useState<ClassSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState('Monday');
+  const [selectedDay, setSelectedDay] = useState(todayOrMonday);
+  const [studentClass, setStudentClass] = useState<StudentClass | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [totalLearningHours, setTotalLearningHours] = useState(0);
   const [uniqueFaculty, setUniqueFaculty] = useState(0);
@@ -62,27 +87,27 @@ export const StudentTimetableView: React.FC = () => {
 
         const response = await fetchStudentTimetable(token);
 
-        if (response.success && Array.isArray(response.data)) {
-          const timetableData = response.data.map((session: any, idx: number) => ({
-            id: idx + 1,
-            courseCode: session.course_code || 'Unknown',
-            courseName: session.course_name || 'Unknown Course',
-            faculty: session.faculty || 'Faculty',
-            day: session.day || 'Monday',
-            startTime: session.start_time || '09:00',
-            endTime: session.end_time || '11:00',
-            room: session.room || '101',
-            building: session.building || 'A',
-            semester: session.semester || 4,
-          }));
-          setClasses(timetableData);
-
-          // Calculate stats
-          const hours = timetableData.length * 2;
-          setTotalLearningHours(hours);
-          const facultySet = new Set(timetableData.map((c: ClassSession) => c.faculty));
-          setUniqueFaculty(facultySet.size);
-        }
+        // data is { class, notice, all_slots, learning_hours_per_week, unique_faculty, ... }.
+        const data = response?.data ?? {};
+        const slots: any[] = Array.isArray(data.all_slots) ? data.all_slots : [];
+        setClasses(
+          slots.map((session) => ({
+            id: session.id,
+            courseCode: session.course_code ?? null,
+            courseName: session.course_name || session.course_code || 'Subject',
+            faculty: session.faculty ?? null,
+            day: session.day,
+            startTime: session.start ?? '',
+            endTime: session.end ?? '',
+            durationMinutes: session.duration_minutes ?? 0,
+            sessionType: session.session_type ?? null,
+            room: session.room ?? null,
+          })),
+        );
+        setStudentClass(data.class ?? null);
+        setNotice(data.notice ?? null);
+        setTotalLearningHours(data.learning_hours_per_week ?? 0);
+        setUniqueFaculty(data.unique_faculty ?? 0);
       } catch (err) {
         console.error('Failed to fetch timetable:', err);
         setError(err instanceof Error ? err.message : 'Failed to load timetable. Please try again.');
@@ -94,10 +119,11 @@ export const StudentTimetableView: React.FC = () => {
     fetchTimetableData();
   }, []);
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const days = DAYS;
   const todaySessions = classes.filter((c) => c.day === selectedDay);
 
   const formatTime = (time: string) => {
+    if (!time) return '—';
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours);
     const period = hour >= 12 ? 'PM' : 'AM';
@@ -106,6 +132,7 @@ export const StudentTimetableView: React.FC = () => {
   };
 
   const getTimeSlotBadge = (startTime: string) => {
+    if (!startTime) return null;
     const hour = parseInt(startTime.split(':')[0]);
     if (hour < 12) return <Badge variant="info">Morning Slot</Badge>;
     if (hour < 14) return <Badge variant="success">Midday Slot</Badge>;
@@ -155,9 +182,11 @@ export const StudentTimetableView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-2xl font-black text-slate-900 tracking-tight">Academic Timetable</h2>
-            <Badge variant="secondary" className="font-semibold text-xs">
-              Semester 4
-            </Badge>
+            {studentClass && (
+              <Badge variant="secondary" className="font-semibold text-xs">
+                {[studentClass.name, studentClass.semester].filter(Boolean).join(' · ')}
+              </Badge>
+            )}
           </div>
           <p className="mt-1 text-xs text-slate-500 font-medium">
             Active enrolled classes, lecture venues, and weekly faculty schedules
@@ -174,6 +203,14 @@ export const StudentTimetableView: React.FC = () => {
           Print / Export Schedule
         </Button>
       </div>
+
+      {notice && (
+        <Alert className="rounded-2xl">
+          <Info size={18} />
+          <AlertTitle>No timetable yet</AlertTitle>
+          <AlertDescription className="text-xs">{notice}</AlertDescription>
+        </Alert>
+      )}
 
       {/* Summary Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -270,7 +307,7 @@ export const StudentTimetableView: React.FC = () => {
             <Card className="rounded-2xl border-slate-200 p-12 text-center text-slate-500">
               <Calendar size={40} className="mx-auto text-slate-300 mb-3" />
               <p className="font-semibold text-slate-800">No classes scheduled on {selectedDay}</p>
-              <p className="text-xs text-slate-500 mt-1">Enjoy your study block or preparation time!</p>
+              {!notice && <p className="text-xs text-slate-500 mt-1">Use the time for self-study or preparation.</p>}
             </Card>
           ) : (
             <div className="grid grid-cols-1 gap-3">
@@ -292,25 +329,25 @@ export const StudentTimetableView: React.FC = () => {
                         <p className="text-xs text-slate-500 font-medium">{session.courseCode}</p>
                       </div>
 
-                      <Badge variant="outline" className="self-start sm:self-auto text-xs font-semibold">
-                        Sem {session.semester}
-                      </Badge>
+                      {session.sessionType && (
+                        <Badge variant="outline" className="self-start sm:self-auto text-xs font-semibold capitalize">
+                          {session.sessionType}
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                       <div className="flex items-center gap-2 text-slate-700">
                         <User size={15} className="text-slate-400 shrink-0" />
-                        <span className="font-medium truncate">{session.faculty}</span>
+                        <span className="font-medium truncate">{session.faculty ?? 'Faculty not assigned'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-700">
                         <MapPin size={15} className="text-slate-400 shrink-0" />
-                        <span className="font-medium">
-                          Building {session.building} • Room {session.room}
-                        </span>
+                        <span className="font-medium">{session.room ? `Room ${session.room}` : 'Room not set'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-700">
                         <Clock size={15} className="text-slate-400 shrink-0" />
-                        <span className="font-medium">2 Hours Duration</span>
+                        <span className="font-medium">{formatDuration(session.durationMinutes)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -335,6 +372,13 @@ export const StudentTimetableView: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
+              {classes.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-20 text-center text-xs text-slate-500">
+                    No sessions in your timetable yet.
+                  </TableCell>
+                </TableRow>
+              )}
               {classes.map((session) => (
                 <TableRow key={session.id} className="hover:bg-slate-50/70 transition">
                   <TableCell>
@@ -345,10 +389,10 @@ export const StudentTimetableView: React.FC = () => {
                     {formatTime(session.startTime)} - {formatTime(session.endTime)}
                   </TableCell>
                   <TableCell className="text-xs font-medium text-slate-700">
-                    {session.faculty}
+                    {session.faculty ?? '—'}
                   </TableCell>
                   <TableCell className="text-xs font-medium text-slate-700">
-                    Bldg {session.building} - {session.room}
+                    {session.room ?? '—'}
                   </TableCell>
                   <TableCell className="text-center">
                     <Badge variant="secondary" className="font-semibold text-[11px]">
