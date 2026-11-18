@@ -353,6 +353,7 @@ export default function CampusWorkspace({
     email: user.email,
     title: user.title,
     password: '',
+    currentPassword: '',
   });
 
   const createResumeDraft = (): CampusStudentResume =>
@@ -422,6 +423,7 @@ export default function CampusWorkspace({
   const [staffModalTab, setStaffModalTab] = useState<'basic' | 'academic'>('basic');
   const [staffErrors, setStaffErrors] = useState<Record<string, string>>({});
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileError, setProfileError] = useState('');
   const [deleteIntent, setDeleteIntent] = useState<DeleteIntent | null>(null);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
   const [editingStudent, setEditingStudent] = useState<CampusData['students'][number] | null>(null);
@@ -1156,7 +1158,12 @@ export default function CampusWorkspace({
   const closeProfileModal = () => {
     setShowProfileModal(false);
     setProfileDraft(createProfileDraft());
+    setProfileError('');
   };
+
+  // The sign-in email or password is changing, so the API needs the current password.
+  const profileChangesCredentials =
+    profileDraft.password.trim() !== '' || profileDraft.email.trim().toLowerCase() !== user.email.toLowerCase();
 
   const closeDeleteModal = () => {
     if (isDeleteSubmitting) {
@@ -1619,8 +1626,10 @@ export default function CampusWorkspace({
       email: profileDraft.email,
       title: profileDraft.title,
       password: profileDraft.password.trim() || undefined,
+      currentPassword: profileChangesCredentials ? profileDraft.currentPassword : undefined,
     };
 
+    setProfileError('');
     void Promise.resolve(onUpdateProfile(payload))
       .then(() => {
         if (payload.password) {
@@ -1632,7 +1641,13 @@ export default function CampusWorkspace({
         }
         closeProfileModal();
       })
-      .catch(() => undefined);
+      .catch((error: unknown) => {
+        const fieldError =
+          error && typeof error === 'object' && 'fieldError' in error && typeof (error as { fieldError: unknown }).fieldError === 'function'
+            ? (error as { fieldError: (field: string) => string | undefined }).fieldError('currentPassword')
+            : undefined;
+        setProfileError(fieldError ?? (error instanceof Error ? error.message : 'Unable to update your profile.'));
+      });
   };
 
   const handleResumeListChange = (
@@ -4889,7 +4904,7 @@ export default function CampusWorkspace({
                   <img src="/alpha-logo.png" alt="" className="h-7 w-7 object-contain" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold tracking-tight text-foreground">Alpha Grew</span>
+                  <span className="block text-sm font-bold tracking-tight text-foreground">AlphaGrew</span>
                   <span
                     className="block truncate text-2xs text-muted-foreground"
                     title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
@@ -5205,7 +5220,7 @@ export default function CampusWorkspace({
               </AnimatePresence>
 
               <footer className="flex flex-col gap-1 border-t border-border pt-4 text-2xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>© {new Date().getFullYear()} Alpha Grew · {institutionName}</span>
+                <span>© {new Date().getFullYear()} AlphaGrew · {institutionName}</span>
                 <span>Campus management and career readiness</span>
               </footer>
             </main>
@@ -6250,13 +6265,36 @@ export default function CampusWorkspace({
             <label className="space-y-2 text-sm font-medium text-slate-700 md:col-span-2">
               <span>New password</span>
               <input
-                type="text"
+                type="password"
+                autoComplete="new-password"
                 value={profileDraft.password}
                 onChange={(event) => setProfileDraft((current) => ({ ...current, password: event.target.value }))}
                 placeholder="Leave blank to keep the current password"
                 className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
               />
             </label>
+            {profileChangesCredentials && (
+              <label className="space-y-2 text-sm font-medium text-slate-700 md:col-span-2">
+                <span>Current password</span>
+                <input
+                  required
+                  type="password"
+                  autoComplete="current-password"
+                  value={profileDraft.currentPassword}
+                  onChange={(event) => setProfileDraft((current) => ({ ...current, currentPassword: event.target.value }))}
+                  aria-describedby="profile-current-password-hint"
+                  className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                />
+                <span id="profile-current-password-hint" className="block text-xs font-normal text-slate-500">
+                  Needed because you are changing your email or password.
+                </span>
+              </label>
+            )}
+            {profileError && (
+              <p role="alert" className="rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 md:col-span-2">
+                {profileError}
+              </p>
+            )}
             <div className="md:col-span-2">
               <button
                 type="submit"

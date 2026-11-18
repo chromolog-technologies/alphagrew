@@ -112,6 +112,26 @@ Student self-registration. The account is created with status `pending_approval`
 
 ---
 
+## POST /demo-requests
+
+The public website's "Book a demo" form. No token. Each request is saved as an Owner Console lead (source `website`, stage `new`, no owner yet, follow-up the next day) and emailed to `DEMO_REQUESTS_EMAIL` (default `info@chromologtechnologies.com`), with reply-to set to the requester. The email is queued, so the queue worker must be running.
+
+**Rate limit:** 3 a minute and 20 a day per IP address (`throttle:demo-requests`).
+
+| Field | Rules |
+|---|---|
+| `name` | required, up to 120 characters |
+| `email` | required, email |
+| `institution` | required, up to 180 characters |
+| `role` | required: `Principal or director`, `Training and placement officer`, `Head of department`, `Faculty or trainer`, `Recruiter`, `Student` or `Other` |
+| `phone` | optional, digits, spaces, `+`, `-` and brackets |
+| `size` | optional: `Under 500`, `500 to 2,000`, `2,000 to 5,000` or `Over 5,000` (stored as an estimated student count on the lead) |
+| `interests` | optional, up to 6 strings |
+| `message` | optional, up to 2,000 characters |
+| `website` | honeypot: must be empty. When filled, the API answers 201 but saves and sends nothing. |
+
+**Response 201:** `{ "message": "Thank you. We will be in touch soon." }`. **422** with field errors; **429** when rate limited.
+
 ## GET /auth/me
 
 Returns the signed-in user.
@@ -128,6 +148,8 @@ Returns the signed-in user.
 
 Updates the signed-in user's own account. Works for every role.
 
+**Rate limit:** 5 a minute per user (`throttle:account`), because this request can change the email and password.
+
 **Body**
 
 | Field | Type | Rules |
@@ -136,14 +158,15 @@ Updates the signed-in user's own account. Works for every role.
 | `email` | string | required, email, max 255, unique among users except yourself |
 | `title` | string | required, max 255 |
 | `password` | string or null | optional, min 8. Leave out or send `null` to keep the current password. |
+| `currentPassword` | string | **required when `email` or `password` changes**; must match the current password. Name and title changes do not need it. |
 
 ```json
-{ "name": "Asha Raman", "email": "asha@college.edu", "title": "Assistant Professor", "password": null }
+{ "name": "Asha Raman", "email": "asha@college.edu", "title": "Assistant Professor", "password": "new-pass-123", "currentPassword": "old-pass-123" }
 ```
 
 **Side effects**
 
-- Changing `email` clears `emailVerified` and sends a new verification email.
+- Changing `email` clears `emailVerified`, sends a new verification email, and emails the **old** address that the sign-in email was changed (the new address is partly masked).
 - Changing `password` signs out every other device. The current token stays valid.
 - For a student, `name` and `email` are copied to the student record.
 
@@ -152,6 +175,8 @@ Updates the signed-in user's own account. Works for every role.
 ```json
 { "user": SessionUser, "data": CampusDataset }
 ```
+
+**422** `currentPassword`: "Enter your current password to change your email or password." or "Your current password is not correct." **429** after 5 attempts in a minute.
 
 ---
 

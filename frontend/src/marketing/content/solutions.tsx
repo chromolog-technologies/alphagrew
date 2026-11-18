@@ -89,7 +89,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
     ],
     capabilities: {
       intro: 'What institutional leadership works with.',
-      ids: ['analytics', 'academicStructure', 'multiCampus', 'careerReadiness', 'rolesPermissions', 'auditLog'],
+      ids: ['analytics', 'academicStructure', 'multiCampus', 'customFields', 'careerReadiness', 'rolesPermissions', 'auditLog'],
       summaries: {
         analytics: 'Placement activity and outcomes by department; exports for annual reports and accreditation are planned.',
         academicStructure: 'Departments, courses and academic years set up once, so every report uses the same structure.',
@@ -119,7 +119,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
       },
       {
         question: 'Do we need to replace our existing ERP?',
-        answer: 'No. Alphagrew is designed to work alongside the systems you use for admissions or fees, and to focus on preparation and placement.',
+        answer: 'No. AlphaGrew is designed to work alongside the systems you use for admissions or fees, and to focus on preparation and placement.',
       },
       {
         question: 'Can we export reports for accreditation?',
@@ -141,7 +141,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
     cta: { label: 'Simplify Your Placement Process', to: demo('placement-officers') },
     closing: {
       title: 'Simplify your placement process',
-      lede: 'Bring a recent drive and its eligibility mail. We will show you how it would run on Alphagrew.',
+      lede: 'Bring a recent drive and its eligibility mail. We will show you how it would run on AlphaGrew.',
     },
     pains: [
       {
@@ -343,7 +343,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
       },
       {
         question: 'Can I use it on my phone?',
-        answer: 'Yes. Alphagrew is a web application that works in a mobile browser.',
+        answer: 'Yes. AlphaGrew is a web application that works in a mobile browser.',
       },
     ],
     related: [
@@ -381,7 +381,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
       },
     ],
     capabilities: {
-      intro: 'The recruiter portal is planned. Today, recruiters work with the placement cell, which already runs eligibility checks, rounds and offers on Alphagrew.',
+      intro: 'The recruiter portal is planned. Today, recruiters work with the placement cell, which already runs eligibility checks, rounds and offers on AlphaGrew.',
       ids: ['eligibilityEngine', 'candidateSharing', 'roundsOffers', 'recruiterPortal'],
       summaries: {
         eligibilityEngine: 'The placement cell enters your criteria, and they are checked against academic records the institution maintains.',
@@ -389,7 +389,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
         roundsOffers: 'The placement cell schedules your rounds and records results and offers, so every candidate\'s stage is up to date.',
         recruiterPortal: 'Follow candidate stages for each campus drive in your own view.',
       },
-      note: 'Recruiter sign-in is not available yet. Alphagrew does not make hiring decisions or rank candidates for recruiters.',
+      note: 'Recruiter sign-in is not available yet. AlphaGrew does not make hiring decisions or rank candidates for recruiters.',
     },
     preview: <CandidatePipelineMockup />,
     workflow: [
@@ -399,7 +399,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
       { title: 'Run the drive and track stages', body: 'Coordinate rounds with the placement cell and follow candidates to offer.' },
     ],
     benefits: [
-      { title: 'Consistent candidate information', body: 'Profiles follow one structure across campuses that use Alphagrew.' },
+      { title: 'Consistent candidate information', body: 'Profiles follow one structure across campuses that use AlphaGrew.' },
       { title: 'Criteria checked against records', body: "Eligibility is based on the institution's academic records rather than self-reported details." },
       { title: 'Fewer coordination threads', body: 'Schedules and results are shared in one place with the placement cell.' },
     ],
@@ -411,7 +411,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
         answer: 'Not yet. The recruiter portal is planned. Today, recruiters work with each placement cell directly.',
       },
       {
-        question: 'Does Alphagrew screen or rank candidates?',
+        question: 'Does AlphaGrew screen or rank candidates?',
         answer: 'No. Eligibility comes from your criteria and the institution\'s records. Mock interview scores are not shared with recruiters, and hiring decisions are yours.',
       },
     ],

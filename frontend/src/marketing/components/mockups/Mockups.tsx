@@ -178,6 +178,36 @@ const SKILLS = [
   { label: 'System design basics', ready: 21 },
 ];
 
+const CUSTOM_FIELDS = [
+  { label: 'Hostel block', type: 'Choice', value: 'Block C' },
+  { label: 'Mentor', type: 'Staff member', value: 'Dr. Sample Mentor' },
+  { label: 'Internship completed', type: 'Yes / No', value: 'Yes' },
+];
+
+/** An institution's own fields on a student record, plus a custom module (customisation). */
+export function CustomizationMockup({ className }: { className?: string }) {
+  return (
+    <MockFrame title="Student record · Your fields" caption="Illustration of custom fields and a custom module. Sample fields and values." className={className}>
+      <div className="flex flex-col gap-3 p-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-aqua-300">Added by your institution</p>
+        {CUSTOM_FIELDS.map((field) => (
+          <div key={field.label} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm text-white">{field.label}</span>
+              <span className="text-xs text-ink-300">{field.type}</span>
+            </div>
+            <span className="shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-xs text-ink-200">{field.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2 border-t border-white/10 px-5 py-3 text-xs text-ink-200">
+        <FileText size={14} className="text-aqua-300" aria-hidden="true" />
+        Custom module: Internship approvals · 24 records
+      </div>
+    </MockFrame>
+  );
+}
+
 export function ReadinessMockup({ className }: { className?: string }) {
   return (
     <MockFrame title="Batch readiness · CSE 2027" caption="Illustration of a planned batch view. Sample figures." className={className}>

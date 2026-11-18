@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { BRAND, siteUrl } from '../config';
+import { BRAND, SHARE_IMAGE, siteUrl } from '../config';
 import { SITE_PAGES, type SitePageId } from '../siteMap';
 
 function upsertMeta(attr: 'name' | 'property', key: string, content: string | null) {
@@ -54,6 +54,12 @@ export function usePageMeta({ title, description, path, noindex = false }: MetaI
     upsertMeta('property', 'og:title', fullTitle);
     upsertMeta('property', 'og:description', description ?? null);
     upsertMeta('property', 'og:url', url);
+    upsertMeta('property', 'og:image', `${origin}${SHARE_IMAGE.path}`);
+    upsertMeta('property', 'og:image:width', String(SHARE_IMAGE.width));
+    upsertMeta('property', 'og:image:height', String(SHARE_IMAGE.height));
+    upsertMeta('property', 'og:image:alt', SHARE_IMAGE.alt);
+    upsertMeta('name', 'twitter:card', 'summary_large_image');
+    upsertMeta('name', 'twitter:image', `${origin}${SHARE_IMAGE.path}`);
     upsertCanonical(url);
   }, [title, description, path, noindex]);
 }

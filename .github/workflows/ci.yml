@@ -145,3 +145,7 @@ jobs:
             echo "$modules" | grep -qx "$ext" || { echo "missing PHP extension: $ext"; exit 1; }
           done
           docker run --rm --entrypoint sh alphagrew-api:ci -c 'command -v pdftotext && command -v supervisord && php artisan --version'
+      - name: Apache config is valid and never lists directories
+        run: |
+          docker run --rm --entrypoint apache2ctl alphagrew-api:ci -t
+          docker run --rm --entrypoint grep alphagrew-api:ci -q 'Options -Indexes' /etc/apache2/sites-available/000-default.conf

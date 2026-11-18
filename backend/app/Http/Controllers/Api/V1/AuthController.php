@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Notifications\EmailAddressChanged;
+use Illuminate\Support\Facades\Notification;
 use App\Actions\Auth\AttemptLoginAction;
 use App\Actions\Students\CreateStudentAction;
 use App\Enums\UserRole;
@@ -100,6 +102,7 @@ class AuthController extends Controller
         $user = $request->user();
         $payload = $request->validated();
         $emailChanged = strcasecmp($payload['email'], $user->email) !== 0;
+        $previousEmail = $user->email;
         $passwordChanged = ! empty($payload['password']);
 
         DB::transaction(function () use ($user, $payload, $emailChanged): void {
@@ -124,6 +127,8 @@ class AuthController extends Controller
 
         if ($emailChanged) {
             $user->sendEmailVerificationNotification();
+            // Tell the old address, so the owner notices a change they did not make.
+            Notification::route('mail', $previousEmail)->notify(new EmailAddressChanged($user->name, $user->email));
             $audit->record('auth.email_changed', $user);
         }
 

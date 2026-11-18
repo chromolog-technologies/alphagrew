@@ -1,0 +1,76 @@
+name: Deploy to Hostinger
+
+# Builds a ready-to-run copy of AlphaGrew (Laravel + production vendor/ + the built React site)
+# and commits it to the "hostinger-deploy" branch. Hostinger's Git deployment pulls that
+# branch into alphagrew.chromologtechnologies.com, because shared hosting cannot run
+# composer install or npm run build itself. See documentation/deployment/hostinger.md.
+#
+# Repository variables (Settings > Secrets and variables > Actions > Variables), both optional:
+#   HOSTINGER_SITE_URL   default https://alphagrew.chromologtechnologies.com
+#   HOSTINGER_NOINDEX    "true" (default) hides the demo from search engines
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-publish:
+    name: Build and publish the hostinger-deploy branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo_mysql, fileinfo, intl, zip, bcmath
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the deployable site
+        env:
+          SITE_URL: ${{ vars.HOSTINGER_SITE_URL || 'https://alphagrew.chromologtechnologies.com' }}
+          NOINDEX: ${{ vars.HOSTINGER_NOINDEX || 'true' }}
+        run: deploy/hostinger/build.sh "$RUNNER_TEMP/site"
+
+      - name: Commit it to the hostinger-deploy branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Add a commit on top of the branch (never rewrite it), so the server's git pull
+          # always fast-forwards. Untracked server files (.env, uploads, logs) are untouched.
+          if git ls-remote --exit-code --heads origin hostinger-deploy >/dev/null; then
+            git fetch --depth=1 origin hostinger-deploy
+            git worktree add "$RUNNER_TEMP/deploy" FETCH_HEAD
+            git -C "$RUNNER_TEMP/deploy" checkout -B hostinger-deploy
+          else
+            git worktree add --detach "$RUNNER_TEMP/deploy"
+            git -C "$RUNNER_TEMP/deploy" checkout --orphan hostinger-deploy
+            git -C "$RUNNER_TEMP/deploy" rm -rf --quiet --ignore-unmatch .
+          fi
+
+          rsync -a --delete --exclude .git "$RUNNER_TEMP/site/" "$RUNNER_TEMP/deploy/"
+          cd "$RUNNER_TEMP/deploy"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed since the last deploy."
+            exit 0
+          fi
+          git commit --quiet -m "Deploy build of main@${GITHUB_SHA::7}"
+          git push origin hostinger-deploy
+          echo "Published $(git rev-parse --short HEAD) to hostinger-deploy." >> "$GITHUB_STEP_SUMMARY"

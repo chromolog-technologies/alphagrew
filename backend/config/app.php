@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'AlphaGrew'),
 
     /*
     |--------------------------------------------------------------------------
@@ -62,6 +62,13 @@ return [
     | a known password) only when this flag is on, which by default is only in local
     | and testing. Roles and permissions are always seeded.
     */
+
+    // Password for every demo account the seeders create. Set a private one on public demo
+    // servers: the repository is public, so the default is known to anyone.
+    'demo_password' => env('DEMO_PASSWORD') ?: 'demo123',
+
+    // Website "Book a demo" requests are saved as Owner Console leads and emailed here.
+    'demo_requests_email' => env('DEMO_REQUESTS_EMAIL', 'info@chromologtechnologies.com'),
 
     'demo_seed_enabled' => (bool) env(
         'DEMO_SEED_ENABLED',

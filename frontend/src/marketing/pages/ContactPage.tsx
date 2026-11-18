@@ -1,32 +1,32 @@
 import { useState, type FormEvent } from 'react';
-import { Briefcase, GraduationCap, Mail } from 'lucide-react';
+import { Briefcase, GraduationCap, Mail, MapPin, Phone } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button, ButtonLink } from '../components/Button';
+import { Button } from '../components/Button';
 import { IconTile } from '../components/Cards';
 import { CheckboxGroup, SelectField, TextAreaField, TextField } from '../components/Fields';
 import { InlineAlert } from '../components/Feedback';
 import { PageHero, Section, Split } from '../components/Layout';
 import { PageMeta } from '../components/PageMeta';
-import { BRAND, contactEmail } from '../config';
+import { BRAND, CONTACT, contactEmail } from '../config';
+import {
+  canSendDemoRequestsOnline,
+  DEMO_ROLES,
+  DEMO_SIZES,
+  demoRequestMailto,
+  REQUIRED_DEMO_FIELDS,
+  sendDemoRequest,
+  validateDemoRequest,
+  type DemoRequest,
+  type DemoRequestErrors,
+} from '../demoRequest';
 import { SIGN_IN_PATH } from '../navigation';
 import { SITE_PAGES } from '../siteMap';
 
-const ROLES = ['Principal or director', 'Training and placement officer', 'Head of department', 'Faculty or trainer', 'Recruiter', 'Student', 'Other'] as const;
-const SIZES = ['Under 500', '500 to 2,000', '2,000 to 5,000', 'Over 5,000'] as const;
+const ROLES = DEMO_ROLES;
+const SIZES = DEMO_SIZES;
 const INTERESTS = ['Placement Management', 'AI Interviewer', 'Career Intelligence', 'Academic records'] as const;
 
-interface DemoRequest {
-  name: string;
-  email: string;
-  institution: string;
-  role: string;
-  phone: string;
-  size: string;
-  interests: string[];
-  message: string;
-}
-
-type Errors = Partial<Record<'name' | 'email' | 'institution', string>>;
+type Errors = DemoRequestErrors;
 
 const EMPTY: DemoRequest = {
   name: '',
@@ -39,30 +39,8 @@ const EMPTY: DemoRequest = {
   message: '',
 };
 
-export function validateDemoRequest(request: DemoRequest): Errors {
-  const errors: Errors = {};
-  if (!request.name.trim()) errors.name = 'Enter your name.';
-  if (!request.institution.trim()) errors.institution = 'Enter your institution or company.';
-  if (!request.email.trim()) errors.email = 'Enter your email address.';
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(request.email.trim())) errors.email = 'Enter an email address like name@college.edu.in.';
-  return errors;
-}
-
-/** Builds a mailto: link so the request is sent from the visitor's own email app. */
-export function demoRequestMailto(to: string, request: DemoRequest) {
-  const lines = [
-    `Name: ${request.name}`,
-    `Email: ${request.email}`,
-    `Institution or company: ${request.institution}`,
-    `Role: ${request.role}`,
-    request.phone && `Phone: ${request.phone}`,
-    `Final and pre-final year students: ${request.size}`,
-    request.interests.length > 0 && `Interested in: ${request.interests.join(', ')}`,
-    request.message && `\n${request.message}`,
-  ].filter(Boolean);
-  const subject = `${BRAND} demo request: ${request.institution}`;
-  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
-}
+// Kept as exports of this page for existing imports.
+export { demoRequestMailto, validateDemoRequest };
 
 /** ?role=<solution id> from a role page's call to action preselects the matching role. */
 const ROLE_FROM_SOLUTION: Record<string, (typeof ROLES)[number]> = {
@@ -81,24 +59,74 @@ function DemoForm({ to }: { to: string }) {
   }));
   const [errors, setErrors] = useState<Errors>({});
   const [handedOff, setHandedOff] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState('');
+  // Hidden from people; bots that fill every field are ignored by the API.
+  const [website, setWebsite] = useState('');
+  const sendsOnline = canSendDemoRequestsOnline();
 
   const set = <K extends keyof DemoRequest>(key: K, value: DemoRequest[K]) => {
     setRequest((current) => ({ ...current, [key]: value }));
     if (key in errors) setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const found = validateDemoRequest(request);
     setErrors(found);
-    const firstInvalid = (['name', 'institution', 'email'] as const).find((key) => found[key]);
+    setSendError('');
+    const firstInvalid = REQUIRED_DEMO_FIELDS.find((key) => found[key]);
     if (firstInvalid) {
-      event.currentTarget.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
+      form.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
       return;
     }
-    window.location.href = demoRequestMailto(to, request);
-    setHandedOff(true);
+
+    // A site built without the API (static preview) falls back to the visitor's email app.
+    if (!sendsOnline) {
+      window.location.href = demoRequestMailto(to, request);
+      setHandedOff(true);
+      return;
+    }
+
+    setBusy(true);
+    const result = await sendDemoRequest(request, website);
+    setBusy(false);
+    if (result.ok) {
+      setSent(true);
+      return;
+    }
+    setErrors(result.fieldErrors);
+    const invalid = REQUIRED_DEMO_FIELDS.find((key) => result.fieldErrors[key]);
+    if (invalid) form.querySelector<HTMLElement>(`[name="${invalid}"]`)?.focus();
+    else setSendError(result.message);
   };
+
+  if (sent) {
+    return (
+      <div className="mk-card gap-4 p-6 sm:p-8" role="status">
+        <h2 id="demo-form-title" className="mk-h3 text-2xl">
+          Thank you, {request.name.trim().split(/\s+/)[0]}
+        </h2>
+        <p className="text-ink-500">
+          We have received your demo request for {request.institution.trim()}. Our team will contact you at{' '}
+          <span className="font-semibold text-ink-900">{request.email.trim()}</span> to arrange a time.
+        </p>
+        <p className="text-sm text-ink-500">
+          Need us sooner? Call{' '}
+          <a className="mk-link" href={CONTACT.phoneHref}>
+            {CONTACT.phone}
+          </a>{' '}
+          or email{' '}
+          <a className="mk-link" href={`mailto:${to}`}>
+            {to}
+          </a>
+          .
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form noValidate onSubmit={onSubmit} className="mk-card gap-6 p-6 sm:p-8" aria-labelledby="demo-form-title">
@@ -149,14 +177,35 @@ function DemoForm({ to }: { to: string }) {
         onChange={(e) => set('message', e.target.value)}
       />
 
+      <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+        <label>
+          Leave this field empty
+          <input type="text" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+        </label>
+      </div>
+
+      {sendError && (
+        <InlineAlert tone="error" title={sendError}>
+          Please try again, or email{' '}
+          <a className="mk-link" href={`mailto:${to}`}>
+            {to}
+          </a>{' '}
+          or call{' '}
+          <a className="mk-link" href={CONTACT.phoneHref}>
+            {CONTACT.phone}
+          </a>
+          .
+        </InlineAlert>
+      )}
+
       <div className="flex flex-col gap-3">
         <div>
-          <Button type="submit" size="lg" arrow>
-            Continue in your email app
+          <Button type="submit" size="lg" arrow busy={busy}>
+            {sendsOnline ? 'Request a demo' : 'Continue in your email app'}
           </Button>
         </div>
         <p className="text-sm text-ink-500">
-          This opens a pre-filled email to {to} that you send yourself. We use these details only to arrange your demo. See our{' '}
+          {sendsOnline ? 'We' : `This opens a pre-filled email to ${to} that you send yourself. We`} use these details only to arrange your demo. See our{' '}
           <Link to={SITE_PAGES.privacy.path} className="mk-link">
             Privacy Policy
           </Link>
@@ -186,42 +235,49 @@ export default function ContactPage() {
       <PageHero
         page="contact"
         eyebrow="Contact us · Book a demo"
-        title="See Alphagrew with your own departments and batches."
+        title="See AlphaGrew with your own departments and batches."
         lede="Tell us a little about your institution. We will set up a walkthrough of the current build and a sample drive that uses your eligibility rules."
       />
 
       <Section labelledBy="demo-form-title">
         <Split align="start" className="lg:grid-cols-[1.4fr_1fr]">
-          {to ? (
-            <DemoForm to={to} />
-          ) : (
-            <div className="mk-card gap-4 p-6 sm:p-8">
-              <h2 id="demo-form-title" className="mk-h3 text-2xl">
-                Request a demo
-              </h2>
-              <InlineAlert tone="info" title="Online demo requests open soon">
-                The demo request form is not connected yet. If you already use {BRAND} at your institution, you can sign in below.
-              </InlineAlert>
-              <div>
-                <ButtonLink to={SIGN_IN_PATH} variant="secondary">
-                  Sign in
-                </ButtonLink>
-              </div>
-            </div>
-          )}
+          <DemoForm to={to} />
 
           <div className="flex flex-col gap-8">
-            {to && (
-              <div className="flex gap-4">
-                <IconTile icon={Mail} />
-                <div className="flex flex-col gap-1">
-                  <h2 className="mk-h3 text-base">Email</h2>
-                  <a className="mk-link break-all" href={`mailto:${to}`}>
-                    {to}
-                  </a>
-                </div>
+            <div className="flex gap-4">
+              <IconTile icon={Mail} />
+              <div className="flex flex-col gap-1">
+                <h2 className="mk-h3 text-base">Email</h2>
+                <a className="mk-link break-all" href={`mailto:${to}`}>
+                  {to}
+                </a>
               </div>
-            )}
+            </div>
+            <div className="flex gap-4">
+              <IconTile icon={Phone} />
+              <div className="flex flex-col gap-1">
+                <h2 className="mk-h3 text-base">Phone</h2>
+                <a className="mk-link" href={CONTACT.phoneHref}>
+                  {CONTACT.phone}
+                </a>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <IconTile icon={MapPin} />
+              <div className="flex flex-col gap-1">
+                <h2 className="mk-h3 text-base">Office</h2>
+                <address className="not-italic text-ink-500">
+                  {CONTACT.addressLines.map((line) => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </address>
+                <a className="mk-link text-sm" href={CONTACT.mapsUrl} target="_blank" rel="noopener noreferrer">
+                  Open in Google Maps<span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </div>
+            </div>
             <div className="flex gap-4">
               <IconTile icon={Briefcase} />
               <div className="flex flex-col gap-1">

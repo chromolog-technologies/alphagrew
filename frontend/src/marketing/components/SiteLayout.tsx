@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { LoadingState, PageErrorBoundary } from './Feedback';
 import { SiteFooter } from './SiteFooter';
@@ -70,6 +71,9 @@ export default function SiteLayout({ preload }: { preload?: () => Promise<unknow
         </PageErrorBoundary>
       </main>
       <SiteFooter inert={mobileOpen} />
+      {/* Cookie-free page views (Vercel Web Analytics), on the public site only. Hosts other
+          than Vercel (e.g. the Hostinger demo) build with VITE_ANALYTICS=off: the script only exists on Vercel. */}
+      {import.meta.env.VITE_ANALYTICS !== 'off' && <Analytics />}
     </div>
   );
 }

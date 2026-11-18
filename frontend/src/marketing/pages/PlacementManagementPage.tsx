@@ -37,7 +37,7 @@ const PROCESS: { title: string; actor: string; body: string; capability: Capabil
   },
   {
     title: 'Eligible student list',
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     body: 'The students who meet every rule, built from live records, with the reason for each rule that fails.',
     capability: 'eligibilityEngine',
   },
@@ -210,7 +210,7 @@ const FAQS: FaqItem[] = [
     ),
   },
   {
-    question: 'Does Alphagrew email or text students automatically?',
+    question: 'Does AlphaGrew email or text students automatically?',
     text: 'Email, yes: students get in-app and email notifications for new jobs, rounds, application updates and offers, and can choose which they receive. SMS is planned, not built.',
     answer: (
       <p>
@@ -327,7 +327,7 @@ export default function PlacementManagementPage() {
           id="rules-title"
           eyebrow="Eligibility"
           title="Rules the way companies write them"
-          lede="Each criterion is meant to be read from a record Alphagrew already holds. Only department limits work today."
+          lede="Each criterion is meant to be read from a record AlphaGrew already holds. Only department limits work today."
         />
         <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-start [&>*]:min-w-0">
           <div className="overflow-x-auto rounded-2xl border border-line bg-white">

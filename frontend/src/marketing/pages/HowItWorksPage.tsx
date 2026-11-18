@@ -13,7 +13,7 @@ const PILOT = [
   ['Kick-off', 'Agree scope, departments and the batches in the pilot, and the features to switch on.', 'Principal or director, placement officer'],
   ['Data setup', 'Set up the academic structure and bring in students and faculty, then check the data together.', 'Office staff, heads of department'],
   ['Training', 'Short sessions for admins, the placement cell, faculty and student coordinators.', 'All roles'],
-  ['First drive', 'Run a real or practice drive end to end on Alphagrew.', 'Placement officer, students'],
+  ['First drive', 'Run a real or practice drive end to end on AlphaGrew.', 'Placement officer, students'],
   ['Review', 'Look at usage and outcomes together and decide the next phase.', 'Leadership, placement officer'],
 ];
 
@@ -25,11 +25,11 @@ export default function HowItWorksPage() {
         page="howItWorks"
         eyebrow="How it works"
         title="From institution setup to placement outcomes, in eight stages."
-        lede="Alphagrew follows the order a placement season actually runs in. Each stage builds on data the previous one captured, so nobody types the same thing twice."
+        lede="AlphaGrew follows the order a placement season actually runs in. Each stage builds on data the previous one captured, so nobody types the same thing twice."
       />
 
       <Section labelledBy="stages-title">
-        <SectionHeader id="stages-title" eyebrow="End to end" title="The placement season on Alphagrew" />
+        <SectionHeader id="stages-title" eyebrow="End to end" title="The placement season on AlphaGrew" />
         <div className="grid gap-10 lg:grid-cols-[15rem_1fr] lg:gap-16">
           <nav aria-label="Stages" className="hidden lg:block">
             <ol className="sticky top-28 m-0 flex list-none flex-col gap-1 p-0">
@@ -112,7 +112,7 @@ export default function HowItWorksPage() {
       </Section>
 
       <CtaBand
-        title="Plan your first season on Alphagrew"
+        title="Plan your first season on AlphaGrew"
         lede="Book a walkthrough and we will map these stages to your departments, batches and placement calendar."
         secondary={{ to: SITE_PAGES.platform.path, label: 'Explore the platform' }}
       />

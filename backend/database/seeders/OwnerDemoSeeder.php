@@ -36,7 +36,7 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Owner console demo data (password demo123): owner@demo.com (Platform Owner / Super Admin),
+ * Owner console demo data (password: config app.demo_password, default demo123): owner@demo.com (Platform Owner / Super Admin),
  * the default institution's profile, a second institution on a trial that ends soon and a
  * third waiting for verification, and sample sign-in history.
  */
@@ -65,7 +65,7 @@ class OwnerDemoSeeder extends Seeder
             ]);
             $admin = User::query()->withoutGlobalScopes()->firstOrNew(['email' => 'riverside.admin@demo.com']);
             $admin->forceFill([
-                'name' => 'Meera Kulkarni', 'password' => 'demo123', 'role' => UserRole::InstitutionAdmin->value, 'title' => 'Institution Administrator',
+                'name' => 'Meera Kulkarni', 'password' => (string) config('app.demo_password'), 'role' => UserRole::InstitutionAdmin->value, 'title' => 'Institution Administrator',
                 'institution_id' => $trial->id, 'email_verified_at' => now(), 'status' => 'active',
             ])->save();
 
@@ -455,10 +455,10 @@ class OwnerDemoSeeder extends Seeder
             ['slug' => 'platform-terms-of-service'],
             [
                 'content_type' => 'policy',
-                'title' => 'Alpha Grew SaaS Terms of Service',
+                'title' => 'AlphaGrew SaaS Terms of Service',
                 'summary' => 'Governing platform usage, data isolation, and AI assistive evaluation commitments.',
-                'body' => 'Institutions retain sole ownership of academic, student, and placement records hosted on Alpha Grew.',
-                'seo_title' => 'Alpha Grew Terms of Service',
+                'body' => 'Institutions retain sole ownership of academic, student, and placement records hosted on AlphaGrew.',
+                'seo_title' => 'AlphaGrew Terms of Service',
                 'seo_description' => 'Platform service terms and tenant data governance.',
                 'status' => 'published',
                 'published_at' => now()->subDays(10),
@@ -501,7 +501,7 @@ class OwnerDemoSeeder extends Seeder
     {
         $user = User::query()->withoutGlobalScopes()->firstOrNew(['email' => $email]);
         $user->forceFill([
-            'name' => $name, 'password' => 'demo123', 'role' => $role->value, 'title' => $role === UserRole::SuperAdmin ? 'Platform Owner' : 'Platform staff',
+            'name' => $name, 'password' => (string) config('app.demo_password'), 'role' => $role->value, 'title' => $role === UserRole::SuperAdmin ? 'Platform Owner' : 'Platform staff',
             'institution_id' => null, 'platform_role_id' => $platformRoleId, 'email_verified_at' => now(), 'status' => 'active',
         ])->save();
 

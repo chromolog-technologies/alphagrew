@@ -61,7 +61,7 @@ export function FeatureDetails({ features }: { features: ProductFeature[] }) {
 
 export interface WorkflowStep {
   title: string;
-  /** Who carries out this step, e.g. "Student" or "Alphagrew". */
+  /** Who carries out this step, e.g. "Student" or "AlphaGrew". */
   actor: string;
   body: ReactNode;
   capability?: CapabilityId;

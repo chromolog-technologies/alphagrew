@@ -91,7 +91,7 @@
   --shadow-dropdown: 0 8px 24px -6px #00000024, 0 2px 6px -2px #0000000f;
 }
 
-/* One brand blue for the app and the marketing site (ALPHA GREW Figma palette). Tailwind's
+/* One brand blue for the app and the marketing site (AlphaGrew Figma palette). Tailwind's
    blue and indigo scales both map to it, so older blue-* / indigo-* classes match the brand. */
 @theme {
   --color-blue-50: #eef5ff;
