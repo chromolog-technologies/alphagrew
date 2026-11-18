@@ -67,7 +67,8 @@ trait BuildsMarksFixtures
         $department = $this->insert('departments', ['name' => 'Data Science', 'code' => 'DSC', 'status' => 'active']);
         $course = $this->insert('courses', ['name' => 'B.Tech DS', 'code' => 'BTDS', 'department_id' => $department, 'duration_years' => 4, 'total_semesters' => 8]);
         $year = $this->insert('academic_years', ['year' => '2025-2026', 'code' => 'AY2526', 'start_date' => '2025-06-01', 'end_date' => '2026-05-31']);
-        $examType = $this->insert('exam_types', ['name' => 'End Semester', 'code' => 'ESE'], tenant: false);
+        // Seeded by a migration; shared by every institution.
+        $examType = (int) DB::table('exam_types')->where('code', 'ESE')->value('id');
 
         foreach (['S1', 'S2', 'S3'] as $n => $key) {
             $this->ids['students'][$key] = $this->insert('students', [

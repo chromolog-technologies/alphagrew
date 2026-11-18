@@ -29,9 +29,9 @@ Legend: ✅ Complete · 🟡 Partial · 🔴 Missing · ⚠️ Risk / broken. Ga
 | 1 | Auth, sessions, verification, 2FA (owner) | Real | Complete | ✅ | `GET /auth/me` unused (by design) |
 | 2 | Multi-tenancy | Real | — | ⚠️ | Staff without a department see **all** students; no recruiter rule (G-SEC-1, G-SEC-2) |
 | 3 | Institution setup: departments, courses, subjects, designations, batches, campuses, masters, settings | Real | Complete | ✅ | Course create failed on MySQL (`duration_years`) — fixed on the phase-1 branch |
-| 4 | Academic calendar: academic years, semesters | Read only for years | Years screen adds rows locally, never saved; falls back to demo years | 🟡 | G-ACA-1 |
-| 5 | Classes, timetable (admin), subject allocations | 🔴 none | Static screens | 🔴 | G-ACA-2, G-ACA-3 |
-| 6 | Exams and exam types (create, schedule) | List only (`GET /exams`) | Static admin screen; coordinator screen on sample data | 🔴 | G-EXM-1 |
+| 4 | Academic calendar: academic years, semesters | Real (`/academic-years`, one active year) | Academic years screen saves | ✅ | G-ACA-1 fixed (P1) |
+| 5 | Classes, timetable (admin), subject allocations | Classes and allocations real (`/classes`, `/subject-allocations`); timetable 🔴 | Classes screen; Subjects → Faculty dialog; timetable static | 🟡 | G-ACA-2 fixed (P1); G-ACA-3 open |
+| 6 | Exams and exam types (create, schedule) | Real: `/exams` CRUD, `/exam-types` (5 standard types seeded) | Exams screen for admins and coordinators; read-only for other staff | ✅ | G-EXM-1, G-EXM-2 fixed (P1); hall allocation / seating not built |
 | 7 | Attendance | Real | Complete (mark, approve, reports) | 🟡 | `PUT/DELETE /attendance/{id}` unused; staff portal attendance pages are sample (G-STF-1) |
 | 8 | Marks, review, publishing, results | Real | Complete | 🟡 | Grade-rule / mark-scheme editing has no UI; `result-publishing/logs`, `mark-review/get-submitted-marks`, `mark-entries/{id}` unused (G-MRK-1); old `/staff/marks/*` sample API still routed |
 | 9 | Students & staff | Real | Complete (incl. custom fields after phase 1) | 🟡 | No bulk import; no documents; staff cannot open a student's career profile or academics (`/students/{id}/profile`, `/academics`, verify, recalculate unused) (G-PPL-1, G-PPL-2) |
@@ -101,8 +101,8 @@ Legend: ✅ Complete · 🟡 Partial · 🔴 Missing · ⚠️ Risk / broken. Ga
 | P0 | Fix staff-without-department visibility; add recruiter rule (deny by default) | G-SEC-1, G-SEC-2 | Data exposure |
 | P0 | Migration aligning `courses` nullability; MySQL test job in CI | G-SCH-1, G-TST-1 | Two production-only failures already |
 | P0 | Merge phase-1 PR; customization phase 0 (value cleanup, permissions) | G-DAT-1, part of G-CUS-1 | Small, removes misleading behaviour |
-| P1 | **Exams & exam types API** + connect Exams and Exam-coordinator screens | G-EXM-1, G-EXM-2 | Mark entry and results depend on exams that today can only be seeded |
-| P1 | **Subject allocations, classes, academic years write** | G-ACA-1, G-ACA-2 | Needed by mark entry and timetable |
+| P1 ✅ | **Exams & exam types API** + connect Exams and Exam-coordinator screens | G-EXM-1, G-EXM-2 | Mark entry and results depend on exams that today can only be seeded |
+| P1 ✅ | **Subject allocations, classes, academic years write** | G-ACA-1, G-ACA-2 | Needed by mark entry and timetable |
 | P1 | Replace staff-portal sample endpoints with real queries (mostly reuse `/dashboards/query`, attendance and mark-entry services) | G-STF-1 | 33 of 45 sample routes; staff see fake numbers today |
 | P2 | Timetable API + admin screen | G-ACA-3 | Student timetable already reads it |
 | P2 | Staff view of student profile/academics; grade-rule & mark-scheme editors; attendance correction | G-PPL-2, G-MRK-1, G-ATT-1 | Backend already exists — frontend-only work |

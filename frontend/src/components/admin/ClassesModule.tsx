@@ -1,180 +1,253 @@
-import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Users } from 'lucide-react';
+/**
+ * Classes: a course's cohort in a semester (e.g. "CSE 2023 · Sem 5 · A"). Timetables are built
+ * per class, so a class with timetable entries cannot be deleted.
+ */
+import { useState, type FormEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ApiError } from '../../api/apiError';
+import { apiCall, semesterApi } from '../../api/apiClient';
+import { useClasses, useDeleteClass, useSaveClass, type SchoolClass } from '../../api/academicsApi';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Select,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../ui';
 
-interface Class {
-  id: number;
-  name: string;
-  course: string;
-  batch: string;
-  semester: number;
-  faculty: string;
-  strength: number;
-  room: string;
-  status: 'active' | 'inactive';
-}
+type Option = { id: number; name: string; code?: string };
+type Draft = { id: number | null; name: string; code: string; courseId: string; semesterId: string; batch: string; admissionYear: string };
 
-export const ClassesModule: React.FC = () => {
-  const [classes, setClasses] = useState<Class[]>([
-    {
-      id: 1,
-      name: 'CSE-5A',
-      course: 'B.TECH',
-      batch: '2021-2025',
-      semester: 5,
-      faculty: 'Dr. Rajesh Kumar',
-      strength: 65,
-      room: 'Block-A, Room-501',
-      status: 'active',
-    },
-  ]);
+const asList = (response: unknown): Option[] =>
+  (Array.isArray(response) ? response : Array.isArray((response as { data?: unknown })?.data) ? (response as { data: Option[] }).data : []) as Option[];
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', course: '', batch: '', semester: 1, faculty: '', strength: 60, room: '' });
+export function ClassesModule({ canManage = true }: { canManage?: boolean }) {
+  const classes = useClasses();
+  const courses = useQuery({ queryKey: ['courses', 'options'], queryFn: () => apiCall('/courses').then(asList) });
+  const semesters = useQuery({ queryKey: ['semesters', 'options'], queryFn: () => semesterApi.list().then(asList) });
+  const save = useSaveClass();
+  const remove = useDeleteClass();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState<SchoolClass | null>(null);
 
-  const filteredClasses = classes.filter((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const fieldErrors = save.error instanceof ApiError ? save.error.firstFieldErrors : {};
+  const formError = save.error instanceof ApiError && Object.keys(fieldErrors).length === 0 ? save.error.message : null;
+  const error = (field: string) => (fieldErrors[field] ? <p className="text-xs text-destructive">{fieldErrors[field]}</p> : null);
 
-  const handleAddClass = () => {
-    if (formData.name) {
-      setClasses([
-        ...classes,
-        {
-          id: classes.length + 1,
-          ...formData,
-          status: 'active',
+  const open = (c?: SchoolClass) => {
+    save.reset();
+    setDraft(
+      c
+        ? { id: c.id, name: c.name, code: c.code, courseId: String(c.courseId), semesterId: String(c.semesterId), batch: c.batch, admissionYear: String(c.admissionYear) }
+        : { id: null, name: '', code: '', courseId: '', semesterId: '', batch: '', admissionYear: String(new Date().getFullYear()) },
+    );
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft) return;
+    save.mutate(
+      {
+        id: draft.id,
+        input: {
+          name: draft.name.trim(),
+          code: draft.code.trim(),
+          courseId: Number(draft.courseId),
+          semesterId: Number(draft.semesterId),
+          batch: draft.batch.trim(),
+          admissionYear: Number(draft.admissionYear),
         },
-      ]);
-      setFormData({ name: '', course: '', batch: '', semester: 1, faculty: '', strength: 60, room: '' });
-      setShowForm(false);
-    }
+      },
+      { onSuccess: () => setDraft(null) },
+    );
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Classes Management</h2>
-          <p className="mt-1 text-sm text-slate-600">Manage class batches and groups</p>
+          <h1 className="text-xl font-semibold text-foreground">Classes</h1>
+          <p className="text-sm text-muted-foreground">A course&apos;s cohort in a semester. Timetables are built per class.</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
-          <Plus size={18} /> Add Class
-        </button>
+        {canManage ? (
+          <Button type="button" onClick={() => open()} className="gap-1.5">
+            <Plus size={16} /> Add class
+          </Button>
+        ) : null}
       </div>
 
-      <div className="relative">
-        <Search size={18} className="absolute left-3 top-3 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Search classes..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {showForm && (
-        <div className="bg-white p-6 rounded-lg border border-slate-200">
-          <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              placeholder="Class Name (e.g., CSE-5A)"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="Course"
-              value={formData.course}
-              onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="Batch (e.g., 2021-2025)"
-              value={formData.batch}
-              onChange={(e) => setFormData({ ...formData, batch: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select
-              value={formData.semester}
-              onChange={(e) => setFormData({ ...formData, semester: parseInt(e.target.value) })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
-                <option key={sem} value={sem}>
-                  Semester {sem}
-                </option>
+      <Card className="p-4">
+        {classes.isLoading ? (
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : classes.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{classes.error instanceof ApiError ? classes.error.message : 'Classes could not be loaded.'}</AlertDescription>
+          </Alert>
+        ) : (classes.data ?? []).length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No classes yet.</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Class</TableHead>
+                <TableHead>Code</TableHead>
+                <TableHead>Course</TableHead>
+                <TableHead>Semester</TableHead>
+                <TableHead>Batch</TableHead>
+                <TableHead>Students</TableHead>
+                {canManage ? <TableHead className="text-right">Actions</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(classes.data ?? []).map((c) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{c.code}</TableCell>
+                  <TableCell>{c.course ? `${c.course.code} · ${c.course.name}` : '—'}</TableCell>
+                  <TableCell>{c.semester?.name ?? '—'}</TableCell>
+                  <TableCell>
+                    {c.batch} <span className="text-muted-foreground">({c.admissionYear})</span>
+                  </TableCell>
+                  <TableCell>{c.totalStudents}</TableCell>
+                  {canManage ? (
+                    <TableCell className="text-right">
+                      <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${c.name}`} onClick={() => open(c)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete ${c.name}`}
+                        onClick={() => {
+                          remove.reset();
+                          setDeleting(c);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </TableCell>
+                  ) : null}
+                </TableRow>
               ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Faculty Advisor"
-              value={formData.faculty}
-              onChange={(e) => setFormData({ ...formData, faculty: e.target.value })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="number"
-              placeholder="Strength"
-              value={formData.strength}
-              onChange={(e) => setFormData({ ...formData, strength: parseInt(e.target.value) })}
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="Room/Block"
-              value={formData.room}
-              onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-              className="px-3 py-2 col-span-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={handleAddClass} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-              Save
-            </button>
-            <button onClick={() => setShowForm(false)} className="bg-slate-300 text-slate-900 px-4 py-2 rounded-lg">
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredClasses.map((cls) => (
-          <div key={cls.id} className="bg-white p-4 rounded-lg border border-slate-200 hover:shadow-lg transition">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{cls.name}</h3>
-                <p className="text-sm text-slate-600 mt-1">{cls.course} | Sem {cls.semester}</p>
-                <p className="text-sm text-slate-600">Batch: {cls.batch}</p>
-                <p className="text-sm text-slate-600">{cls.room}</p>
+      <Dialog open={draft !== null} onOpenChange={(isOpen) => !isOpen && setDraft(null)}>
+        <DialogContent className="max-w-lg">
+          {draft ? (
+            <form onSubmit={submit}>
+              <DialogHeader>
+                <DialogTitle>{draft.id === null ? 'Add class' : `Edit ${draft.name}`}</DialogTitle>
+                <DialogDescription>For example “CSE 2023 · Sem 5 · A”.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-name">Name *</Label>
+                  <Input id="class-name" required maxLength={255} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                  {error('name')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-code">Code *</Label>
+                  <Input id="class-code" required maxLength={50} value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} />
+                  {error('code')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-course">Course *</Label>
+                  <Select id="class-course" required value={draft.courseId} onChange={(e) => setDraft({ ...draft, courseId: e.target.value })}>
+                    <option value="">Choose a course</option>
+                    {(courses.data ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code ? `${c.code} · ${c.name}` : c.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {error('courseId')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-semester">Semester *</Label>
+                  <Select id="class-semester" required value={draft.semesterId} onChange={(e) => setDraft({ ...draft, semesterId: e.target.value })}>
+                    <option value="">Choose a semester</option>
+                    {(semesters.data ?? []).map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {error('semesterId')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-batch">Batch *</Label>
+                  <Input id="class-batch" required maxLength={50} placeholder="2023-2027" value={draft.batch} onChange={(e) => setDraft({ ...draft, batch: e.target.value })} />
+                  {error('batch')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="class-year">Admission year *</Label>
+                  <Input id="class-year" type="number" required min={1990} max={2100} value={draft.admissionYear} onChange={(e) => setDraft({ ...draft, admissionYear: e.target.value })} />
+                  {error('admissionYear')}
+                </div>
               </div>
-              <span className="inline-flex px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
-                {cls.status}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 mt-3 text-sm text-slate-600">
-              <Users size={14} />
-              <span>
-                <strong>{cls.strength}</strong> Students
-              </span>
-            </div>
-            <div className="flex gap-2 mt-3">
-              <button className="flex-1 text-blue-600 hover:text-blue-700 px-2 py-2 border border-blue-200 rounded hover:bg-blue-50">
-                <Edit2 size={16} className="mx-auto" />
-              </button>
-              <button className="flex-1 text-red-600 hover:text-red-700 px-2 py-2 border border-red-200 rounded hover:bg-red-50">
-                <Trash2 size={16} className="mx-auto" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+              {formError ? (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              ) : null}
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setDraft(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleting !== null} onOpenChange={(isOpen) => !isOpen && setDeleting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete {deleting?.name}?</DialogTitle>
+            <DialogDescription>A class with a timetable cannot be deleted.</DialogDescription>
+          </DialogHeader>
+          {remove.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{remove.error instanceof ApiError ? remove.error.message : 'The class could not be deleted.'}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" disabled={remove.isPending} onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+}

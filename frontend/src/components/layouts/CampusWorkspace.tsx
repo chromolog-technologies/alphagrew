@@ -4566,7 +4566,9 @@ export default function CampusWorkspace({
       case 'roles':
         return <RolesPermissionsModule />;
       case 'exams':
-        return user.role === 'staff' ? <ExamCoordinatorModule /> : <ExamsModule />;
+        // Real exams for everyone: admins and exam coordinators (marks.publish) schedule, other staff
+        // read. The offline demo keeps the sample coordinator screen.
+        return isApiConfigured() ? <ExamsModule canManage={isAdminRole(user.role) || can('marks.publish')} /> : <ExamCoordinatorModule />;
       case 'marks':
         return user.role === 'student'
           ? <StudentMarksView />
@@ -4592,7 +4594,7 @@ export default function CampusWorkspace({
       case 'placement_officer':
         return isApiConfigured() ? <PlacementWorkspace /> : <PlacementOfficerModule />;
       case 'exam_coordinator':
-        return <ExamCoordinatorModule />;
+        return isApiConfigured() ? <ExamsModule canManage={isAdminRole(user.role) || can('marks.publish')} /> : <ExamCoordinatorModule />;
       case 'student_timetable':
         return <StudentTimetableView />;
       case 'student_assignments':
