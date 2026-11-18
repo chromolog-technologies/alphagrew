@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import { trackPageview } from '../analytics';
 import { LoadingState, PageErrorBoundary } from './Feedback';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
@@ -55,6 +56,8 @@ export default function SiteLayout({ preload }: { preload?: () => Promise<unknow
   const mainRef = useRef<HTMLElement>(null);
   useRouteFocus(mainRef);
   useIdlePreload(preload);
+  // One pageview per marketing page (does nothing unless Plausible is configured).
+  useEffect(() => trackPageview(), [pathname]);
 
   return (
     <div className="mk-site">

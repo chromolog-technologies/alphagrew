@@ -21,6 +21,7 @@ import { ButtonLink } from '../components/Button';
 import { CapabilityBadge, FeatureCard } from '../components/Cards';
 import { CtaBand } from '../components/CtaBand';
 import { FaqList } from '../components/FaqList';
+import { GetInTouch } from '../components/GetInTouch';
 import { CardGrid, Container, Section, SectionHeader, Split } from '../components/Layout';
 import { DashboardMockup, DriveBoardMockup, InterviewMockup, ReadinessMockup } from '../components/mockups/Mockups';
 import { PageMeta } from '../components/PageMeta';
@@ -189,7 +190,7 @@ export default function HomePage() {
                 </ButtonLink>
               </div>
               <p className="mk-rise mk-rise-3 max-w-xl text-sm text-ink-500">
-                Alphagrew is in active development. Features are marked{' '}
+                Every feature on this site is marked{' '}
                 <strong className="font-semibold text-ink-900">In current build</strong>,{' '}
                 <strong className="font-semibold text-ink-900">In development</strong> or{' '}
                 <strong className="font-semibold text-ink-900">Planned</strong>.{' '}
@@ -419,6 +420,8 @@ export default function HomePage() {
           </p>
         </Container>
       </Section>
+
+      <GetInTouch />
 
       <CtaBand
         title="See Alphagrew with your own departments and batches"

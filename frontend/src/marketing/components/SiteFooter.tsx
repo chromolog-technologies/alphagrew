@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BRAND, COMPANY } from '../config';
 import { FOOTER_NAV } from '../navigation';
+import { ContactDetails } from './ContactDetails';
 import { Container } from './Layout';
 import { Logo } from './Logo';
 
@@ -15,6 +16,7 @@ export function SiteFooter({ inert }: { inert?: boolean }) {
               An AI-first campus placement and career intelligence platform for institutions, placement officers, faculty,
               students and recruiters.
             </p>
+            <ContactDetails onDark className="mt-2" />
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {FOOTER_NAV.map((column) => (

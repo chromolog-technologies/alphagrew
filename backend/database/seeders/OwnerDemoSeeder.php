@@ -455,10 +455,10 @@ class OwnerDemoSeeder extends Seeder
             ['slug' => 'platform-terms-of-service'],
             [
                 'content_type' => 'policy',
-                'title' => 'Alpha Grew SaaS Terms of Service',
+                'title' => 'Alphagrew SaaS Terms of Service',
                 'summary' => 'Governing platform usage, data isolation, and AI assistive evaluation commitments.',
-                'body' => 'Institutions retain sole ownership of academic, student, and placement records hosted on Alpha Grew.',
-                'seo_title' => 'Alpha Grew Terms of Service',
+                'body' => 'Institutions retain sole ownership of academic, student, and placement records hosted on Alphagrew.',
+                'seo_title' => 'Alphagrew Terms of Service',
                 'seo_description' => 'Platform service terms and tenant data governance.',
                 'status' => 'published',
                 'published_at' => now()->subDays(10),

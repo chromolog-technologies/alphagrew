@@ -16,7 +16,7 @@ Status: foundation complete (shell, design system, all 12 pages with first-draft
 | Component styles are `mk-` classes in `@layer components`, scoped by `.mk-site` | Utilities still override them; nothing leaks into the app. The app's global input and table rules in `index.css` now skip `.mk-site` (`:not(.mk-site *)`), a no-op for the app. |
 | Fonts self-hosted (Inter, Plus Jakarta Sans for the site; Geist for the signed-in app; latin-first, variable, OFL) | No third-party font request (privacy, DPDP), no layout shift beyond `font-display: swap`. The site's fonts are ~75 KB; Geist is imported from `App.tsx` (`@fontsource-variable/geist`), so only the signed-in app downloads it. |
 | Product mockups built in markup, not screenshots | Sharp at any size, themable, readable by screen readers, and every one is labelled "Sample". |
-| No backend for the demo form | There is no lead endpoint in the Laravel API. The form opens a pre-filled email to `VITE_CONTACT_EMAIL`; without that variable the page says requests are not open yet. No fake submit. |
+| Demo requests | The Contact page form and the home page "Get in touch" form post to `POST /api/v1/demo-requests`, which saves a CRM lead (source `website`, stage `new`) in the Owner Console. Throttled to 3 a minute and 20 a day per address, with a hidden honeypot field. Builds without an API (offline demo) fall back to a pre-filled email to `VITE_CONTACT_EMAIL`; with neither, the page shows the configured contact details. |
 | Page metadata via a small `usePageMeta` hook | Sets title, description, canonical, robots and Open Graph tags per route without a new dependency. |
 
 ### File map
@@ -28,7 +28,9 @@ frontend/src/
   marketing/
     siteMap.ts                  every public page: path, label, title, description, purpose, parent, noindex
     navigation.ts               header and footer menus, built from siteMap
-    config.ts                   VITE_CONTACT_EMAIL, VITE_SITE_URL, brand names
+    config.ts                   contact details, VITE_SITE_URL, Plausible, brand names
+    demoRequest.ts              POST /demo-requests and error mapping
+    analytics.ts                Plausible (manual pageviews on public pages only)
     MarketingRoutes.tsx         <Route> tree under SiteLayout, plus the 404
     marketing.css               tokens (@theme), fonts, mk- component classes, motion rules
     content/
@@ -157,33 +159,37 @@ Contrast (WCAG 2.1): white on `iris-600` 4.6:1, white on `iris-700` 6.0:1, `iris
 
 | Variable | Required | Effect |
 |---|---|---|
-| `VITE_CONTACT_EMAIL` | No | Enables the demo form (opens a pre-filled email to this address) and shows the address on the contact page. |
+| `VITE_CONTACT_EMAIL` | No | Public email, shown in the footer and on the Contact page. Also the mailto fallback for builds without an API. |
+| `VITE_CONTACT_PHONE` | No | Public phone in display form, e.g. `+91 80 1234 5678`. |
+| `VITE_CONTACT_ADDRESS` | No | Short address, e.g. `Bengaluru, India`. |
+| `VITE_PLAUSIBLE_DOMAIN` | No | Turns on Plausible analytics for this site domain. |
+| `VITE_PLAUSIBLE_SRC` | No | Plausible script URL, only when self-hosting. |
 | `VITE_SITE_URL` | No | Public origin without trailing slash. Enables canonical URLs and `sitemap.xml`. |
 
-Both are documented in `frontend/.env.example`.
+All are documented in `frontend/.env.example`.
 
 ## 7. Assumptions
 
 1. The marketing site belongs in the existing frontend and deploys with it, at `/` on the same domain as the app.
-2. The product name is written "Alphagrew" (as in the PRD and the brief). The signed-in app still says "AlphaGrew".
+2. The product name is written "Alphagrew" everywhere: site, sign-in pages, app, emails (confirmed 18 November 2026).
 3. The primary market is Indian higher-education institutions (batches, backlogs, CGPA cut-offs, DPDP Act), as in the PRD.
 4. Build status per feature follows the 22 October 2026 code audit; features at 0–10% are "Planned", partial ones "In development".
-5. A mailto-based demo request is acceptable until a lead endpoint or CRM exists.
-6. Recruiters are an audience for the site even though recruiter sign-in is blocked by design today.
+5. Demo requests go to the Owner Console sales pipeline; the sales team follows up from there.
+6. Recruiters are an audience for the site; their accounts are created by each placement cell.
 7. Students reach Alphagrew through their institution, so the site has no student self-signup call to action.
 8. The logo mark cropped from `alpha-logo.png` is the approved mark; the wordmark is set in Plus Jakarta Sans rather than the image's lettering.
 
 ## 8. Unresolved product questions
 
-1. **Demo requests**: which inbox should receive them (`VITE_CONTACT_EMAIL`), and should they go to a CRM or a Laravel endpoint instead of email?
+1. **Contact details**: public email, phone and address (`VITE_CONTACT_*`).
 2. **Domain**: what is the public URL (`VITE_SITE_URL`)?
 3. **Launch claims**: which capabilities will be marketed as available at launch, and when should "In development" badges change?
 4. **Legal**: registered entity name and address, Grievance Officer, hosting region, AI sub-processors, retention periods, governing-law city; and legal review of both drafts.
-5. **Brand**: confirm "Alphagrew" vs "AlphaGrew", and whether a vector logo exists (the current mark is a raster crop).
+5. **Logo**: is there a vector (SVG) logo, ideally the "ALPHA GREW / SMART CAMPUS" wordmark from Figma? The current mark is a raster crop.
 6. **Pricing and plans**: will pricing or AI interview credits be published?
 7. **Proof points**: when pilots produce real outcomes, which metrics and named testimonials may be used (with consent)?
 8. **Company page**: should About include team members and company registration details?
-9. **Analytics**: is a privacy-friendly analytics tool wanted (affects the cookie section)?
+9. **Analytics**: Plausible chosen; set `VITE_PLAUSIBLE_DOMAIN` and add a "Demo request" goal in Plausible.
 10. **Prerendering**: prerender public routes for social previews and faster first paint?
 
 ## 9. Validation checklist

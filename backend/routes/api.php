@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Student\MaterialsController;
 use App\Http\Controllers\Api\Student\StudentResultController;
 use App\Http\Controllers\Api\Student\TimetableController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\DemoRequestController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
@@ -122,6 +123,9 @@ Route::prefix('v1')->group(function (): void {
         ->whereNumber('id')
         ->middleware(['signed', 'throttle:password-reset'])
         ->name('verification.verify');
+
+    // Public marketing site: "Book a demo" and "Get in touch" forms → Owner Console CRM lead.
+    Route::post('/demo-requests', [DemoRequestController::class, 'store'])->middleware('throttle:demo-request');
 
     // Accepting an invitation creates the account, so these are public; the token is the credential.
     Route::get('/invitations/accept/{token}', [InvitationController::class, 'preview'])->middleware('throttle:invitation');

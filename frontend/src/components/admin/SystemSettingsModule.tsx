@@ -20,7 +20,7 @@ export const SystemSettingsModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'notifications' | 'backup' | 'appearance'>('general');
   const [saved, setSaved] = useState(false);
   const [settings, setSettings] = useState<SystemSettings>({
-    collegeName: 'AlphaGrew Campus Management',
+    collegeName: 'Alphagrew Campus Management',
     collegeAddress: '123 Education Street, City',
     collegePhone: '+1-800-123-4567',
     collegeEmail: 'admin@alphagrew.edu',

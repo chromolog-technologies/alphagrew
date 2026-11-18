@@ -14,6 +14,10 @@ function marketingSeoFiles(siteUrl: string): Plugin {
   return {
     name: 'alphagrew-marketing-seo-files',
     apply: 'build',
+    // Link-preview crawlers need an absolute image URL.
+    transformIndexHtml(html) {
+      return origin ? html.replaceAll('content="/brand/og-image.jpg"', `content="${origin}/brand/og-image.jpg"`) : html;
+    },
     generateBundle() {
       const robots = ['User-agent: *', ...APP_ROUTE_PATTERNS.map((pattern) => `Disallow: ${pattern.replace('/*', '/')}`)];
       if (origin) {

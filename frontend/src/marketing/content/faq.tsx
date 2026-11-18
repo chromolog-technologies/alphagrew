@@ -40,7 +40,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       ),
       faq(
         'Is Alphagrew available today?',
-        'Alphagrew is in active development. Each feature on this site is marked In current build, In development or Planned, and product pictures are illustrative mockups. Book a demo to see the current build.',
+        'Much of it is built and working today, and new features are added regularly. Each feature on this site is marked In current build, In development or Planned, and product pictures are illustrative mockups. Book a demo to see it with your own data.',
       ),
       faq(
         'Do we have to replace our existing ERP?',

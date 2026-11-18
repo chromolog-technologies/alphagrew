@@ -87,7 +87,7 @@ export default function CampusLogin({ error, notice, errorCode, onLogin, onShowS
 
                   <img
                     src="/alpha-logo.png"
-                    alt="Alpha Grew logo"
+                    alt="Alphagrew logo"
                     className="h-8 w-8 rounded-xl object-contain"
                   />
                 </div>

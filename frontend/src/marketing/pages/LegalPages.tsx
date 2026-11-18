@@ -112,7 +112,11 @@ const PRIVACY: LegalSection[] = [
         <li><strong>Career data:</strong> resumes, skills, documents, AI mock interview transcripts and feedback, applications and placement results.</li>
         <li><strong>Recruiter data:</strong> names and contact details of company representatives, job descriptions and drive details.</li>
         <li><strong>Technical data:</strong> device and browser information, IP address, sign-in times and security logs.</li>
-        <li><strong>Website enquiries:</strong> the details you send us when you request a demo.</li>
+        <li>
+          <strong>Website enquiries:</strong> the details you send through our demo request and "Get in touch" forms (name,
+          email, phone, institution, role and your message), which we keep in our sales records to follow up with you.
+        </li>
+        <li><strong>Website usage:</strong> anonymous visit counts for our public pages, without cookies (see section 14).</li>
       </ul>
     ),
   },
@@ -244,8 +248,10 @@ const PRIVACY: LegalSection[] = [
     heading: '14. Cookies and storage',
     body: (
       <p>
-        The platform uses essential browser storage to keep you signed in securely. This website does not use advertising cookies:{' '}
-        <Ph>confirm any analytics tool before launch</Ph>.
+        The platform uses essential browser storage to keep you signed in securely. This website does not use advertising or
+        tracking cookies. To count visits to our public pages and see which pages lead to demo requests, we use Plausible
+        Analytics, which sets no cookies, does not track you across sites and does not store your IP address. It runs only on
+        our public pages, never inside the signed-in platform.
       </p>
     ),
   },

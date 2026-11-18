@@ -1,4 +1,4 @@
-# AlphaGrew Campus API Reference
+# Alphagrew Campus API Reference
 
 This folder documents every HTTP endpoint the Laravel backend in `backend/` exposes, for all six account types. It was written by reading the route table (`php artisan route:list`), every controller, form request, API resource and action, and the permission seeders.
 
@@ -370,6 +370,7 @@ Total: 303 routes.
 | POST | `/api/v1/auth/email/verification-notification` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/auth/email/verify/{id}/{hash}` | Signed URL | — | · | · | · | · | · | · |  |
 | POST | `/api/v1/auth/forgot-password` | Public | — | · | · | · | · | · | · |  |
+| POST | `/api/v1/demo-requests` | Public (throttled 3/min, 20/day per IP) | — | · | · | · | · | · | · | Marketing site demo / get-in-touch form → Owner CRM lead |
 | POST | `/api/v1/auth/login` | Public | — | · | · | · | · | · | · |  |
 | POST | `/api/v1/auth/logout` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/auth/me` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |

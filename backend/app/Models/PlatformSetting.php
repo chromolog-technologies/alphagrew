@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Cache;
 class PlatformSetting extends Model
 {
     public const DEFAULTS = [
-        'platformName' => 'Alpha Grew',
+        'platformName' => 'Alphagrew',
         'brandTagline' => 'Campus placement, assessment & AI readiness cloud',
         'brandPrimaryColor' => '#2563eb',
         'supportEmail' => null,
@@ -28,7 +28,7 @@ class PlatformSetting extends Model
         'mfaRequiredForPlatformStaff' => false,
         'billingDefaultTaxCode' => 'GST-18',
         'maintenanceEnabled' => false,
-        'maintenanceMessage' => 'Alpha Grew is down for scheduled maintenance. Please try again shortly.',
+        'maintenanceMessage' => 'Alphagrew is down for scheduled maintenance. Please try again shortly.',
         'maintenanceBypassIps' => [],
     ];
 

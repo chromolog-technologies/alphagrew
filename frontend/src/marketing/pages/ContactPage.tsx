@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
-import { Briefcase, GraduationCap, Mail } from 'lucide-react';
+import { Briefcase, CheckCircle2, GraduationCap } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Button, ButtonLink } from '../components/Button';
 import { IconTile } from '../components/Cards';
-import { CheckboxGroup, SelectField, TextAreaField, TextField } from '../components/Fields';
+import { ContactDetails, contactRows } from '../components/ContactDetails';
+import { CheckboxGroup, Honeypot, SelectField, TextAreaField, TextField } from '../components/Fields';
 import { InlineAlert } from '../components/Feedback';
 import { PageHero, Section, Split } from '../components/Layout';
 import { PageMeta } from '../components/PageMeta';
 import { BRAND, contactEmail } from '../config';
+import { canSubmitOnline, describeSubmitError, submitDemoRequest } from '../demoRequest';
 import { SIGN_IN_PATH } from '../navigation';
 import { SITE_PAGES } from '../siteMap';
 
@@ -26,7 +28,7 @@ interface DemoRequest {
   message: string;
 }
 
-type Errors = Partial<Record<'name' | 'email' | 'institution', string>>;
+type Errors = Partial<Record<keyof DemoRequest, string>>;
 
 const EMPTY: DemoRequest = {
   name: '',
@@ -38,6 +40,8 @@ const EMPTY: DemoRequest = {
   interests: [],
   message: '',
 };
+
+const FIELD_ORDER = ['name', 'institution', 'email', 'phone', 'message'] as const;
 
 export function validateDemoRequest(request: DemoRequest): Errors {
   const errors: Errors = {};
@@ -73,35 +77,73 @@ const ROLE_FROM_SOLUTION: Record<string, (typeof ROLES)[number]> = {
   recruiters: 'Recruiter',
 };
 
-function DemoForm({ to }: { to: string }) {
+/**
+ * Online: saved straight into the Owner Console's sales pipeline as a new lead.
+ * Email: no API in this build (offline demo), so it opens a pre-filled email instead.
+ */
+function DemoForm({ mode, to }: { mode: 'online' | 'email'; to: string }) {
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState<DemoRequest>(() => ({
     ...EMPTY,
     role: ROLE_FROM_SOLUTION[searchParams.get('role') ?? ''] ?? EMPTY.role,
   }));
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<Errors>({});
-  const [handedOff, setHandedOff] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'handed-off'>('idle');
+  const [failure, setFailure] = useState<string | null>(null);
 
   const set = <K extends keyof DemoRequest>(key: K, value: DemoRequest[K]) => {
     setRequest((current) => ({ ...current, [key]: value }));
     if (key in errors) setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
-  const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const found = validateDemoRequest(request);
-    setErrors(found);
-    const firstInvalid = (['name', 'institution', 'email'] as const).find((key) => found[key]);
-    if (firstInvalid) {
-      event.currentTarget.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
-      return;
-    }
-    window.location.href = demoRequestMailto(to, request);
-    setHandedOff(true);
+  const focusFirst = (form: HTMLFormElement, found: Errors) => {
+    const first = FIELD_ORDER.find((key) => found[key]);
+    if (first) form.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
+    return Boolean(first);
   };
 
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const found = validateDemoRequest(request);
+    setErrors(found);
+    setFailure(null);
+    if (focusFirst(form, found)) return;
+
+    if (mode === 'email') {
+      window.location.href = demoRequestMailto(to, request);
+      setStatus('handed-off');
+      return;
+    }
+
+    setStatus('sending');
+    try {
+      await submitDemoRequest({ ...request, form: 'demo', website: honeypot });
+      setStatus('sent');
+    } catch (error) {
+      const { fields, message } = describeSubmitError(error);
+      setErrors(fields as Errors);
+      setFailure(message ?? null);
+      setStatus('idle');
+      focusFirst(form, fields as Errors);
+    }
+  };
+
+  if (status === 'sent') {
+    return (
+      <div className="mk-card gap-4 p-6 sm:p-8" role="status">
+        <CheckCircle2 size={32} aria-hidden="true" className="text-emerald-700" />
+        <h2 id="demo-form-title" className="mk-h3 text-2xl">
+          Thank you, {request.name.trim().split(/\s+/)[0]}
+        </h2>
+        <p className="text-ink-500">We have your request and will email {request.email.trim()} to arrange a time for your demo.</p>
+      </div>
+    );
+  }
+
   return (
-    <form noValidate onSubmit={onSubmit} className="mk-card gap-6 p-6 sm:p-8" aria-labelledby="demo-form-title">
+    <form noValidate onSubmit={(e) => void onSubmit(e)} className="mk-card relative gap-6 p-6 sm:p-8" aria-labelledby="demo-form-title">
       <div className="flex flex-col gap-1">
         <h2 id="demo-form-title" className="mk-h3 text-2xl">
           Request a demo
@@ -111,6 +153,8 @@ function DemoForm({ to }: { to: string }) {
           <span className="sr-only">with an asterisk</span> are required.
         </p>
       </div>
+
+      {mode === 'online' && <Honeypot value={honeypot} onChange={setHoneypot} />}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <TextField label="Full name" name="name" autoComplete="name" required value={request.name} error={errors.name} onChange={(e) => set('name', e.target.value)} />
@@ -137,7 +181,16 @@ function DemoForm({ to }: { to: string }) {
           error={errors.email}
           onChange={(e) => set('email', e.target.value)}
         />
-        <TextField label="Phone" name="phone" type="tel" autoComplete="tel" placeholder="+91" value={request.phone} onChange={(e) => set('phone', e.target.value)} />
+        <TextField
+          label="Phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+91"
+          value={request.phone}
+          error={errors.phone}
+          onChange={(e) => set('phone', e.target.value)}
+        />
       </div>
       <SelectField label="Final and pre-final year students" name="size" options={SIZES} value={request.size} onChange={(e) => set('size', e.target.value)} />
       <CheckboxGroup legend="Interested in" name="interests" options={INTERESTS} values={request.interests} onChange={(values) => set('interests', values)} />
@@ -146,17 +199,26 @@ function DemoForm({ to }: { to: string }) {
         name="message"
         placeholder="For example: we run around 40 drives a season across 6 departments"
         value={request.message}
+        error={errors.message}
         onChange={(e) => set('message', e.target.value)}
       />
 
+      {failure && (
+        <InlineAlert tone="error" title="Your request was not sent">
+          {failure} {contactRows().length > 0 ? 'You can also reach us directly:' : 'Please try again.'}
+          <ContactDetails className="mt-2" />
+        </InlineAlert>
+      )}
+
       <div className="flex flex-col gap-3">
         <div>
-          <Button type="submit" size="lg" arrow>
-            Continue in your email app
+          <Button type="submit" size="lg" arrow disabled={status === 'sending'}>
+            {mode === 'email' ? 'Continue in your email app' : status === 'sending' ? 'Sending…' : 'Book a demo'}
           </Button>
         </div>
         <p className="text-sm text-ink-500">
-          This opens a pre-filled email to {to} that you send yourself. We use these details only to arrange your demo. See our{' '}
+          {mode === 'email' ? `This opens a pre-filled email to ${to} that you send yourself. ` : ''}
+          We use these details only to arrange your demo. See our{' '}
           <Link to={SITE_PAGES.privacy.path} className="mk-link">
             Privacy Policy
           </Link>
@@ -164,7 +226,7 @@ function DemoForm({ to }: { to: string }) {
         </p>
       </div>
 
-      {handedOff && (
+      {status === 'handed-off' && (
         <InlineAlert tone="success" title="Your email app should now be open">
           Send the pre-filled message from there. If nothing opened, email{' '}
           <a className="mk-link" href={`mailto:${to}`}>
@@ -179,6 +241,8 @@ function DemoForm({ to }: { to: string }) {
 
 export default function ContactPage() {
   const to = contactEmail();
+  const mode = canSubmitOnline() ? 'online' : to ? 'email' : null;
+  const hasDetails = contactRows().length > 0;
 
   return (
     <>
@@ -186,22 +250,29 @@ export default function ContactPage() {
       <PageHero
         page="contact"
         eyebrow="Contact us · Book a demo"
-        title="See Alphagrew with your own departments and batches."
-        lede="Tell us a little about your institution. We will set up a walkthrough of the current build and a sample drive that uses your eligibility rules."
+        title={`See ${BRAND} with your own departments and batches.`}
+        lede="Tell us a little about your institution. We will set up a walkthrough and a sample drive that uses your eligibility rules."
       />
 
       <Section labelledBy="demo-form-title">
         <Split align="start" className="lg:grid-cols-[1.4fr_1fr]">
-          {to ? (
-            <DemoForm to={to} />
+          {mode ? (
+            <DemoForm mode={mode} to={to} />
           ) : (
             <div className="mk-card gap-4 p-6 sm:p-8">
               <h2 id="demo-form-title" className="mk-h3 text-2xl">
                 Request a demo
               </h2>
-              <InlineAlert tone="info" title="Online demo requests open soon">
-                The demo request form is not connected yet. If you already use {BRAND} at your institution, you can sign in below.
-              </InlineAlert>
+              {hasDetails ? (
+                <>
+                  <p className="text-ink-500">Email or call us and we will set up a walkthrough for your institution.</p>
+                  <ContactDetails />
+                </>
+              ) : (
+                <InlineAlert tone="info" title="Online demo requests open soon">
+                  The demo request form is not connected yet. If you already use {BRAND} at your institution, you can sign in below.
+                </InlineAlert>
+              )}
               <div>
                 <ButtonLink to={SIGN_IN_PATH} variant="secondary">
                   Sign in
@@ -211,15 +282,10 @@ export default function ContactPage() {
           )}
 
           <div className="flex flex-col gap-8">
-            {to && (
-              <div className="flex gap-4">
-                <IconTile icon={Mail} />
-                <div className="flex flex-col gap-1">
-                  <h2 className="mk-h3 text-base">Email</h2>
-                  <a className="mk-link break-all" href={`mailto:${to}`}>
-                    {to}
-                  </a>
-                </div>
+            {mode && hasDetails && (
+              <div className="flex flex-col gap-3">
+                <h2 className="mk-h3 text-base">Reach us directly</h2>
+                <ContactDetails />
               </div>
             )}
             <div className="flex gap-4">

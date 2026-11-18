@@ -4951,7 +4951,7 @@ export default function CampusWorkspace({
                   <img src="/alpha-logo.png" alt="" className="h-7 w-7 object-contain" />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-bold tracking-tight text-foreground">Alpha Grew</span>
+                  <span className="block text-sm font-bold tracking-tight text-foreground">Alphagrew</span>
                   <span
                     className="block truncate text-2xs text-muted-foreground"
                     title={institutionCode ? `${institutionName} (${institutionCode})` : institutionName}
@@ -5267,7 +5267,7 @@ export default function CampusWorkspace({
               </AnimatePresence>
 
               <footer className="flex flex-col gap-1 border-t border-border pt-4 text-2xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <span>© {new Date().getFullYear()} Alpha Grew · {institutionName}</span>
+                <span>© {new Date().getFullYear()} Alphagrew · {institutionName}</span>
                 <span>Campus management and career readiness</span>
               </footer>
             </main>

@@ -172,3 +172,15 @@ export function CheckboxGroup({
     </fieldset>
   );
 }
+
+/** Off-screen field that people never see or reach; the API drops requests where bots fill it. */
+export function Honeypot({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+      <label>
+        Website
+        <input type="text" name="website" tabIndex={-1} autoComplete="off" value={value} onChange={(e) => onChange(e.target.value)} />
+      </label>
+    </div>
+  );
+}

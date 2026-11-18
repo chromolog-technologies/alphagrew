@@ -2,7 +2,8 @@
 // place to change when a feature ships, so no page claims more than the product does.
 //
 // Source: documentation/audit/02-gap-analysis.md (code snapshot, 22 October 2026),
-// checked against the current routes in backend/routes/api.php.
+// checked against the current routes in backend/routes/api.php. Updated 18 November 2026
+// from documentation/audit/08-pre-production-audit.md (module status table).
 //   available = built and working end to end in the current build (audit status ✅)
 //   building  = partly built in the repository, not yet complete end to end
 //   planned   = specified in the PRD, not built yet
@@ -26,8 +27,8 @@ export const CAPABILITIES = {
   },
   tenantIsolation: {
     name: 'Institution data isolation',
-    status: 'building',
-    summary: "Every record belongs to one institution, and each request is designed to reach only that institution's data.",
+    status: 'available',
+    summary: "Every record belongs to one institution, and every request is limited to that institution's data, with automated tests that try to cross the boundary.",
   },
   onboarding: {
     name: 'Staff invitations and student registration',
@@ -41,17 +42,17 @@ export const CAPABILITIES = {
   },
   academicRecords: {
     name: 'Attendance, exams and marks',
-    status: 'building',
-    summary: 'Marks entry, review and result publishing, with attendance and batch management being completed.',
+    status: 'available',
+    summary: 'Attendance with approval and corrections, exam scheduling, marks entry and review, and result publishing.',
   },
   multiCampus: {
     name: 'Multiple campuses',
-    status: 'building',
+    status: 'available',
     summary: 'Campuses and batches under one institution, with records kept to the right campus.',
   },
   bulkImport: {
     name: 'Bulk import',
-    status: 'planned',
+    status: 'available',
     summary: 'Bring in students and staff from spreadsheets, with an error report for rows that need fixing.',
   },
 
@@ -203,6 +204,28 @@ export const CAPABILITIES = {
     summary: 'An append-only record of who changed what, which administrators can search and filter.',
   },
 
+  // Tailoring to the institution
+  customFields: {
+    name: 'Custom fields',
+    status: 'available',
+    summary: 'Add your own fields to students, staff, subjects, exams, companies, departments, courses and designations.',
+  },
+  customModules: {
+    name: 'Custom modules',
+    status: 'available',
+    summary: 'Keep records the product does not cover out of the box, such as hostel or transport, as modules of your own.',
+  },
+  sidebarLayout: {
+    name: 'Rearrangeable menu',
+    status: 'available',
+    summary: 'Reorder menu items and hide the ones your institution does not use, for everyone at once.',
+  },
+  dashboardBuilder: {
+    name: 'Dashboard builder',
+    status: 'available',
+    summary: 'Start from a dashboard made for each role, or build and share your own from live widgets.',
+  },
+
   // Recruiters
   candidateSharing: {
     name: 'Shared candidate profiles',
@@ -211,8 +234,8 @@ export const CAPABILITIES = {
   },
   recruiterPortal: {
     name: 'Recruiter portal',
-    status: 'planned',
-    summary: 'Recruiters post roles and review shared candidates directly.',
+    status: 'available',
+    summary: "Recruiters sign in to see their company's drives, review candidates and leave feedback on each application.",
   },
 } satisfies Record<string, Capability>;
 

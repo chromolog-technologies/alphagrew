@@ -6,6 +6,7 @@ import { marketingRoutes, preloadMarketingPages } from './MarketingRoutes';
 import { demoRequestMailto, validateDemoRequest } from './pages/ContactPage';
 import { APP_ROUTE_PATTERNS } from '../routes';
 import { SITE_PAGES, SOLUTION_ROLES, type SitePageId } from './siteMap';
+import { mockFetch } from '../test/mockFetch';
 
 function renderSite(path: string) {
   return render(
@@ -89,11 +90,13 @@ describe('marketing site pages', () => {
 
   it('keeps recruiter and faculty pages honest about unbuilt features', () => {
     renderSite('/solutions/recruiters');
-    expect(screen.getByText(/Recruiter sign-in is not available yet/)).toBeInTheDocument();
-    // Features the placement cell runs today may be built; the recruiter portal itself is not.
+    // The recruiter portal is built; profile sharing chosen by students is not.
     const portal = screen.getByText('Recruiter portal').closest('li');
     expect(portal).not.toBeNull();
-    expect(within(portal as HTMLElement).getByText('Planned')).toBeInTheDocument();
+    expect(within(portal as HTMLElement).getByText('In current build')).toBeInTheDocument();
+    const sharing = screen.getByText('Shared candidate profiles').closest('li');
+    expect(sharing).not.toBeNull();
+    expect(within(sharing as HTMLElement).getByText('Planned')).toBeInTheDocument();
 
     renderSite('/solutions/faculty');
     expect(screen.getByText(/Faculty views of student preparation are planned, not yet available/)).toBeInTheDocument();
@@ -152,12 +155,13 @@ describe('Phase 2 pages', () => {
     expect(screen.getByText('Vision')).toBeInTheDocument();
   });
 
-  it('platform has the six feature areas, a status legend and jump links', () => {
+  it('platform has the seven feature areas, a status legend and jump links', () => {
     renderSite('/platform');
 
-    const areas = ['placement-operations', 'profiles-resumes', 'opportunities-eligibility', 'interview-preparation', 'readiness-insights', 'notifications-reporting'];
+    const areas = ['placement-operations', 'profiles-resumes', 'opportunities-eligibility', 'interview-preparation', 'readiness-insights', 'notifications-reporting', 'tailoring'];
     for (const id of areas) expect(document.getElementById(id)).not.toBeNull();
-    expect(within(screen.getByRole('navigation', { name: 'Feature areas' })).getAllByRole('link')).toHaveLength(6);
+    expect(within(screen.getByRole('navigation', { name: 'Feature areas' })).getAllByRole('link')).toHaveLength(7);
+    expect(screen.getByRole('heading', { name: 'Fits how your institution works' })).toBeInTheDocument();
     for (const label of ['In current build', 'In development', 'Planned', 'Illustrative']) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
@@ -322,7 +326,14 @@ describe('site header', () => {
 });
 
 describe('demo request', () => {
-  it('explains that requests are not open when no inbox is configured', () => {
+  const fillRequiredFields = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(screen.getByRole('textbox', { name: /full name/i }), 'Asha Rao');
+    await user.type(screen.getByRole('textbox', { name: /institution or company/i }), 'Sample College');
+    await user.type(screen.getByRole('textbox', { name: /work email/i }), 'asha@college.edu.in');
+  };
+
+  it('explains that requests are not open when there is no API, inbox or contact details', () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
     vi.stubEnv('VITE_CONTACT_EMAIL', '');
     renderSite('/contact');
 
@@ -330,25 +341,91 @@ describe('demo request', () => {
     expect(screen.queryByRole('button', { name: /continue in your email app/i })).toBeNull();
   });
 
+  it('shows email and phone as the fallback when the form cannot be sent', () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    vi.stubEnv('VITE_CONTACT_EMAIL', '');
+    vi.stubEnv('VITE_CONTACT_PHONE', '+91 80 1234 5678');
+    renderSite('/contact');
+
+    expect(screen.queryByText('Online demo requests open soon')).toBeNull();
+    expect(within(screen.getByRole('main')).getByRole('link', { name: '+91 80 1234 5678' })).toHaveAttribute('href', 'tel:+918012345678');
+  });
+
   it('preselects the role when coming from a solution page', () => {
-    vi.stubEnv('VITE_CONTACT_EMAIL', 'demo@example.com');
     renderSite('/contact?role=recruiters');
 
     expect(screen.getByRole('combobox', { name: /your role/i })).toHaveValue('Recruiter');
   });
 
-    it('validates required fields and moves focus to the first problem', async () => {
-    vi.stubEnv('VITE_CONTACT_EMAIL', 'demo@example.com');
+  it('validates required fields and moves focus to the first problem', async () => {
+    const fetchMock = mockFetch(201, { message: 'ok' });
     const user = userEvent.setup();
     renderSite('/contact');
 
-    await user.click(screen.getByRole('button', { name: /continue in your email app/i }));
+    await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Book a demo' }));
 
     const name = screen.getByRole('textbox', { name: /full name/i });
     expect(name).toHaveAttribute('aria-invalid', 'true');
     expect(name).toHaveFocus();
     expect(screen.getByText('Enter your institution or company.')).toBeInTheDocument();
     expect(screen.getByText('Enter your email address.')).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('saves the request to the sales pipeline and thanks the visitor', async () => {
+    const fetchMock = mockFetch(201, { message: 'Thanks. We will be in touch shortly.' });
+    const user = userEvent.setup();
+    renderSite('/contact');
+
+    await fillRequiredFields(user);
+    await user.click(screen.getByRole('checkbox', { name: 'AI Interviewer' }));
+    await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Book a demo' }));
+
+    expect(await screen.findByRole('heading', { name: 'Thank you, Asha' })).toBeInTheDocument();
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/v1/demo-requests');
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      name: 'Asha Rao',
+      email: 'asha@college.edu.in',
+      institution: 'Sample College',
+      interests: ['AI Interviewer'],
+      form: 'demo',
+      website: '',
+    });
+  });
+
+  it('shows server validation errors next to the field', async () => {
+    mockFetch(422, { message: 'Invalid', errors: { email: ['The email field must be a valid email address.'] } });
+    const user = userEvent.setup();
+    renderSite('/contact');
+
+    await fillRequiredFields(user);
+    await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Book a demo' }));
+
+    expect(await screen.findByText('The email field must be a valid email address.')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: /work email/i })).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('offers the contact details when sending fails', async () => {
+    vi.stubEnv('VITE_CONTACT_EMAIL', 'hello@example.com');
+    mockFetch(500, { message: 'Server error' });
+    const user = userEvent.setup();
+    renderSite('/contact');
+
+    await fillRequiredFields(user);
+    await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Book a demo' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Your request was not sent');
+    expect(within(alert).getByRole('link', { name: 'hello@example.com' })).toHaveAttribute('href', 'mailto:hello@example.com');
+  });
+
+  it('falls back to a pre-filled email when this build has no API', () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    vi.stubEnv('VITE_CONTACT_EMAIL', 'demo@example.com');
+    renderSite('/contact');
+
+    expect(screen.getByRole('button', { name: /continue in your email app/i })).toBeInTheDocument();
   });
 
   it('builds a pre-filled email from the request', () => {
@@ -371,5 +448,58 @@ describe('demo request', () => {
     expect(url.searchParams.get('subject')).toBe('Alphagrew demo request: Sample College');
     expect(url.searchParams.get('body')).toContain('Interested in: AI Interviewer');
     expect(url.searchParams.get('body')).not.toContain('Phone:');
+  });
+});
+
+describe('get in touch', () => {
+  it('sends the short home page form as a website lead', async () => {
+    const fetchMock = mockFetch(201, { message: 'ok' });
+    const user = userEvent.setup();
+    renderSite('/');
+
+    const section = screen.getByRole('region', { name: /leave your details/i });
+    await user.type(within(section).getByRole('textbox', { name: /^name/i }), 'Ravi');
+    await user.type(within(section).getByRole('textbox', { name: /^email/i }), 'ravi@example.com');
+    await user.click(within(section).getByRole('button', { name: 'Get in touch' }));
+
+    expect(await within(section).findByText(/will be in touch soon/)).toBeInTheDocument();
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({ name: 'Ravi', email: 'ravi@example.com', form: 'get_in_touch' });
+  });
+
+  it('is hidden when the build has no API to save it to', () => {
+    vi.stubEnv('VITE_API_BASE_URL', '');
+    renderSite('/');
+
+    expect(screen.queryByRole('region', { name: /leave your details/i })).toBeNull();
+  });
+});
+
+describe('contact details and navigation', () => {
+  it('shows the configured email, phone and address in the footer', () => {
+    vi.stubEnv('VITE_CONTACT_EMAIL', 'hello@example.com');
+    vi.stubEnv('VITE_CONTACT_PHONE', '+91 80 1234 5678');
+    vi.stubEnv('VITE_CONTACT_ADDRESS', 'Bengaluru, India');
+    renderSite('/about');
+
+    const footer = screen.getByRole('contentinfo');
+    expect(within(footer).getByRole('link', { name: 'hello@example.com' })).toHaveAttribute('href', 'mailto:hello@example.com');
+    expect(within(footer).getByRole('link', { name: '+91 80 1234 5678' })).toBeInTheDocument();
+    expect(within(footer).getByText('Bengaluru, India')).toBeInTheDocument();
+  });
+
+  it('leaves contact rows out of the footer until they are configured', () => {
+    vi.stubEnv('VITE_CONTACT_EMAIL', '');
+    renderSite('/about');
+
+    expect(within(screen.getByRole('contentinfo')).queryByRole('link', { name: /@/ })).toBeNull();
+  });
+
+  it('has Home and Contact in the main navigation, marking only the current page', () => {
+    renderSite('/contact');
+
+    const nav = screen.getAllByRole('navigation', { name: 'Main' })[0];
+    expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).getByRole('link', { name: 'Contact' })).toHaveAttribute('aria-current', 'page');
   });
 });

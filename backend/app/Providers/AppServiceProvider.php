@@ -69,6 +69,12 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('register', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
 
+        // Public demo-request form: a person sends one or two; more is almost always a bot.
+        RateLimiter::for('demo-request', fn (Request $request): array => [
+            Limit::perMinute(3)->by($request->ip()),
+            Limit::perDay(20)->by($request->ip()),
+        ]);
+
         // Viewing and accepting an invitation; the 48-character token can't be guessed.
         RateLimiter::for('invitation', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
 

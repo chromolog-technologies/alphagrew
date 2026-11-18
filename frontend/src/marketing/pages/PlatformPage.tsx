@@ -77,6 +77,13 @@ const GROUPS: FeatureGroup[] = [
     lede: 'Announcements reach a department, batch or the whole institution. Reports give leadership placement figures without rebuilding them by hand.',
     ids: ['announcements', 'notifications', 'analytics', 'auditLog'],
   },
+  {
+    id: 'tailoring',
+    eyebrow: 'Tailored to your institution',
+    title: 'Fits how your institution works',
+    lede: 'Every institution runs a little differently. Add the fields and records you need, arrange the menu around your own work, and give each role the dashboard it uses every day, without waiting for a custom build.',
+    ids: ['customFields', 'customModules', 'sidebarLayout', 'dashboardBuilder', 'multiCampus'],
+  },
 ];
 
 const FOUNDATIONS: CapabilityId[] = [
@@ -154,7 +161,7 @@ export default function PlatformPage() {
         page="platform"
         eyebrow="Platform and features"
         title="Everything a placement season needs, on one student record."
-        lede="Six feature areas that share the same data, so each step uses what the previous one learned. Every feature is labelled with where it stands today."
+        lede="Seven feature areas that share the same data, so each step uses what the previous one learned. Every feature is labelled with where it stands today."
         actions={
           <nav aria-label="Feature areas" className="flex flex-wrap gap-2">
             {GROUPS.map((group) => (
@@ -189,8 +196,8 @@ export default function PlatformPage() {
               Built for institutions, from the ground up
             </h2>
             <p className="mk-lede">
-              Roles, records and data separation sit under every feature. Recruiters will get their own portal; today they
-              work through the placement cell.
+              Roles, records and data separation sit under every feature. Recruiters have their own sign-in to follow
+              candidates for their company's drives.
             </p>
           </div>
           <div className="mk-card bg-white text-ink-900">

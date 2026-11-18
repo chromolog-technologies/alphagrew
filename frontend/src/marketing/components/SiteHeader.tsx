@@ -152,7 +152,7 @@ export function SiteHeader({
                     onOpenChange={(open) => setOpenGroup(open ? entry.label : null)}
                   />
                 ) : (
-                  <NavLink to={entry.to} className="mk-nav-link">
+                  <NavLink to={entry.to} end className="mk-nav-link">
                     {entry.label}
                   </NavLink>
                 )}
@@ -209,7 +209,7 @@ export function SiteHeader({
             {PRIMARY_NAV.filter((entry) => !isNavGroup(entry)).map((entry) =>
               isNavGroup(entry) ? null : (
                 <li key={entry.to}>
-                  <NavLink to={entry.to} className="mk-nav-link w-full !justify-start !py-3 text-base">
+                  <NavLink to={entry.to} end className="mk-nav-link w-full !justify-start !py-3 text-base">
                     {entry.label}
                   </NavLink>
                 </li>
