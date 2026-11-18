@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToInstitution;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,9 +31,20 @@ class Exam extends Model
 
     protected $casts = [
         'exam_date' => 'datetime',
-        'start_time' => 'time',
-        'end_time' => 'time',
+        'max_marks' => 'integer',
+        'duration_minutes' => 'integer',
     ];
+
+    /** "HH:MM", whether the database returns "10:00" (SQLite) or "10:00:00" (MySQL TIME). */
+    protected function startTime(): Attribute
+    {
+        return Attribute::get(fn (?string $value) => $value === null ? null : substr($value, 0, 5));
+    }
+
+    protected function endTime(): Attribute
+    {
+        return Attribute::get(fn (?string $value) => $value === null ? null : substr($value, 0, 5));
+    }
 
     public function subject(): BelongsTo
     {
@@ -52,5 +64,11 @@ class Exam extends Model
     public function marks(): HasMany
     {
         return $this->hasMany(Mark::class);
+    }
+
+    /** Marks entered through the results workflow (mark_entries). */
+    public function markEntries(): HasMany
+    {
+        return $this->hasMany(MarkEntry::class);
     }
 }
