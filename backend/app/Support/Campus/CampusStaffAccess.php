@@ -29,6 +29,14 @@ final class CampusStaffAccess
             CampusPermission::MARKS_CREATE,
             CampusPermission::MARKS_APPROVE,
             CampusPermission::MARKS_PUBLISH,
+            // HODs: manage staff accounts of their own department (DepartmentPortalController).
+            CampusPermission::STAFF_VIEW,
+            CampusPermission::STAFF_CREATE,
+            CampusPermission::STAFF_EDIT,
+            CampusPermission::STAFF_DELETE,
+            // Accounts staff: campus fees.
+            CampusPermission::FEES_VIEW,
+            CampusPermission::FEES_MANAGE,
         ];
     }
 

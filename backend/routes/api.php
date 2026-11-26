@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Student\MaterialsController;
 use App\Http\Controllers\Api\Student\StudentResultController;
 use App\Http\Controllers\Api\Student\TimetableController;
 use App\Http\Controllers\Api\V1\AnnouncementController;
+use App\Http\Controllers\Api\V1\DemoRequestController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\V1\Auth\PasswordResetController;
@@ -24,7 +25,15 @@ use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\AcademicYearController;
 use App\Http\Controllers\Api\V1\ClassController;
 use App\Http\Controllers\Api\V1\CustomFieldController;
+use App\Http\Controllers\Api\V1\DepartmentPortalController;
+use App\Http\Controllers\Api\V1\ExportController;
+use App\Http\Controllers\Api\V1\FeeController;
+use App\Http\Controllers\Api\V1\StudentDocumentController;
+use App\Http\Controllers\Api\V1\LmsController;
+use App\Http\Controllers\Api\V1\RecruiterController;
+use App\Http\Controllers\Api\V1\ImportController;
 use App\Http\Controllers\Api\V1\SubjectAllocationController;
+use App\Http\Controllers\Api\V1\TimetableController as ClassTimetableController;
 use App\Models\CustomFieldDefinition;
 use App\Http\Controllers\Api\V1\CustomModuleController;
 use App\Http\Controllers\Api\V1\CustomModuleRecordController;
@@ -126,6 +135,17 @@ Route::prefix('v1')->group(function (): void {
         ->whereNumber('student')
         ->middleware(['signed', 'throttle:files'])
         ->name('students.photo');
+
+    Route::get('/files/lms/{kind}/{id}', [LmsController::class, 'file'])
+        ->whereIn('kind', ['material', 'submission'])
+        ->whereNumber('id')
+        ->middleware(['signed', 'throttle:files'])
+        ->name('lms.file');
+
+    Route::get('/files/student-documents/{document}', [StudentDocumentController::class, 'file'])
+        ->whereNumber('document')
+        ->middleware(['signed', 'throttle:files'])
+        ->name('student-documents.file');
 
     Route::get('/files/resumes/{resume}', [ResumeController::class, 'file'])
         ->whereNumber('resume')
@@ -250,6 +270,73 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/semesters/list/options', [SemesterController::class, 'getSemesterOptions'])
             ->middleware('permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum');
 
+        // Recruiter portal: the placement office manages recruiter accounts per company; recruiters
+        // see their company's jobs and shortlisted candidates. Access checked in the controller.
+        Route::get('/companies/{company}/recruiters', [RecruiterController::class, 'index'])->whereNumber('company');
+        Route::post('/companies/{company}/recruiters', [RecruiterController::class, 'store'])->whereNumber('company');
+        Route::delete('/companies/{company}/recruiters/{recruiter}', [RecruiterController::class, 'destroy'])->whereNumber(['company', 'recruiter']);
+        Route::get('/recruiter/jobs', [RecruiterController::class, 'jobs']);
+        Route::get('/recruiter/jobs/{job}/candidates', [RecruiterController::class, 'candidates'])->whereNumber('job');
+        Route::post('/recruiter/applications/{application}/feedback', [RecruiterController::class, 'feedback'])->whereNumber('application');
+
+        // Materials and assignments (LMS): allocated faculty post and grade; students see their subjects.
+        Route::prefix('lms')->group(function (): void {
+            Route::get('/teaching', [LmsController::class, 'teaching']);
+            Route::get('/my-subjects', [LmsController::class, 'mySubjects']);
+            Route::get('/subjects/{subject}', [LmsController::class, 'subjectContent'])->whereNumber('subject');
+            Route::post('/subjects/{subject}/materials', [LmsController::class, 'storeMaterial'])->whereNumber('subject')->middleware('throttle:uploads');
+            Route::delete('/materials/{material}', [LmsController::class, 'destroyMaterial'])->whereNumber('material');
+            Route::post('/subjects/{subject}/assignments', [LmsController::class, 'storeAssignment'])->whereNumber('subject');
+            Route::put('/assignments/{assignment}', [LmsController::class, 'updateAssignment'])->whereNumber('assignment');
+            Route::delete('/assignments/{assignment}', [LmsController::class, 'destroyAssignment'])->whereNumber('assignment');
+            Route::get('/assignments/{assignment}/submissions', [LmsController::class, 'submissions'])->whereNumber('assignment');
+            Route::post('/assignments/{assignment}/submit', [LmsController::class, 'submit'])->whereNumber('assignment')->middleware('throttle:uploads');
+            Route::post('/submissions/{submission}/grade', [LmsController::class, 'grade'])->whereNumber('submission');
+            Route::get('/files/{kind}/{id}/link', [LmsController::class, 'link'])->whereIn('kind', ['material', 'submission'])->whereNumber('id');
+        });
+
+        // Student documents: students manage their own; staff list per student; review needs students.edit.
+        Route::get('/students/me/documents', [StudentDocumentController::class, 'mine']);
+        Route::post('/students/me/documents', [StudentDocumentController::class, 'store'])->middleware('throttle:uploads');
+        Route::delete('/students/me/documents/{document}', [StudentDocumentController::class, 'destroy'])->whereNumber('document');
+        Route::get('/students/{student}/documents', [StudentDocumentController::class, 'forStudent'])->whereNumber('student');
+        Route::get('/student-documents/pending', [StudentDocumentController::class, 'pending']);
+        Route::post('/student-documents/{document}/review', [StudentDocumentController::class, 'review'])->whereNumber('document');
+        Route::get('/student-documents/{document}/link', [StudentDocumentController::class, 'link'])->whereNumber('document');
+
+        // Campus fees (record-keeping). fees.view / fees.manage checked in the controller; students read their own.
+        Route::get('/fee-structures', [FeeController::class, 'structures']);
+        Route::post('/fee-structures', [FeeController::class, 'storeStructure']);
+        Route::put('/fee-structures/{feeStructure}', [FeeController::class, 'updateStructure'])->whereNumber('feeStructure');
+        Route::delete('/fee-structures/{feeStructure}', [FeeController::class, 'destroyStructure'])->whereNumber('feeStructure');
+        Route::post('/fee-structures/{feeStructure}/assign', [FeeController::class, 'assign'])->whereNumber('feeStructure');
+        Route::get('/student-fees', [FeeController::class, 'studentFees']);
+        Route::get('/student-fees/{studentFee}', [FeeController::class, 'showStudentFee'])->whereNumber('studentFee');
+        Route::post('/student-fees/{studentFee}/payments', [FeeController::class, 'recordPayment'])->whereNumber('studentFee');
+        Route::post('/fee-payments/{payment}/void', [FeeController::class, 'voidPayment'])->whereNumber('payment');
+        Route::get('/students/me/fees', [FeeController::class, 'myFees']);
+
+        // CSV exports of what the user can see; permissions and scoping in the controller.
+        Route::get('/exports/{type}', [ExportController::class, 'show'])
+            ->whereIn('type', ['students', 'staff', 'attendance', 'results'])
+            ->middleware('throttle:exports');
+
+        // CSV imports (dry run with ?dryRun=1) and their templates; permissions checked in the controller.
+        Route::post('/imports/students', [ImportController::class, 'students'])->middleware('throttle:uploads');
+        Route::post('/imports/staff', [ImportController::class, 'staff'])->middleware('throttle:uploads');
+        Route::get('/imports/{type}/template', [ImportController::class, 'template'])->whereIn('type', ['students', 'staff']);
+
+        // Staff portal for one department (own department for staff; admins pick one). Access and
+        // staff-account permissions are checked in the controller.
+        Route::prefix('department-portal')->group(function (): void {
+            Route::get('/summary', [DepartmentPortalController::class, 'summary']);
+            Route::get('/reports', [DepartmentPortalController::class, 'reports']);
+            Route::get('/staff', [DepartmentPortalController::class, 'staff']);
+            Route::post('/staff', [DepartmentPortalController::class, 'storeStaff']);
+            Route::put('/staff/{staff}', [DepartmentPortalController::class, 'updateStaff'])->whereNumber('staff');
+            Route::delete('/staff/{staff}', [DepartmentPortalController::class, 'destroyStaff'])->whereNumber('staff');
+        });
+
         // Academic years, classes and subject allocations: same access as semesters and subjects.
         $academicView = 'permission:'.CampusPermission::DEPARTMENTS_VIEW.',sanctum';
         $academicManage = 'permission:'.CampusPermission::DEPARTMENTS_CREATE.',sanctum';
@@ -261,6 +348,13 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/classes', [ClassController::class, 'store'])->middleware($academicManage);
         Route::put('/classes/{class}', [ClassController::class, 'update'])->whereNumber('class')->middleware($academicManage);
         Route::delete('/classes/{class}', [ClassController::class, 'destroy'])->whereNumber('class')->middleware($academicManage);
+        Route::get('/classes/{class}/students', [ClassController::class, 'students'])->whereNumber('class')->middleware($academicView);
+        Route::put('/classes/{class}/students', [ClassController::class, 'syncStudents'])->whereNumber('class')->middleware($academicManage);
+        // Timetables per class; staff read their own with ?mine=1.
+        Route::get('/timetables', [ClassTimetableController::class, 'index']);
+        Route::post('/timetables', [ClassTimetableController::class, 'store'])->middleware($academicManage);
+        Route::put('/timetables/{timetable}', [ClassTimetableController::class, 'update'])->whereNumber('timetable')->middleware($academicManage);
+        Route::delete('/timetables/{timetable}', [ClassTimetableController::class, 'destroy'])->whereNumber('timetable')->middleware($academicManage);
         Route::get('/subject-allocations', [SubjectAllocationController::class, 'index'])->middleware($academicView);
         Route::post('/subject-allocations', [SubjectAllocationController::class, 'store'])->middleware($academicManage);
         Route::put('/subject-allocations/{subjectAllocation}', [SubjectAllocationController::class, 'update'])->whereNumber('subjectAllocation')->middleware($academicManage);
@@ -843,6 +937,8 @@ Route::prefix('v1')->group(function (): void {
                 Route::get('/detailed', [StudentAttendanceController::class, 'getDetailedRecords'])
                     ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
                 Route::get('/statistics', [StudentAttendanceController::class, 'getStatistics'])
+                    ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
+                Route::get('/calendar', [StudentAttendanceController::class, 'calendar'])
                     ->middleware('permission:'.CampusPermission::ATTENDANCE_VIEW.',sanctum');
             });
 

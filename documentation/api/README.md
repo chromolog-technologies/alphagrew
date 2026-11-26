@@ -370,6 +370,7 @@ Total: 303 routes.
 | POST | `/api/v1/auth/email/verification-notification` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/auth/email/verify/{id}/{hash}` | Signed URL | — | · | · | · | · | · | · |  |
 | POST | `/api/v1/auth/forgot-password` | Public | — | · | · | · | · | · | · |  |
+| POST | `/api/v1/demo-requests` | Public (throttled 3/min, 20/day per IP) | — | · | · | · | · | · | · | Marketing site demo / get-in-touch form → Owner CRM lead |
 | POST | `/api/v1/auth/login` | Public | — | · | · | · | · | · | · |  |
 | POST | `/api/v1/auth/logout` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |
 | GET | `/api/v1/auth/me` | Bearer | — | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |

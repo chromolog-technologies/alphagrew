@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Student;
+use Illuminate\Support\Carbon;
 
 class AttendanceController extends Controller
 {
@@ -33,6 +34,7 @@ class AttendanceController extends Controller
                 $late = $records->where('status', 'late')->count();
 
                 return [
+                    'subject_id' => $records->first()->subject_id,
                     'subject' => $records->first()->subject?->name,
                     'subject_code' => $records->first()->subject?->code ?? 'N/A',
                     'total_classes' => $total,
@@ -70,6 +72,8 @@ class AttendanceController extends Controller
                 return [
                     'id' => $record->id,
                     'date' => $record->attendance_date?->format('Y-m-d'),
+                    'subject_id' => $record->subject_id,
+                    'subject_code' => $record->subject?->code,
                     'subject' => $record->subject->name ?? 'Unknown Subject',
                     'class' => 'N/A',
                     'status' => $record->status,
@@ -83,6 +87,110 @@ class AttendanceController extends Controller
             'data' => $records,
             'message' => 'Detailed attendance records retrieved',
         ]);
+    }
+
+    /**
+     * One month of the student's own attendance grouped by day, for the calendar view.
+     * ?month=YYYY-MM (default: this month). Each day lists its sessions and an overall status:
+     * present (all present), absent (all absent), partial (a mix), leave (all leave).
+     */
+    public function calendar(Request $request)
+    {
+        $validated = $request->validate([
+            'month' => ['nullable', 'date_format:Y-m'],
+            'subject_id' => ['nullable', 'integer'],
+        ]);
+
+        $month = isset($validated['month'])
+            ? Carbon::createFromFormat('!Y-m', $validated['month'])
+            : now()->startOfMonth();
+        $from = $month->copy()->startOfMonth();
+        $to = $month->copy()->endOfMonth();
+
+        $studentId = $this->ownStudentId($request);
+
+        $records = Attendance::query()
+            ->where('student_id', $studentId)
+            ->whereBetween('attendance_date', [$from->toDateString(), $to->toDateString()])
+            ->when($validated['subject_id'] ?? null, fn ($q, $subjectId) => $q->where('subject_id', $subjectId))
+            ->with(['subject:id,name,code', 'faculty:id,name'])
+            ->orderBy('attendance_date')
+            ->orderBy('id')
+            ->get();
+
+        $days = $records
+            ->groupBy(fn (Attendance $record) => $record->attendance_date->toDateString())
+            ->map(function ($dayRecords, string $date) {
+                $counts = $this->countStatuses($dayRecords);
+
+                return [
+                    'date' => $date,
+                    ...$counts,
+                    'status' => $this->dayStatus($counts),
+                    'sessions' => $dayRecords->map(fn (Attendance $record) => [
+                        'id' => $record->id,
+                        'subject_id' => $record->subject_id,
+                        'subject' => $record->subject?->name,
+                        'subject_code' => $record->subject?->code,
+                        'status' => $record->status,
+                        'marked_by' => $record->faculty?->name,
+                        'remarks' => $record->remarks,
+                    ])->values(),
+                ];
+            })
+            ->values();
+
+        $summary = $this->countStatuses($records);
+        $attended = $summary['present'] + $summary['late'];
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'month' => $from->format('Y-m'),
+                'from' => $from->toDateString(),
+                'to' => $to->toDateString(),
+                'summary' => [
+                    ...$summary,
+                    'days_recorded' => $days->count(),
+                    // Late counts as attended.
+                    'percentage' => $summary['total'] > 0 ? round($attended / $summary['total'] * 100, 1) : null,
+                ],
+                'days' => $days,
+            ],
+            'message' => 'Attendance calendar retrieved',
+        ]);
+    }
+
+    /** @return array{total: int, present: int, absent: int, late: int, leave: int, other: int} */
+    private function countStatuses($records): array
+    {
+        return [
+            'total' => $records->count(),
+            'present' => $records->where('status', 'present')->count(),
+            'absent' => $records->where('status', 'absent')->count(),
+            'late' => $records->where('status', 'late')->count(),
+            'leave' => $records->where('status', 'leave')->count(),
+            'other' => $records->where('status', 'other')->count(),
+        ];
+    }
+
+    private function dayStatus(array $counts): string
+    {
+        $attended = $counts['present'] + $counts['late'];
+        if ($counts['total'] === 0) {
+            return 'none';
+        }
+        if ($attended === $counts['total']) {
+            return 'present';
+        }
+        if ($counts['absent'] === $counts['total']) {
+            return 'absent';
+        }
+        if ($counts['leave'] === $counts['total']) {
+            return 'leave';
+        }
+
+        return 'partial';
     }
 
     public function getStatistics(Request $request)

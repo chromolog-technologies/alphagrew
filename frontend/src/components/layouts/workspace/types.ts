@@ -154,6 +154,8 @@ export interface CampusWorkspaceProps {
     },
   ) => Promise<void> | void;
   onDeleteDesignation: (designationId: number) => Promise<void> | void;
+  /** Reloads the whole workspace dataset (e.g. after a CSV import). Live API only. */
+  onReloadData?: () => Promise<void> | void;
   onCreateStaff: (payload: {
     name: string;
     email: string;

@@ -199,8 +199,8 @@ export default function PlatformPage() {
               Built for institutions, from the ground up
             </h2>
             <p className="mk-lede">
-              Roles, records and data separation sit under every feature. Recruiters will get their own portal; today they
-              work through the placement cell.
+              Roles, records and data separation sit under every feature. Recruiters have their own sign-in to follow
+              candidates for their company's drives.
             </p>
           </div>
           <div className="mk-card bg-white text-ink-900">
@@ -217,7 +217,7 @@ export default function PlatformPage() {
           lede="The intended default for each role. Institution admins can adjust roles for their campus."
         />
         <div className="overflow-x-auto rounded-2xl border border-line" tabIndex={0} role="region" aria-label="Access by role table (scrolls sideways on small screens)">
-          <table className="w-full min-w-[44rem] text-left text-sm">
+          <table className="w-full min-w-176 text-left text-sm">
             <caption className="sr-only">Default access for each role</caption>
             <thead className="bg-mist-50 text-ink-700">
               <tr>

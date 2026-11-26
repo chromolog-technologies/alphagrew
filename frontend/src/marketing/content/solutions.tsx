@@ -381,7 +381,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
       },
     ],
     capabilities: {
-      intro: 'The recruiter portal is planned. Today, recruiters work with the placement cell, which already runs eligibility checks, rounds and offers on AlphaGrew.',
+      intro: 'The placement cell gives your team recruiter accounts for your company. You follow your drives and candidates in your own view, while the placement cell runs eligibility checks, rounds and offers.',
       ids: ['eligibilityEngine', 'candidateSharing', 'roundsOffers', 'recruiterPortal'],
       summaries: {
         eligibilityEngine: 'The placement cell enters your criteria, and they are checked against academic records the institution maintains.',
@@ -389,7 +389,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
         roundsOffers: 'The placement cell schedules your rounds and records results and offers, so every candidate\'s stage is up to date.',
         recruiterPortal: 'Follow candidate stages for each campus drive in your own view.',
       },
-      note: 'Recruiter sign-in is not available yet. AlphaGrew does not make hiring decisions or rank candidates for recruiters.',
+      note: "Recruiter accounts are created by each institution's placement cell. AlphaGrew does not make hiring decisions or rank candidates for recruiters.",
     },
     preview: <CandidatePipelineMockup />,
     workflow: [
@@ -408,7 +408,7 @@ export const ROLE_SOLUTIONS: Record<SolutionRoleId, RoleSolution> = {
     faqs: [
       {
         question: 'Can recruiters sign in today?',
-        answer: 'Not yet. The recruiter portal is planned. Today, recruiters work with each placement cell directly.',
+        answer: 'Yes. The placement cell creates recruiter accounts for your company. You can then see your drives, review candidates and leave feedback on each application.',
       },
       {
         question: 'Does AlphaGrew screen or rank candidates?',

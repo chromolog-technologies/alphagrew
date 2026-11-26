@@ -72,7 +72,13 @@ export type CampusPermission =
   | 'activity.view'
   | 'dashboards.build'
   | 'dashboards.share'
-  | 'custom_fields.manage';
+  | 'custom_fields.manage'
+  | 'staff.view'
+  | 'staff.create'
+  | 'staff.edit'
+  | 'staff.delete'
+  | 'fees.view'
+  | 'fees.manage';
 
 export type StaffDesignationPreset = 'hod' | 'department_coordinator' | 'hr' | 'exam_coordinator' | 'efc';
 
@@ -155,6 +161,12 @@ export const campusPermissionLabels: Record<CampusPermission, string> = {
   'dashboards.build': 'Build dashboards',
   'dashboards.share': 'Share dashboards',
   'custom_fields.manage': 'Manage custom fields',
+  'staff.view': 'Department staff',
+  'staff.create': 'Add department staff',
+  'staff.edit': 'Edit department staff',
+  'staff.delete': 'Remove department staff',
+  'fees.view': 'Fees',
+  'fees.manage': 'Record fee payments',
 };
 
 export const campusStaffAssignablePermissions: CampusPermission[] = [
@@ -170,6 +182,14 @@ export const campusStaffAssignablePermissions: CampusPermission[] = [
   'announcements.view',
   'announcements.create',
   'reports.view',
+  // HODs: manage staff accounts of their own department (Department → Staff).
+  'staff.view',
+  'staff.create',
+  'staff.edit',
+  'staff.delete',
+  // Accounts staff: campus fees.
+  'fees.view',
+  'fees.manage',
 ];
 
 export const campusStaffBasePermissions: CampusPermission[] = ['dashboard.view', 'profile.view'];

@@ -68,6 +68,8 @@ export function ReportsPage({ can }: OwnerPageProps) {
   const exports = useExportHistory();
 
   const deleteSavedMut = useOwnerMutation((id: number) => ownerOperationsApi.deleteSavedReport(id));
+  const toggleScheduleMut = useOwnerMutation((s: { id: number; isActive: boolean }) => ownerOperationsApi.updateSchedule(s.id, { isActive: s.isActive }));
+  const deleteScheduleMut = useOwnerMutation((id: number) => ownerOperationsApi.deleteSchedule(id));
 
   const runExport = async (format: 'csv' | 'html') => {
     setExportErr('');
@@ -268,7 +270,8 @@ export function ReportsPage({ can }: OwnerPageProps) {
                       <TableHead>Frequency</TableHead>
                       <TableHead>Recipients</TableHead>
                       <TableHead>Next run</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
+                      <TableHead>Status</TableHead>
+                      {canExport ? <TableHead className="text-right">Actions</TableHead> : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -279,9 +282,25 @@ export function ReportsPage({ can }: OwnerPageProps) {
                         <TableCell className="capitalize">{sched.frequency}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{sched.recipients.join(', ')}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{formatDateTime(sched.nextRunAt)}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell>
                           <Badge variant={sched.isActive ? 'success' : 'secondary'}>{sched.isActive ? 'Active' : 'Paused'}</Badge>
                         </TableCell>
+                        {canExport ? (
+                          <TableCell className="space-x-1 text-right">
+                            <Button size="sm" variant="outline" disabled={toggleScheduleMut.isPending} onClick={() => void toggleScheduleMut.mutateAsync({ id: sched.id, isActive: !sched.isActive })}>
+                              {sched.isActive ? 'Pause' : 'Resume'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label={`Delete schedule ${sched.name}`}
+                              disabled={deleteScheduleMut.isPending}
+                              onClick={() => { if (window.confirm(`Delete the schedule "${sched.name}"?`)) void deleteScheduleMut.mutateAsync(sched.id); }}
+                            >
+                              <Trash2 size={13} />
+                            </Button>
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     ))}
                   </TableBody>

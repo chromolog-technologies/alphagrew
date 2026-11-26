@@ -37,6 +37,7 @@ import {
   TabsTrigger,
 } from '../ui';
 import { JobEditorSheet } from './JobEditorSheet';
+import { RecruiterAccountsDialog } from './RecruiterAccountsDialog';
 import { StatusBadge, deadlineHint, errorMessage, formatDate } from './placementUi';
 import { csvCell } from '../../lib/csv';
 
@@ -52,6 +53,7 @@ export function PlacementWorkspace() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [editing, setEditing] = useState<Job | null | undefined>(undefined); // undefined = closed, null = new
   const [notice, setNotice] = useState<Notice>(null);
+  const [recruitersOpen, setRecruitersOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<'all' | Job['status']>('all');
 
   const save = usePlacementMutation(({ id, input }: { id: number | null; input: Parameters<typeof placementApi.createJob>[0] }) =>
@@ -73,8 +75,12 @@ export function PlacementWorkspace() {
               <h1 className="text-xl font-semibold tracking-tight text-foreground">Placement drives</h1>
               <p className="mt-0.5 text-sm text-muted-foreground">Create jobs with eligibility rules, publish them, and move candidates from application to placement.</p>
             </div>
-            <Button type="button" onClick={() => setEditing(null)}><Plus size={16} /> New job</Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => setRecruitersOpen(true)}><Users size={16} /> Recruiter accounts</Button>
+              <Button type="button" onClick={() => setEditing(null)}><Plus size={16} /> New job</Button>
+            </div>
           </header>
+          <RecruiterAccountsDialog open={recruitersOpen} onClose={() => setRecruitersOpen(false)} companies={jobs.data?.companies ?? []} />
 
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
             {(['all', 'open', 'draft', 'closed'] as const).map((status) => (

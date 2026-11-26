@@ -3,10 +3,10 @@
 // /owner/*) and unknown paths; vercel.json rewrites to it when no page file exists.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const dist = new URL('../dist/', import.meta.url).pathname;
-const ssrDir = new URL('../dist-ssr/', import.meta.url).pathname;
+const dist = fileURLToPath(new URL('../dist/', import.meta.url));
+const ssrDir = fileURLToPath(new URL('../dist-ssr/', import.meta.url));
 const { PAGE_IDS, pageHead, renderPage } = await import(pathToFileURL(join(ssrDir, 'prerender.js')).href);
 
 const template = readFileSync(join(dist, 'index.html'), 'utf8');

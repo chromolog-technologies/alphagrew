@@ -1,299 +1,254 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Mail, Phone, MapPin } from 'lucide-react';
-import { fetchAllStaffMembers, createNewStaffMember, deleteStaffMember, assignClassesToStaff } from '../../api/campusApi';
-import { getStoredToken } from '../../api/apiClient';
+/**
+ * The department's staff with what they teach (GET /department-portal/staff). HODs whose
+ * designation grants staff.create / edit / delete can also manage the accounts of their own
+ * department, handing out only designations whose access they hold themselves.
+ */
+import { useState, type FormEvent } from 'react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ApiError } from '../../api/apiError';
+import {
+  useDepartmentStaff,
+  useRemoveDepartmentStaff,
+  useSaveDepartmentStaff,
+  type DepartmentStaffMember,
+} from '../../api/departmentPortalApi';
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Select,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../ui';
 
-interface StaffMember {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  position: string;
-  specialization: string;
-  qualifications: string;
-  experience: number;
-  joinDate: string;
-  status: 'active' | 'inactive' | 'on_leave';
-}
+type Draft = { id: number | null; name: string; email: string; password: string; designationId: string; phone: string };
 
-export const HODStaffManagement: React.FC = () => {
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [isAddingStaff, setIsAddingStaff] = useState(false);
-  const [filterPosition, setFilterPosition] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function HODStaffManagement({ departmentCode }: { departmentCode?: string } = {}) {
+  const staff = useDepartmentStaff(departmentCode);
+  const save = useSaveDepartmentStaff();
+  const remove = useRemoveDepartmentStaff();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [deleting, setDeleting] = useState<DepartmentStaffMember | null>(null);
 
-  const positions = ['Associate Professor', 'Assistant Professor', 'Lecturer'];
+  const meta = staff.data?.meta;
+  const fieldErrors = save.error instanceof ApiError ? save.error.firstFieldErrors : {};
+  const formError = save.error instanceof ApiError && Object.keys(fieldErrors).length === 0 ? save.error.message : null;
+  const error = (field: string) => (fieldErrors[field] ? <p className="text-xs text-destructive">{fieldErrors[field]}</p> : null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const token = getStoredToken();
-
-        if (!token) {
-          setError('Authentication token not found');
-          return;
-        }
-
-        const response = await fetchAllStaffMembers(token);
-        if (response?.data) {
-          const staffList = Array.isArray(response.data) ? response.data : 
-            response.data.staff || [];
-          setStaffMembers(staffList);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch staff');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  const handleDeleteStaff = async (id: number) => {
-    try {
-      const token = getStoredToken();
-
-      if (!token) return;
-      
-      await deleteStaffMember(token, id);
-
-      setStaffMembers(staffMembers.filter((s) => s.id !== id));
-    } catch (err) {
-      alert('Error deleting staff: ' + (err instanceof Error ? err.message : 'Unknown error'));
-    }
+  const open = (member?: DepartmentStaffMember) => {
+    save.reset();
+    setDraft(
+      member
+        ? { id: member.id, name: member.name, email: member.email, password: '', designationId: member.designationId ? String(member.designationId) : '', phone: member.phone ?? '' }
+        : { id: null, name: '', email: '', password: '', designationId: '', phone: '' },
+    );
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'on_leave':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'inactive':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-slate-100 text-slate-800';
-    }
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!draft) return;
+    save.mutate(
+      {
+        id: draft.id,
+        input: {
+          name: draft.name.trim(),
+          email: draft.email.trim(),
+          password: draft.password || null,
+          designationId: Number(draft.designationId),
+          phone: draft.phone.trim() || null,
+        },
+      },
+      { onSuccess: () => setDraft(null) },
+    );
   };
 
-  const getStatusLabel = (status: string) => {
-    return status.replace('_', ' ').toUpperCase();
-  };
-
-  const filteredStaff = staffMembers.filter((staff) => {
-    if (filterPosition !== 'all' && staff.position !== filterPosition) return false;
-    if (filterStatus !== 'all' && staff.status !== filterStatus) return false;
-    return true;
-  });
-
-  if (loading) {
+  if (staff.isLoading) return <Skeleton className="h-48 w-full" />;
+  if (staff.error || !staff.data) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-slate-600">Loading staff data...</p>
-        </div>
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription>{staff.error instanceof ApiError ? staff.error.message : 'Department staff could not be loaded.'}</AlertDescription>
+      </Alert>
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-800">Error: {error}</p>
-      </div>
-    );
-  }
+  const rows = staff.data.data;
+  const canManageRows = Boolean(meta?.canEdit || meta?.canDelete);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Staff Management</h2>
-          <p className="mt-1 text-sm text-slate-600">Manage department faculty and staff</p>
+          <h1 className="text-xl font-semibold text-foreground">Department staff</h1>
+          <p className="text-sm text-muted-foreground">
+            {meta?.department.name} · {rows.length} staff
+          </p>
         </div>
-        <button
-          onClick={() => setIsAddingStaff(!isAddingStaff)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={20} />
-          Add Staff Member
-        </button>
+        {meta?.canCreate ? (
+          <Button type="button" onClick={() => open()} className="gap-1.5">
+            <Plus size={16} /> Add staff
+          </Button>
+        ) : null}
       </div>
 
-      {/* Add Staff Form */}
-      {isAddingStaff && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h3 className="font-bold text-blue-900 mb-4">Add New Staff Member</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <input
-              type="text"
-              placeholder="Full Name"
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="email"
-              placeholder="Email Address"
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="tel"
-              placeholder="Phone Number"
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <select className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option>Select Position</option>
-              {positions.map((pos) => (
-                <option key={pos} value={pos}>
-                  {pos}
-                </option>
+      <Card className="p-4">
+        {rows.length === 0 ? (
+          <p className="p-6 text-center text-sm text-muted-foreground">No staff in this department yet.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Designation</TableHead>
+                <TableHead>Teaches</TableHead>
+                {canManageRows ? <TableHead className="text-right">Actions</TableHead> : null}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((member) => (
+                <TableRow key={member.id}>
+                  <TableCell>
+                    <span className="font-medium">{member.name}</span>
+                    <span className="block text-xs text-muted-foreground">{member.email}</span>
+                  </TableCell>
+                  <TableCell>{member.designationName ?? '—'}</TableCell>
+                  <TableCell className="text-sm">
+                    {member.subjects.length === 0
+                      ? <span className="text-muted-foreground">Not allocated</span>
+                      : member.subjects.map((s) => `${s.code}${s.semester ? ` (${s.semester})` : ''}`).join(', ')}
+                  </TableCell>
+                  {canManageRows ? (
+                    <TableCell className="text-right">
+                      {meta?.canEdit && member.role === 'staff' ? (
+                        <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${member.name}`} onClick={() => open(member)}>
+                          <Pencil size={14} />
+                        </Button>
+                      ) : null}
+                      {meta?.canDelete && member.role === 'staff' ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove ${member.name}`}
+                          onClick={() => {
+                            remove.reset();
+                            setDeleting(member);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      ) : null}
+                    </TableCell>
+                  ) : null}
+                </TableRow>
               ))}
-            </select>
-            <input
-              type="text"
-              placeholder="Specialization"
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="text"
-              placeholder="Qualifications"
-              className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save</button>
-            <button
-              onClick={() => setIsAddingStaff(false)}
-              className="px-4 py-2 bg-slate-300 text-slate-900 rounded-lg hover:bg-slate-400"
-            >
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+
+      <Dialog open={draft !== null} onOpenChange={(isOpen) => !isOpen && setDraft(null)}>
+        <DialogContent className="max-w-lg">
+          {draft ? (
+            <form onSubmit={submit}>
+              <DialogHeader>
+                <DialogTitle>{draft.id === null ? 'Add staff' : `Edit ${draft.name}`}</DialogTitle>
+                <DialogDescription>Accounts are created in {meta?.department.name}. You can give only designations whose access you hold yourself.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ds-name">Name *</Label>
+                  <Input id="ds-name" required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                  {error('name')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ds-email">Email *</Label>
+                  <Input id="ds-email" type="email" required value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
+                  {error('email')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ds-designation">Designation *</Label>
+                  <Select id="ds-designation" required value={draft.designationId} onChange={(e) => setDraft({ ...draft, designationId: e.target.value })}>
+                    <option value="">Choose…</option>
+                    {(meta?.designations ?? []).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </Select>
+                  {error('designationId')}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ds-phone">Phone</Label>
+                  <Input id="ds-phone" value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
+                  {error('phone')}
+                </div>
+                <div className="space-y-1.5 md:col-span-2">
+                  <Label htmlFor="ds-password">{draft.id === null ? 'Password *' : 'New password'}</Label>
+                  <Input
+                    id="ds-password"
+                    type="password"
+                    required={draft.id === null}
+                    minLength={8}
+                    placeholder={draft.id === null ? 'At least 8 characters' : 'Leave blank to keep the current password'}
+                    value={draft.password}
+                    onChange={(e) => setDraft({ ...draft, password: e.target.value })}
+                  />
+                  {error('password')}
+                </div>
+              </div>
+              {formError ? (
+                <Alert variant="destructive" className="mt-4">
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
+              ) : null}
+              <DialogFooter className="mt-6">
+                <Button type="button" variant="outline" onClick={() => setDraft(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save'}
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleting !== null} onOpenChange={(isOpen) => !isOpen && setDeleting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove {deleting?.name}?</DialogTitle>
+            <DialogDescription>Their account is deactivated and they are signed out. Marks and records they entered stay.</DialogDescription>
+          </DialogHeader>
+          {remove.error ? (
+            <Alert variant="destructive">
+              <AlertDescription>{remove.error instanceof ApiError ? remove.error.message : 'The account could not be removed.'}</AlertDescription>
+            </Alert>
+          ) : null}
+          <DialogFooter className="mt-6">
+            <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
               Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex gap-4 flex-wrap">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Position</label>
-          <select
-            value={filterPosition}
-            onChange={(e) => setFilterPosition(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Positions</option>
-            {positions.map((pos) => (
-              <option key={pos} value={pos}>
-                {pos}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="on_leave">On Leave</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredStaff.map((staff) => (
-          <div key={staff.id} className="border border-slate-200 rounded-lg p-5 hover:shadow-lg transition">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="font-bold text-slate-900 text-lg">{staff.name}</h4>
-                <p className="text-sm text-slate-600">{staff.position}</p>
-              </div>
-              <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(staff.status)}`}>
-                {getStatusLabel(staff.status)}
-              </span>
-            </div>
-
-            <div className="space-y-2 mb-4 text-sm text-slate-600">
-              <div className="flex items-center gap-2">
-                <Mail size={16} className="text-blue-600" />
-                <span>{staff.email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone size={16} className="text-blue-600" />
-                <span>{staff.phone}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-blue-600" />
-                <span>{staff.specialization}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 mb-4 text-xs border-t border-slate-200 pt-3">
-              <div>
-                <p className="text-slate-500">Qualifications</p>
-                <p className="font-semibold text-slate-900">{staff.qualifications}</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Experience</p>
-                <p className="font-semibold text-slate-900">{staff.experience} yrs</p>
-              </div>
-              <div>
-                <p className="text-slate-500">Joined</p>
-                <p className="font-semibold text-slate-900">{new Date(staff.joinDate).getFullYear()}</p>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <button className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 text-slate-700 rounded hover:bg-slate-200 text-sm font-medium">
-                <Edit2 size={16} />
-                Edit
-              </button>
-              <button
-                onClick={() => handleDeleteStaff(staff.id)}
-                className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm font-medium"
-              >
-                <Trash2 size={16} />
-                Remove
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredStaff.length === 0 && (
-        <div className="text-center py-12 bg-slate-50 rounded-lg">
-          <p className="text-slate-600">No staff members found with selected filters</p>
-        </div>
-      )}
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-6 rounded-lg border border-slate-200">
-        <div>
-          <p className="text-sm text-slate-600 font-medium">Total Staff</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{staffMembers.length}</p>
-        </div>
-        <div>
-          <p className="text-sm text-slate-600 font-medium">Active Members</p>
-          <p className="text-3xl font-bold text-green-600 mt-1">
-            {staffMembers.filter((s) => s.status === 'active').length}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm text-slate-600 font-medium">On Leave</p>
-          <p className="text-3xl font-bold text-yellow-600 mt-1">
-            {staffMembers.filter((s) => s.status === 'on_leave').length}
-          </p>
-        </div>
-      </div>
+            </Button>
+            <Button type="button" variant="destructive" disabled={remove.isPending} onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}>
+              Remove
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-};
+}

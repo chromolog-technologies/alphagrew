@@ -26,7 +26,19 @@ export interface NotificationPreference {
   description: string;
   inApp: boolean;
   mail: boolean;
+  sms: boolean;
 }
+
+/** SMS is offered only when the platform has an SMS provider; it goes to smsPhone. */
+export interface NotificationPreferences {
+  data: NotificationPreference[];
+  meta: { smsAvailable: boolean; smsPhone: string | null };
+}
+
+const normalisePreferences = (res: Partial<NotificationPreferences> | undefined): NotificationPreferences => ({
+  data: (res?.data ?? []).map((item) => ({ ...item, sms: Boolean(item.sms) })),
+  meta: { smsAvailable: Boolean(res?.meta?.smsAvailable), smsPhone: res?.meta?.smsPhone ?? null },
+});
 
 export const notificationsApi = {
   list: (params: { unread?: boolean; page?: number; perPage?: number } = {}) =>
@@ -42,9 +54,9 @@ export const notificationsApi = {
   markRead: (id: string) => http.post<{ unreadCount: number }>(`/notifications/${id}/read`),
   markAllRead: () => http.post<{ unreadCount: number }>('/notifications/read-all'),
   remove: (id: string) => http.delete<{ unreadCount: number }>(`/notifications/${id}`),
-  preferences: () => http.get<{ data: NotificationPreference[] }>('/notifications/preferences').then((response) => response.data),
-  savePreferences: (preferences: Pick<NotificationPreference, 'category' | 'inApp' | 'mail'>[]) =>
-    http.put<{ data: NotificationPreference[] }>('/notifications/preferences', { preferences }).then((response) => response.data),
+  preferences: () => http.get<NotificationPreferences>('/notifications/preferences').then(normalisePreferences),
+  savePreferences: (preferences: Pick<NotificationPreference, 'category' | 'inApp' | 'mail' | 'sms'>[]) =>
+    http.put<NotificationPreferences>('/notifications/preferences', { preferences }).then(normalisePreferences),
 };
 
 export const notificationKeys = {

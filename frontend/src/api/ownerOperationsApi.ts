@@ -491,6 +491,12 @@ export const ownerOperationsApi = {
     isApiConfigured()
       ? http.post<{ data: ReportSchedule }>('/owner/reports/schedules', input).then((r) => r.data)
       : Promise.resolve((() => { const item: ReportSchedule = { id: demoSchedules.length + 1, ...input, format: 'csv', isActive: true, nextRunAt: new Date().toISOString(), createdBy: 'Platform Owner' }; demoSchedules.unshift(item); return item; })()),
+  updateSchedule: (id: number, input: { isActive?: boolean; frequency?: ReportSchedule['frequency'] }) =>
+    isApiConfigured()
+      ? http.patch<{ data: { id: number; isActive: boolean } }>(`/owner/reports/schedules/${id}`, input).then((r) => r.data)
+      : Promise.resolve((() => { const s = demoSchedules.find((x) => x.id === id)!; Object.assign(s, input); return { id, isActive: s.isActive }; })()),
+  deleteSchedule: (id: number) =>
+    isApiConfigured() ? http.delete(`/owner/reports/schedules/${id}`) : Promise.resolve((() => { demoSchedules = demoSchedules.filter((s) => s.id !== id); return { message: 'Schedule removed.' }; })()),
   exportHistory: () =>
     isApiConfigured() ? http.get<{ data: ExportJob[] }>('/owner/reports/exports').then((r) => r.data) : Promise.resolve([...demoExports]),
 
@@ -591,6 +597,10 @@ export const ownerOperationsApi = {
     isApiConfigured()
       ? http.post<{ data: WebhookItem }>('/owner/webhooks', input).then((r) => r.data)
       : Promise.resolve((() => { const item: WebhookItem = { id: demoWebhooks.length + 1, institution: null, name: input.name, url: input.url, events: input.events, secretMasked: 'whsec********demo', isActive: true, lastDeliveryAt: null, lastStatusCode: null, deliveries: [] }; demoWebhooks.unshift(item); return item; })()),
+  toggleWebhook: (id: number) =>
+    isApiConfigured()
+      ? http.post<{ data: WebhookItem }>(`/owner/webhooks/${id}/toggle`).then((r) => r.data)
+      : Promise.resolve((() => { const w = demoWebhooks.find((x) => x.id === id)!; w.isActive = !w.isActive; return { ...w }; })()),
   testWebhook: (id: number) =>
     isApiConfigured()
       ? http.post<{ data: WebhookItem }>(`/owner/webhooks/${id}/test`).then((r) => r.data)

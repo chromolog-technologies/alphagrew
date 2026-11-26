@@ -90,11 +90,13 @@ describe('marketing site pages', () => {
 
   it('keeps recruiter and faculty pages honest about unbuilt features', () => {
     renderSite('/solutions/recruiters');
-    expect(screen.getByText(/Recruiter sign-in is not available yet/)).toBeInTheDocument();
-    // Features the placement cell runs today may be built; the recruiter portal itself is not.
+    // The recruiter portal is built; profile sharing chosen by students is not.
     const portal = screen.getByText('Recruiter portal').closest('li');
     expect(portal).not.toBeNull();
-    expect(within(portal as HTMLElement).getByText('Planned')).toBeInTheDocument();
+    expect(within(portal as HTMLElement).getByText('In current build')).toBeInTheDocument();
+    const sharing = screen.getByText('Shared candidate profiles').closest('li');
+    expect(sharing).not.toBeNull();
+    expect(within(sharing as HTMLElement).getByText('Planned')).toBeInTheDocument();
 
     renderSite('/solutions/faculty');
     expect(screen.getByText(/Faculty views of student preparation are planned, not yet available/)).toBeInTheDocument();

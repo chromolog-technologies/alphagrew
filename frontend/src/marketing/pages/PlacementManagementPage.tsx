@@ -92,7 +92,7 @@ const ACCESS: { role: string; can: string; capability: CapabilityId }[] = [
   { role: 'Placement officer', can: 'Creates and updates companies and drives, sees applications and drive statistics.', capability: 'placementDrives' },
   { role: 'Faculty', can: "Sees students' preparation only as the institution allows. A dedicated faculty view is planned.", capability: 'facultyInsights' },
   { role: 'Student', can: 'Sees drives open to them, applies, and follows their own applications.', capability: 'placementDrives' },
-  { role: 'Recruiter', can: 'No direct access today. A portal for shared candidates is planned.', capability: 'recruiterPortal' },
+  { role: 'Recruiter', can: "Signs in to see the company's drives, review candidates and leave feedback.", capability: 'recruiterPortal' },
 ];
 
 const FEATURES: ProductFeature[] = [

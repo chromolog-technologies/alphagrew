@@ -3,7 +3,8 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { ProtectedRoute } from '../auth/ProtectedRoute';
 import { AttendanceMarkForm } from './AttendanceMarkForm';
 import { AttendanceReport } from './AttendanceReport';
-import { Users, BarChart3 } from 'lucide-react';
+import { Users, BarChart3, ListChecks } from 'lucide-react';
+import { AttendanceRecords } from './AttendanceRecords';
 
 interface AttendanceModuleProps {
   userRole?: string;
@@ -11,7 +12,7 @@ interface AttendanceModuleProps {
 
 export const AttendanceModule: React.FC<AttendanceModuleProps> = ({ userRole }) => {
   const { hasPermission, canAccess, loading } = usePermissions();
-  const [activeTab, setActiveTab] = useState<'mark' | 'report'>('mark');
+  const [activeTab, setActiveTab] = useState<'mark' | 'report' | 'records'>('mark');
   const [refreshKey, setRefreshKey] = useState(0);
 
   if (loading) {
@@ -67,6 +68,20 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({ userRole }) 
               View Reports
             </button>
           )}
+
+          {hasPermission('attendance', 'mark') && (
+            <button
+              onClick={() => setActiveTab('records')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                activeTab === 'records'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <ListChecks size={18} />
+              Correct Records
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -86,6 +101,9 @@ export const AttendanceModule: React.FC<AttendanceModuleProps> = ({ userRole }) 
               <AttendanceReport />
             </ProtectedRoute>
           )}
+
+          {/* Correct marked attendance */}
+          {activeTab === 'records' && hasPermission('attendance', 'mark') && <AttendanceRecords />}
 
           {/* No Permission Message */}
           {activeTab === 'mark' && !hasPermission('attendance', 'mark') && (

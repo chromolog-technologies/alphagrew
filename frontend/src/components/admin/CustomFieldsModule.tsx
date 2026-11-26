@@ -1149,7 +1149,7 @@ export function CustomFieldsModule({
                         rows={4}
                         value={draft.options}
                         onChange={(event) => setDraft({ ...draft, options: event.target.value })}
-                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 font-mono text-xs"
+                        className="w-full rounded-xl border border-slate-200 px-3.5 py-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         placeholder="Option 1&#10;Option 2&#10;Option 3"
                       />
                       {errors.options || errors['options.0'] ? (

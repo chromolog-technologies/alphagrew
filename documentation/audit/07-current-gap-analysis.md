@@ -98,17 +98,41 @@ Legend: ✅ Complete · 🟡 Partial · 🔴 Missing · ⚠️ Risk / broken. Ga
 
 | Priority | Work | Closes | Why first |
 |---|---|---|---|
-| P0 | Fix staff-without-department visibility; add recruiter rule (deny by default) | G-SEC-1, G-SEC-2 | Data exposure |
-| P0 | Migration aligning `courses` nullability; MySQL test job in CI | G-SCH-1, G-TST-1 | Two production-only failures already |
+| P0 ✅ | Fix staff-without-department visibility; add recruiter rule (deny by default) | G-SEC-1, G-SEC-2 | Data exposure |
+| P0 ✅ | Migration aligning `courses` nullability; MySQL test job in CI | G-SCH-1, G-TST-1 | Two production-only failures already |
 | P0 | Merge phase-1 PR; customization phase 0 (value cleanup, permissions) | G-DAT-1, part of G-CUS-1 | Small, removes misleading behaviour |
 | P1 ✅ | **Exams & exam types API** + connect Exams and Exam-coordinator screens | G-EXM-1, G-EXM-2 | Mark entry and results depend on exams that today can only be seeded |
 | P1 ✅ | **Subject allocations, classes, academic years write** | G-ACA-1, G-ACA-2 | Needed by mark entry and timetable |
-| P1 | Replace staff-portal sample endpoints with real queries (mostly reuse `/dashboards/query`, attendance and mark-entry services) | G-STF-1 | 33 of 45 sample routes; staff see fake numbers today |
-| P2 | Timetable API + admin screen | G-ACA-3 | Student timetable already reads it |
-| P2 | Staff view of student profile/academics; grade-rule & mark-scheme editors; attendance correction | G-PPL-2, G-MRK-1, G-ATT-1 | Backend already exists — frontend-only work |
-| P2 | Bulk import (students, staff) and exports with real downloads | G-PPL-1, G-RPT-1 | Long-standing PRD gap |
-| P3 | Fees module (campus) | G-FEE-1 | Larger scope; needs a payment decision |
-| P3 | Recruiter portal, SMS, LMS (assignments/materials), documents | G-PLC-1, G-STU-1 | New products rather than gaps in existing ones |
-| P3 | Remove dead components and deprecated APIs; owner-console leftovers | G-DEAD-1, G-DUP-1, G-OWN-1 | Housekeeping |
+| P1 ✅ | Replace staff-portal sample endpoints with real queries (mostly reuse `/dashboards/query`, attendance and mark-entry services) | G-STF-1 (department overview, HOD reports, HOD staff) | 33 of 45 sample routes; staff see fake numbers today |
+| P2 ✅ | Timetable API + admin screen | G-ACA-3 | Student timetable already reads it |
+| P2 ✅ | Staff view of student profile/academics; grade-rule & mark-scheme editors; attendance correction | G-PPL-2, G-MRK-1, G-ATT-1 | Backend already exists — frontend-only work |
+| P2 ✅ | Bulk import (students, staff) and exports with real downloads | G-PPL-1, G-RPT-1 | Long-standing PRD gap |
+| P3 ✅ | Fees module (campus, record-keeping) | G-FEE-1 | Larger scope; needs a payment decision |
+| P3 ✅ | Recruiter portal, SMS, LMS (assignments/materials), documents | G-PLC-1, G-STU-1 | New products rather than gaps in existing ones |
+| P3 🟡 | Remove dead components and deprecated APIs; owner-console leftovers | G-DEAD-1, G-DUP-1, G-OWN-1 | Housekeeping. Dead components and owner leftovers done; deprecated sample APIs stay while the offline demo uses them |
 
 Customization phases 2–7 (`06-dynamic-customization-plan.md`) run in parallel once P0 is done.
+
+---
+
+## 7. Progress after P1 part 3, P2 and P3 (branch `feat/p1-exams-academics`, 16 November 2026)
+
+| Gap | Now | Where |
+|---|---|---|
+| G-STF-1 | Department overview, HOD reports and department staff use real data (`/department-portal/*`). HODs with staff.create/edit/delete manage staff of their own department only, and can grant only designations whose permissions they hold themselves. Other `/staff/*` sample routes remain for the offline demo | `DepartmentPortalController`, `Services/Departments/DepartmentPortal` |
+| G-ACA-3 | Timetable CRUD with class, faculty and room clash checks; class rosters (`/classes/{id}/students`) | `TimetableController`, `TimetableModule.tsx`, `ClassRosterDialog.tsx` |
+| G-MRK-1 | Grade-rule and mark-scheme editors (Marks → Grade scales) | `GradeScalesPanel.tsx` |
+| G-ATT-1 | Attendance → Correct Records: edit or delete single records, export a day | `AttendanceRecords.tsx` |
+| G-PPL-2 | Student profile dialog for staff: profile, academics, education verification, documents | `StudentProfileDialog.tsx` |
+| G-PPL-1 | CSV import of students and staff with a dry run, per-row errors and set-password emails | `ImportController`, `Services/Imports/BulkImporter` |
+| G-RPT-1 | CSV exports: students, staff, attendance, published results (audited, rate-limited) | `ExportController`, `ExportButton.tsx` |
+| G-FEE-1 | Fees as record-keeping: fee structures, assignment to a class or students, dues, payments with receipts, voids with a reason, overdue status, "My fees" for students. No online payment gateway | `FeeController`, `FeesModule.tsx`, `StudentFeesView.tsx` |
+| G-STU-1 (documents) | Students upload documents; staff verify or reject with remarks; files on private storage via 5-minute signed links | `StudentDocumentController`, `StudentDocumentsView.tsx` |
+| G-STU-1 (LMS) | Materials, assignments, submissions (text or file, late rules), grading; students see their department/year subjects, faculty their allocated subjects | `LmsController`, `StudentLmsView.tsx`, `TeachingLmsView.tsx` |
+| G-PLC-1 | Recruiter portal: the placement office invites recruiters per company (Placement → Recruiter accounts); recruiters sign in, see their company's jobs and only candidates moved past "applied", and leave feedback on the application history. They cannot change statuses or see the student list | `RecruiterController`, `RecruiterPortal.tsx`, `RecruiterAccountsDialog.tsx` |
+| SMS | Third notification channel, off by default per user. Drivers: `log`, `twilio`, `msg91` (`SMS_DRIVER`, see `config/services.php`); empty = off and the option is hidden. Phone from the account, else the student record, normalised to E.164 | `Notifications/Channels/SmsChannel`, `Services/Sms/*`, Notifications → Preferences |
+| G-DEAD-1 | The four unused components were removed | — |
+| G-OWN-1 | Report schedules can be paused, resumed and deleted; webhooks enabled and disabled. Subscription events were already shown in the subscription detail (served by the detail endpoint), so `/subscriptions/{id}/events` stays unused | `ReportsPage.tsx`, `IntegrationsPage.tsx` |
+| G-DUP-1 | Open. The deprecated `/staff/*`, `/companies` and `/staff/marks/*` routes still feed the offline demo; remove them together with the demo's sample screens | — |
+
+Still open: G-SEC-3 (field-level security), G-CON-1 (API conventions), G-PRM-1 / G-RPT-2 (unused internal routes), exam hall allocation and seating, online fee payment, customization phases 2–7.

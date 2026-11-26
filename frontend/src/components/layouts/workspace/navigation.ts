@@ -46,6 +46,7 @@ export const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'onboarding', label: 'Onboarding', icon: UserCircle2, permission: 'users.create' },
     { id: 'classes', label: 'Classes', icon: Users, permission: 'departments.create' },
     { id: 'subjects', label: 'Subjects', icon: BookOpen, permission: 'departments.create' },
+    { id: 'lms', label: 'Materials & assignments', icon: BookOpen, permission: 'departments.create' },
     { id: 'academic_years', label: 'Academic Years', icon: Calendar, permission: 'departments.create' },
     { id: 'batches', label: 'Batches', icon: Users, permission: 'departments.create' },
     { id: 'campuses', label: 'Campuses', icon: Building2, permission: 'departments.create' },
@@ -71,6 +72,10 @@ export const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'activity', label: 'Activity', icon: Bell, permission: 'announcements.view' },
     { id: 'students', label: 'Students', icon: Users, permission: 'students.view' },
     { id: 'departments', label: 'Departments', icon: Building2, permission: 'departments.view' },
+    // Materials and assignments for the subjects the staff member teaches.
+    { id: 'lms', label: 'Materials & assignments', icon: BookOpen, permission: 'profile.view' },
+    // The department's staff; HODs with staff.* also manage their accounts.
+    { id: 'hod_staff_management', label: 'Department staff', icon: UserCircle2, permission: 'staff.view' },
     { id: 'attendance', label: 'Attendance', icon: Clock, permission: 'attendance.view' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'departments.create' },
     { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
@@ -89,6 +94,8 @@ export const baseNavByRole: Record<'admin' | 'staff' | 'student', NavItem[]> = {
     { id: 'student_assignments', label: 'Materials & Notes', icon: BookOpen, permission: 'attendance.view' },
     { id: 'exams', label: 'Exams', icon: ClipboardList, permission: 'marks.view' },
     { id: 'marks', label: 'Marks', icon: ChartColumn, permission: 'marks.view' },
+    { id: 'student_fees', label: 'My fees', icon: BriefcaseBusiness, permission: 'profile.view' },
+    { id: 'student_documents', label: 'My documents', icon: ClipboardList, permission: 'profile.view' },
 
     { id: 'placement', label: 'Placement', icon: BriefcaseBusiness, permission: 'placement.view' },
     { id: 'student_notifications', label: 'Notifications', icon: Bell, permission: 'profile.view' },
@@ -116,8 +123,12 @@ export const navByRole: Record<CampusRole, NavItem[]> = {
   ],
   staff: baseNavByRole.staff,
   student: baseNavByRole.student,
-  // Recruiters cannot sign in yet; the recruiter portal is a later phase.
-  recruiter: [],
+  // Recruiters: their company's jobs and the candidates the placement office shares.
+  recruiter: [
+    { id: 'recruiter_jobs', label: 'Candidates', icon: BriefcaseBusiness, permission: 'profile.view' },
+    { id: 'profile', label: 'Profile', icon: UserCircle2, permission: 'profile.view' },
+    { id: 'security', label: 'Sign-in & Security', icon: ShieldCheck, permission: 'profile.view' },
+  ],
 };
 
 /** Every page id any role can open; used to tell "no access" from "no such page". */
@@ -127,9 +138,9 @@ export const sidebarNavGroups: SidebarNavGroup[] = [
   { id: 'overview', label: 'Overview', itemIds: ['dashboard', 'activity', 'student_notifications'] },
   { id: 'master_data', label: 'Master Data', itemIds: ['masters', 'departments', 'courses', 'designations', 'academic_years', 'batches', 'campuses', 'custom_fields'] },
   { id: 'users_roles', label: 'Users & Roles', itemIds: ['staff', 'students', 'onboarding', 'roles', 'hod_staff_management'] },
-  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'timetable', 'student_timetable', 'student_assignments'] },
+  { id: 'academic', label: 'Academic', itemIds: ['classes', 'subjects', 'attendance', 'exams', 'marks', 'fees', 'student_fees', 'student_documents', 'lms', 'timetable', 'student_timetable', 'student_assignments'] },
 
   { id: 'finance', label: 'Finance', itemIds: [] },
-  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer', 'placement_policy'] },
+  { id: 'placement', label: 'Placement', itemIds: ['placement', 'placement_officer', 'placement_policy', 'recruiter_jobs'] },
   { id: 'other', label: 'Other', itemIds: ['announcements', 'reports', 'settings', 'audit_log', 'profile', 'security', 'student_notifications', 'department_overview', 'hod_reports', 'exam_coordinator'] },
 ];

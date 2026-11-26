@@ -1,0 +1,132 @@
+<!doctype html>
+<!--
+  Source of public/brand/og-image.jpg, the 1200×630 link preview for LinkedIn, WhatsApp, X etc.
+  Regenerate after editing (from frontend/; chrome works the same way):
+    msedge --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --allow-file-access-from-files --window-size=1200,630 \
+      --screenshot=og-image.png file:///<absolute path>/scripts/og-image.html
+  then save it as JPEG (quality ~88) to public/brand/og-image.jpg. WhatsApp skips preview
+  images over ~300 KB. Keep the important text inside the central ~1000×520 area: some
+  apps crop the edges.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @font-face {
+        font-family: 'Plus Jakarta Sans';
+        src: url('../src/marketing/fonts/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2');
+        font-weight: 200 800;
+      }
+      @font-face {
+        font-family: 'Inter';
+        src: url('../src/marketing/fonts/inter-latin-wght-normal.woff2') format('woff2');
+        font-weight: 100 900;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+      body {
+        position: relative;
+        background:
+          radial-gradient(circle at 88% 12%, rgba(56, 182, 255, 0.35), transparent 42%),
+          radial-gradient(circle at 10% 110%, rgba(36, 107, 252, 0.55), transparent 50%),
+          linear-gradient(135deg, #041a38 0%, #0a2f61 55%, #1046b5 100%);
+        color: #fff;
+        font-family: 'Inter', system-ui, sans-serif;
+      }
+      .grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: linear-gradient(90deg, transparent, #000 60%);
+      }
+      .content {
+        position: absolute;
+        inset: 72px 96px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .brand img {
+        width: 76px;
+        height: 76px;
+        border-radius: 18px;
+        background: #fff;
+        padding: 6px;
+        box-sizing: border-box;
+      }
+      .wordmark {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 44px;
+        letter-spacing: 0.06em;
+        line-height: 1;
+      }
+      .tagline {
+        margin-top: 8px;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.32em;
+        color: #7dd3fc;
+      }
+      h1 {
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 68px;
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        max-width: 900px;
+      }
+      h1 span {
+        background: linear-gradient(90deg, #8db2fd, #38b6ff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .pills {
+        display: flex;
+        gap: 14px;
+      }
+      .pills span {
+        padding: 12px 22px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 21px;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="grid"></div>
+    <div class="content">
+      <div class="brand">
+        <img src="../public/brand/alphagrew-mark.png" alt="" />
+        <div>
+          <div class="wordmark">ALPHAGREW</div>
+          <div class="tagline">SMART CAMPUS</div>
+        </div>
+      </div>
+      <h1>From campus learning to <span>career readiness.</span></h1>
+      <div class="pills">
+        <span>Placement Management</span>
+        <span>AI Interviewer</span>
+        <span>Career Intelligence</span>
+      </div>
+    </div>
+  </body>
+</html>

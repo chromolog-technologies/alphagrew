@@ -7,7 +7,7 @@ import { Logo } from './Logo';
 
 export function SiteFooter({ inert }: { inert?: boolean }) {
   return (
-    <footer className="mk-tone-dark !bg-navy-900 pt-16 pb-10" inert={inert}>
+    <footer className="mk-tone-dark bg-navy-900! pt-16 pb-10" inert={inert}>
       <Container>
         <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
           <div className="flex max-w-sm flex-col gap-4">

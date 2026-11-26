@@ -46,7 +46,8 @@ class RoleModelTest extends TestCase
         $this->withToken($token)->postJson('/api/v1/students', [])->assertForbidden();
     }
 
-    public function test_recruiter_cannot_log_in_until_the_portal_exists(): void
+    /** Recruiters belong to the institution whose placement office created them (RecruiterPortalTest). */
+    public function test_recruiter_without_an_institution_cannot_log_in(): void
     {
         $this->seed();
 

@@ -258,11 +258,14 @@ export function OnboardingCrmPage({ can, go }: OwnerPageProps) {
   );
 }
 
+// Must match App\Models\Lead::SOURCES. Website leads arrive from the public demo form.
+const LEAD_SOURCES = ['referral', 'outbound', 'event', 'partner', 'website'] as const;
+
 function CreateLeadDialog({ onClose }: { onClose: () => void }) {
   const [organizationName, setOrganizationName] = useState('');
   const [contactName, setContactName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
-  const [source, setSource] = useState('inbound');
+  const [source, setSource] = useState('referral');
   const [expectedStudents, setExpectedStudents] = useState('');
   const [expectedMrr, setExpectedMrr] = useState('');
   const [err, setErr] = useState('');
@@ -299,7 +302,11 @@ function CreateLeadDialog({ onClose }: { onClose: () => void }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Contact name"><Input required value={contactName} onChange={(e) => setContactName(e.target.value)} /></Field>
             <Field label="Contact email"><Input type="email" required value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} /></Field>
-            <Field label="Lead source"><Input value={source} onChange={(e) => setSource(e.target.value)} /></Field>
+            <Field label="Lead source">
+              <Select value={source} onChange={(e) => setSource(e.target.value)}>
+                {LEAD_SOURCES.map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
+              </Select>
+            </Field>
             <Field label="Expected students"><Input type="number" min={0} value={expectedStudents} onChange={(e) => setExpectedStudents(e.target.value)} /></Field>
             <Field label="Expected MRR"><Input type="number" min={0} value={expectedMrr} onChange={(e) => setExpectedMrr(e.target.value)} /></Field>
           </div>

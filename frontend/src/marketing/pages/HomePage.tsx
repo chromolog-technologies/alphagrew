@@ -125,7 +125,7 @@ function Ecosystem() {
   return (
     <div className="mk-orbit" aria-hidden="true">
       <span className="mk-orbit-ring inset-[6%]" />
-      <span className="mk-orbit-ring inset-[18%] !border-solid !border-iris-100" />
+      <span className="mk-orbit-ring inset-[18%] border-solid! border-iris-100!" />
       <div className="mk-orbit-core">
         <img src="/brand/alphagrew-mark.png" alt="" width={40} height={40} className="h-10 w-10" />
         <span className="font-display text-sm font-bold text-ink-900">AlphaGrew</span>
@@ -245,7 +245,7 @@ export default function HomePage() {
         />
         <div className="flex flex-wrap justify-center gap-5 lg:gap-6">
           {SOLUTION_ROLES.map((role) => (
-            <div key={role.id} className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] [&>*]:h-full">
+            <div key={role.id} className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)] *:h-full">
               <FeatureCard icon={ROLE_ICONS[role.id]} title={role.label} to={solutionPath(role.id)} linkLabel="See the solution">
                 <p>{ROLE_VALUE[role.id]}</p>
               </FeatureCard>
@@ -403,16 +403,16 @@ export default function HomePage() {
       <GetInTouch />
 
       <Section labelledBy="faq-preview-title">
-        <Container narrow className="!px-0">
+        <Container narrow className="px-0!">
           <SectionHeader
             id="faq-preview-title"
             eyebrow="FAQs"
             title="Questions institutions ask first"
             lede="About availability, AI, data and access."
             align="center"
-            className="!mb-8"
+            className="mb-8!"
           />
-          <div className="mk-card !gap-0 !py-2">
+          <div className="mk-card gap-0! py-2!">
             <FaqList items={faqPreview} />
           </div>
           <p className="mt-8 text-center">

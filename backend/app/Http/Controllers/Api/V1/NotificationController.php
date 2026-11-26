@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationPreference;
+use App\Services\Sms\SmsManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -63,7 +64,7 @@ class NotificationController extends Controller
 
     public function preferences(Request $request): JsonResponse
     {
-        return response()->json(['data' => $this->presentPreferences($request)]);
+        return response()->json(['data' => $this->presentPreferences($request), 'meta' => $this->smsMeta($request)]);
     }
 
     public function updatePreferences(Request $request): JsonResponse
@@ -73,16 +74,30 @@ class NotificationController extends Controller
             'preferences.*.category' => ['required', 'distinct', Rule::in(array_keys(NotificationPreference::CATEGORIES))],
             'preferences.*.inApp' => ['required', 'boolean'],
             'preferences.*.mail' => ['required', 'boolean'],
+            'preferences.*.sms' => ['sometimes', 'boolean'],
         ]);
 
         foreach ($validated['preferences'] as $preference) {
             NotificationPreference::query()->updateOrCreate(
                 ['user_id' => $request->user()->id, 'category' => $preference['category']],
-                ['in_app' => $preference['inApp'], 'mail' => $preference['mail']],
+                ['in_app' => $preference['inApp'], 'mail' => $preference['mail'], 'sms' => (bool) ($preference['sms'] ?? false)],
             );
         }
 
-        return response()->json(['data' => $this->presentPreferences($request)]);
+        return response()->json(['data' => $this->presentPreferences($request), 'meta' => $this->smsMeta($request)]);
+    }
+
+    /**
+     * Whether SMS is switched on for the platform, and the user's phone it would go to.
+     *
+     * @return array{smsAvailable: bool, smsPhone: string|null}
+     */
+    private function smsMeta(Request $request): array
+    {
+        return [
+            'smsAvailable' => app(SmsManager::class)->enabled(),
+            'smsPhone' => SmsManager::normalise($request->user()->routeNotificationForSms()),
+        ];
     }
 
     /** @return list<array<string, mixed>> */

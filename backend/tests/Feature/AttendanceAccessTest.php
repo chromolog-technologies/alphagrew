@@ -201,6 +201,127 @@ class AttendanceAccessTest extends TestCase
         $this->getJson('/api/v1/student/timetable')->assertNotFound();
     }
 
+    public function test_student_timetable_reports_real_durations_and_class(): void
+    {
+        $this->insert('timetables', [
+            'class_id' => $this->classId, 'subject_id' => $this->subject, 'day_of_week' => 'Wednesday',
+            'start_time' => '14:00:00', 'end_time' => '15:30:00', 'faculty_id' => $this->staffA->id,
+            'effective_from' => '2025-06-01',
+        ]);
+        $this->insert('timetables', [
+            'class_id' => $this->classId, 'subject_id' => $this->subject, 'day_of_week' => 'Monday',
+            'start_time' => '09:00:00', 'end_time' => '10:00:00', 'faculty_id' => $this->staffA->id,
+            'effective_from' => '2025-06-01',
+        ]);
+
+        Sanctum::actingAs($this->studentUser);
+
+        $this->getJson('/api/v1/student/timetable')
+            ->assertOk()
+            ->assertJsonPath('data.class.code', 'CSE1A')
+            ->assertJsonPath('data.notice', null)
+            ->assertJsonPath('data.learning_hours_per_week', 2.5)
+            ->assertJsonPath('data.unique_faculty', 1)
+            // Monday sorts before Wednesday (not alphabetically).
+            ->assertJsonPath('data.all_slots.0.day', 'Monday')
+            ->assertJsonPath('data.all_slots.1.start', '14:00')
+            ->assertJsonPath('data.all_slots.1.end_time', '03:30 PM')
+            ->assertJsonPath('data.all_slots.1.duration_minutes', 90)
+            ->assertJsonPath('data.all_slots.1.room', null);
+
+        $this->getJson('/api/v1/student/timetable/day?day=Sunday')->assertUnprocessable();
+    }
+
+    public function test_student_without_a_class_gets_an_empty_timetable_with_a_reason(): void
+    {
+        DB::table('class_student')->where('student_id', $this->student)->delete();
+        Sanctum::actingAs($this->studentUser);
+
+        $this->getJson('/api/v1/student/timetable')
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.class', null)
+            ->assertJsonPath('data.all_classes', 0)
+            ->assertJsonPath('data.notice', 'You have not been added to a class yet. Your timetable will appear here once your institution assigns you to one.');
+        $this->getJson('/api/v1/student/timetable/day?day=Monday')
+            ->assertOk()
+            ->assertJsonPath('data.classes_count', 0);
+    }
+
+    public function test_student_in_a_batch_but_not_a_roster_gets_the_batch_class_timetable(): void
+    {
+        DB::table('class_student')->where('student_id', $this->student)->delete();
+        $batch = $this->insert('batches', ['name' => 'CSE 2025', 'code' => 'CSE25', 'admission_year' => 2025, 'graduation_year' => 2029, 'status' => 'active']);
+        DB::table('students')->where('id', $this->student)->update(['batch_id' => $batch]);
+        DB::table('classes')->where('id', $this->classId)->update(['batch_id' => $batch]);
+        $this->insert('timetables', [
+            'class_id' => $this->classId, 'subject_id' => $this->subject, 'day_of_week' => 'Monday',
+            'start_time' => '09:00:00', 'end_time' => '10:00:00', 'faculty_id' => $this->staffA->id,
+            'effective_from' => '2025-06-01',
+        ]);
+
+        Sanctum::actingAs($this->studentUser);
+        $this->getJson('/api/v1/student/timetable')
+            ->assertOk()
+            ->assertJsonPath('data.class.id', $this->classId)
+            ->assertJsonPath('data.all_classes', 1);
+
+        // Two classes in the batch: ambiguous, so no guess.
+        $this->insert('classes', [
+            'name' => 'CSE-1B', 'code' => 'CSE1B', 'course_id' => DB::table('classes')->where('id', $this->classId)->value('course_id'),
+            'semester_id' => DB::table('classes')->where('id', $this->classId)->value('semester_id'),
+            'batch' => 'B', 'admission_year' => 2025, 'batch_id' => $batch,
+        ]);
+        $this->getJson('/api/v1/student/timetable')
+            ->assertOk()
+            ->assertJsonPath('data.class', null)
+            ->assertJsonPath('data.all_classes', 0);
+    }
+
+    public function test_attendance_calendar_groups_a_month_of_own_records_by_day(): void
+    {
+        $other = $this->insert('subjects', [
+            'name' => 'Mathematics', 'code' => 'MA101', 'course_id' => DB::table('subjects')->where('id', $this->subject)->value('course_id'),
+            'semester_number' => 1, 'credit_hours' => 4, 'lecture_hours' => 3,
+        ]);
+        $record = fn (int $student, int $subject, string $date, string $status) => $this->insert('attendance', [
+            'student_id' => $student, 'subject_id' => $subject, 'faculty_id' => $this->staffA->id,
+            'attendance_date' => $date, 'status' => $status,
+        ]);
+        $record($this->student, $this->subject, '2026-03-02', 'present');
+        $record($this->student, $other, '2026-03-02', 'present');
+        $record($this->student, $this->subject, '2026-03-03', 'present');
+        $record($this->student, $other, '2026-03-03', 'absent');
+        $record($this->student, $this->subject, '2026-03-04', 'absent');
+        $record($this->student, $this->subject, '2026-03-05', 'leave');
+        $record($this->student, $this->subject, '2026-04-01', 'present'); // next month
+        $record($this->classmate, $this->subject, '2026-03-06', 'absent'); // someone else
+
+        Sanctum::actingAs($this->studentUser);
+
+        $this->getJson('/api/v1/student/attendance/calendar?month=2026-03')
+            ->assertOk()
+            ->assertJsonPath('data.month', '2026-03')
+            ->assertJsonPath('data.from', '2026-03-01')
+            ->assertJsonPath('data.to', '2026-03-31')
+            ->assertJsonCount(4, 'data.days')
+            ->assertJsonPath('data.days.0.date', '2026-03-02')
+            ->assertJsonPath('data.days.0.status', 'present')
+            ->assertJsonCount(2, 'data.days.0.sessions')
+            ->assertJsonPath('data.days.1.status', 'partial')
+            ->assertJsonPath('data.days.2.status', 'absent')
+            ->assertJsonPath('data.days.3.status', 'leave')
+            ->assertJsonPath('data.summary.total', 6)
+            ->assertJsonPath('data.summary.present', 3)
+            ->assertJsonPath('data.summary.percentage', 50);
+
+        $this->getJson("/api/v1/student/attendance/calendar?month=2026-03&subject_id={$other}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data.days');
+
+        $this->getJson('/api/v1/student/attendance/calendar?month=March')->assertUnprocessable();
+    }
+
     /** @param  array<int, string>  $statuses  student id => status */
     private function mark(array $statuses)
     {
