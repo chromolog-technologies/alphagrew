@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Per user and category: whether notifications appear in the app and whether they are emailed.
- * A missing row means the defaults in CATEGORIES.
+ * Per user and category: whether notifications appear in the app, are emailed and are sent by
+ * SMS. A missing row means the defaults in CATEGORIES; SMS is always off until turned on.
  */
 class NotificationPreference extends Model
 {
@@ -19,11 +19,11 @@ class NotificationPreference extends Model
         'account' => ['Account', 'Sign-in and account changes.', true, true],
     ];
 
-    protected $fillable = ['user_id', 'category', 'in_app', 'mail'];
+    protected $fillable = ['user_id', 'category', 'in_app', 'mail', 'sms'];
 
     protected function casts(): array
     {
-        return ['in_app' => 'boolean', 'mail' => 'boolean'];
+        return ['in_app' => 'boolean', 'mail' => 'boolean', 'sms' => 'boolean'];
     }
 
     public function user(): BelongsTo
@@ -31,12 +31,12 @@ class NotificationPreference extends Model
         return $this->belongsTo(User::class);
     }
 
-    /** @return array{inApp: bool, mail: bool} */
+    /** @return array{inApp: bool, mail: bool, sms: bool} */
     public static function for(User $user, string $category): array
     {
         [, , $inApp, $mail] = self::CATEGORIES[$category] ?? self::CATEGORIES['account'];
         $row = static::query()->where('user_id', $user->id)->where('category', $category)->first();
 
-        return ['inApp' => $row?->in_app ?? $inApp, 'mail' => $row?->mail ?? $mail];
+        return ['inApp' => $row?->in_app ?? $inApp, 'mail' => $row?->mail ?? $mail, 'sms' => (bool) ($row?->sms ?? false)];
     }
 }

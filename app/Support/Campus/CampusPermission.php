@@ -164,6 +164,10 @@ final class CampusPermission
     public const DASHBOARDS_SHARE = 'dashboards.share';
     public const CUSTOM_FIELDS_MANAGE = 'custom_fields.manage';
 
+    // Campus fees (record-keeping)
+    public const FEES_VIEW = 'fees.view';
+    public const FEES_MANAGE = 'fees.manage';
+
     public static function all(): array
     {
         return [
@@ -326,6 +330,8 @@ final class CampusPermission
             self::DASHBOARDS_BUILD,
             self::DASHBOARDS_SHARE,
             self::CUSTOM_FIELDS_MANAGE,
+            self::FEES_VIEW,
+            self::FEES_MANAGE,
         ];
     }
 

@@ -8,6 +8,7 @@ use App\Services\Audit\AuditLogger;
 use App\Support\Tenancy\TenantRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -64,6 +65,37 @@ class ClassController extends Controller
         return response()->json(['message' => 'Class deleted.']);
     }
 
+    /** The class's students (students see their class's timetable). */
+    public function students(ClassModel $class): JsonResponse
+    {
+        return response()->json([
+            'data' => $class->students()->orderBy('name')->get(['students.id', 'name', 'registration_number', 'department_code'])
+                ->map(fn ($s) => ['id' => $s->id, 'name' => $s->name, 'registrationNumber' => $s->registration_number, 'departmentCode' => $s->department_code])
+                ->all(),
+        ]);
+    }
+
+    /** Replaces the class's students with the given list. */
+    public function syncStudents(Request $request, ClassModel $class): JsonResponse
+    {
+        $v = $request->validate([
+            'studentIds' => ['present', 'array', 'max:500'],
+            'studentIds.*' => ['integer', 'distinct', TenantRule::exists('students', 'id')->whereNull('deleted_at')],
+        ]);
+
+        $ids = array_map('intval', $v['studentIds']);
+        $before = $class->students()->pluck('students.id')->all();
+        // Attach / detach rather than sync(): students who stay keep their original assigned_from.
+        $added = array_values(array_diff($ids, $before));
+        $removed = array_values(array_diff($before, $ids));
+        $class->students()->attach(array_fill_keys($added, ['assigned_from' => now()->toDateString()]));
+        $class->students()->detach($removed);
+        $class->update(['total_students' => count($ids)]);
+        $this->audit->record('class.students_updated', $class, ['students' => $before], ['students' => $ids]);
+
+        return $this->students($class);
+    }
+
     /** @return array<string, mixed> */
     private function validated(Request $request, ?ClassModel $class = null): array
     {
@@ -78,6 +110,18 @@ class ClassController extends Controller
             'batchId' => ['sometimes', 'nullable', 'integer', TenantRule::exists('batches', 'id')],
             'hodId' => ['sometimes', 'nullable', 'integer', TenantRule::exists('users', 'id')],
         ]);
+
+        // classes has a unique index on (course, batch, admission year): report it, not a 500.
+        $course = $v['courseId'] ?? $class?->course_id;
+        $batch = $v['batch'] ?? $class?->batch;
+        $year = $v['admissionYear'] ?? $class?->admission_year;
+        $taken = ClassModel::query()
+            ->where('course_id', $course)->where('batch', $batch)->where('admission_year', $year)
+            ->when($class, fn ($q) => $q->whereKeyNot($class->id))
+            ->exists();
+        if ($taken) {
+            throw ValidationException::withMessages(['batch' => 'This course already has a class for that batch and admission year. Use a different batch name, e.g. "2023-2027 B".']);
+        }
 
         $map = [
             'name' => 'name', 'code' => 'code', 'courseId' => 'course_id', 'semesterId' => 'semester_id',

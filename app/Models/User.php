@@ -150,6 +150,18 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(Student::class);
     }
 
+    /** Phone for SMS notifications: the account's own number, else the student record's. */
+    public function routeNotificationForSms(): ?string
+    {
+        if (filled($this->phone)) {
+            return $this->phone;
+        }
+
+        return $this->role === UserRole::Student->value
+            ? Student::query()->withoutGlobalScopes()->where('user_id', $this->id)->value('phone')
+            : null;
+    }
+
     public function designation(): BelongsTo
     {
         return $this->belongsTo(Designation::class);
