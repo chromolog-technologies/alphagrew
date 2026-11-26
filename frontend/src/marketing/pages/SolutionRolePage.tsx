@@ -61,7 +61,7 @@ export default function SolutionRolePage({ role }: { role: SolutionRoleId }) {
           <div className="flex flex-col gap-5">
             <p className="mk-eyebrow">Capabilities</p>
             <h2 id="capabilities-title" className="mk-h2">
-              What Alphagrew provides
+              What AlphaGrew provides
             </h2>
             <p className="mk-lede">{solution.capabilities.intro}</p>
             {solution.capabilities.note && <InlineAlert tone="info">{solution.capabilities.note}</InlineAlert>}

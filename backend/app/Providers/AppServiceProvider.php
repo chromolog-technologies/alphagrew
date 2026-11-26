@@ -67,10 +67,18 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(120)->by($request->ip()),
         ]);
 
-        RateLimiter::for('register', fn (Request $request): Limit => Limit::perMinute(30)->by($request->ip()));
+        // Student self-registration: bursts per minute, and a daily cap so a script cannot fill
+        // the approval queue with thousands of pending accounts.
+        RateLimiter::for('register', fn (Request $request): array => [
+            Limit::perMinute(30)->by($request->ip()),
+            Limit::perDay(50)->by($request->ip()),
+        ]);
 
-        // Public demo-request form: a person sends one or two; more is almost always a bot.
-        RateLimiter::for('demo-request', fn (Request $request): array => [
+        // Signed, short-lived links to resumes and student photos (no token, so per address).
+        RateLimiter::for('files', fn (Request $request): Limit => Limit::perMinute(60)->by($request->ip()));
+
+        // Public "Book a demo" form: a few tries a minute, and a daily cap per address.
+        RateLimiter::for('demo-requests', fn (Request $request): array => [
             Limit::perMinute(3)->by($request->ip()),
             Limit::perDay(20)->by($request->ip()),
         ]);
@@ -83,6 +91,9 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(3)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()),
             Limit::perMinute(30)->by($request->ip()),
         ]);
+
+        // Profile changes that can include the email or password (PUT /auth/profile).
+        RateLimiter::for('account', fn (Request $request): Limit => Limit::perMinute(5)->by($perUser($request)));
 
         RateLimiter::for('verification', fn (Request $request): Limit => Limit::perMinute(3)->by($perUser($request)));
 

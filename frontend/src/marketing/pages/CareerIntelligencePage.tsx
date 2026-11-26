@@ -51,7 +51,7 @@ const STEPS: WorkflowStep[] = [
   {
     actor: 'Student',
     title: 'Keep a profile and resume current',
-    body: 'Skills, projects and experience in the career profile, and an uploaded resume Alphagrew can read.',
+    body: 'Skills, projects and experience in the career profile, and an uploaded resume AlphaGrew can read.',
     capability: 'careerProfile',
   },
   {
@@ -61,13 +61,13 @@ const STEPS: WorkflowStep[] = [
     capability: 'aiInterviewText',
   },
   {
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     title: 'Compare evidence with the role',
     body: "Each competency is marked exceeds, meets, gap, no evidence or unverified. A linked job's required skills are added to the list.",
     capability: 'skillGap',
   },
   {
-    actor: 'Alphagrew',
+    actor: 'AlphaGrew',
     title: 'Suggest what to practise next',
     body: 'Practice steps come from the latest interview and the largest gaps. Students mark them as done.',
     capability: 'recommendations',
@@ -349,7 +349,7 @@ export default function CareerIntelligencePage() {
               Each competency, checked against real evidence
             </h2>
             <p className="mk-lede">
-              For a target role such as backend or frontend developer, Alphagrew lists the competencies the role needs and looks for
+              For a target role such as backend or frontend developer, AlphaGrew lists the competencies the role needs and looks for
               the strongest evidence of each one.
             </p>
             <ul className="mk-ticks text-ink-200">

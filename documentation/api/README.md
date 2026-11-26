@@ -1,4 +1,4 @@
-# Alphagrew Campus API Reference
+# AlphaGrew Campus API Reference
 
 This folder documents every HTTP endpoint the Laravel backend in `backend/` exposes, for all six account types. It was written by reading the route table (`php artisan route:list`), every controller, form request, API resource and action, and the permission seeders.
 

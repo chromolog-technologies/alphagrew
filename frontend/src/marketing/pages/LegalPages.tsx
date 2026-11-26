@@ -83,8 +83,8 @@ const PRIVACY: LegalSection[] = [
     heading: '1. Who we are',
     body: (
       <p>
-        Alphagrew is a product of {COMPANY}, <Ph>legal entity name and registered office address</Ph> (“Alphagrew”, “we”, “us”).
-        This policy explains how we handle personal data when you use the Alphagrew platform, this website and related services.
+        AlphaGrew is a product of {COMPANY}, <Ph>legal entity name and registered office address</Ph> (“AlphaGrew”, “we”, “us”).
+        This policy explains how we handle personal data when you use the AlphaGrew platform, this website and related services.
       </p>
     ),
   },
@@ -94,11 +94,11 @@ const PRIVACY: LegalSection[] = [
     body: (
       <>
         <p>
-          Most personal data on Alphagrew is provided by, or on behalf of, an educational institution that uses the platform. For
-          that data, <strong>the institution is the Data Fiduciary</strong> and decides why and how the data is processed. Alphagrew
+          Most personal data on AlphaGrew is provided by, or on behalf of, an educational institution that uses the platform. For
+          that data, <strong>the institution is the Data Fiduciary</strong> and decides why and how the data is processed. AlphaGrew
           acts as a <strong>Data Processor</strong> and processes it only on the institution's instructions under a written agreement.
         </p>
-        <p>For data we collect for our own purposes, such as demo requests and account security logs, Alphagrew is the Data Fiduciary.</p>
+        <p>For data we collect for our own purposes, such as demo requests and account security logs, AlphaGrew is the Data Fiduciary.</p>
       </>
     ),
   },
@@ -112,11 +112,7 @@ const PRIVACY: LegalSection[] = [
         <li><strong>Career data:</strong> resumes, skills, documents, AI mock interview transcripts and feedback, applications and placement results.</li>
         <li><strong>Recruiter data:</strong> names and contact details of company representatives, job descriptions and drive details.</li>
         <li><strong>Technical data:</strong> device and browser information, IP address, sign-in times and security logs.</li>
-        <li>
-          <strong>Website enquiries:</strong> the details you send through our demo request and "Get in touch" forms (name,
-          email, phone, institution, role and your message), which we keep in our sales records to follow up with you.
-        </li>
-        <li><strong>Website usage:</strong> anonymous visit counts for our public pages, without cookies (see section 14).</li>
+        <li><strong>Website enquiries:</strong> the details you send us when you request a demo.</li>
       </ul>
     ),
   },
@@ -152,7 +148,7 @@ const PRIVACY: LegalSection[] = [
     body: (
       <p>
         Some students may be under 18. For them, the institution must obtain verifiable consent from a parent or lawful guardian
-        before their personal data is processed on Alphagrew. We do not track, profile or target advertising at children.
+        before their personal data is processed on AlphaGrew. We do not track, profile or target advertising at children.
       </p>
     ),
   },
@@ -249,9 +245,8 @@ const PRIVACY: LegalSection[] = [
     body: (
       <p>
         The platform uses essential browser storage to keep you signed in securely. This website does not use advertising or
-        tracking cookies. To count visits to our public pages and see which pages lead to demo requests, we use Plausible
-        Analytics, which sets no cookies, does not track you across sites and does not store your IP address. It runs only on
-        our public pages, never inside the signed-in platform.
+        tracking cookies. To understand which pages are useful, the public website uses Vercel Web Analytics, which counts page
+        views without cookies and without identifying you; it is not used inside the signed-in platform.
       </p>
     ),
   },
@@ -268,7 +263,7 @@ const TERMS: LegalSection[] = [
     heading: '1. About these terms',
     body: (
       <p>
-        These terms govern your use of the Alphagrew platform and website, operated by {COMPANY} <Ph>legal entity name</Ph>. By
+        These terms govern your use of the AlphaGrew platform and website, operated by {COMPANY} <Ph>legal entity name</Ph>. By
         using the platform you agree to these terms. If your institution has signed a separate agreement with us, that agreement
         takes precedence where the two differ.
       </p>
@@ -318,7 +313,7 @@ const TERMS: LegalSection[] = [
     body: (
       <p>
         Mock interview scores, resume suggestions and readiness insights are generated with AI for practice and guidance. They may
-        be incomplete or wrong, they are not a guarantee of placement, and Alphagrew does not use them to make hiring, admission or
+        be incomplete or wrong, they are not a guarantee of placement, and AlphaGrew does not use them to make hiring, admission or
         academic decisions.
       </p>
     ),
@@ -347,7 +342,7 @@ const TERMS: LegalSection[] = [
     heading: '8. Intellectual property',
     body: (
       <p>
-        Alphagrew owns the platform and its software. Your institution and its users own the data they upload, and give us
+        AlphaGrew owns the platform and its software. Your institution and its users own the data they upload, and give us
         permission to use it only to provide and improve the service as described in our {privacyLink}.
       </p>
     ),

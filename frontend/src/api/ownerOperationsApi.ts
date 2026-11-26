@@ -389,7 +389,7 @@ let demoCmsPages: CmsPageItem[] = [
     id: 1,
     contentType: 'policy',
     slug: 'platform-terms-of-service',
-    title: 'Alphagrew SaaS Terms of Service',
+    title: 'AlphaGrew SaaS Terms of Service',
     summary: 'Tenant isolation & AI usage terms.',
     body: 'Institutions retain full data ownership.',
     seoTitle: 'Terms',
@@ -398,7 +398,7 @@ let demoCmsPages: CmsPageItem[] = [
     publishedAt: new Date().toISOString(),
     currentVersion: 1,
     updatedBy: 'Platform Owner',
-    revisions: [{ id: 1, versionNumber: 1, title: 'Alphagrew SaaS Terms of Service', changeNote: 'Initial baseline', editor: 'Platform Owner', at: new Date().toISOString() }],
+    revisions: [{ id: 1, versionNumber: 1, title: 'AlphaGrew SaaS Terms of Service', changeNote: 'Initial baseline', editor: 'Platform Owner', at: new Date().toISOString() }],
   },
 ];
 let demoReleases: ProductReleaseItem[] = [

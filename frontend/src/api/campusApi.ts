@@ -173,7 +173,7 @@ export function verifyOwnerMfa(challengeToken: string, code: string) {
 
 export function updateCampusProfile(
   token: string,
-  payload: { name: string; email: string; title: string; password?: string },
+  payload: { name: string; email: string; title: string; password?: string; currentPassword?: string },
 ) {
   return request<ProfileResponse>(
     '/auth/profile',

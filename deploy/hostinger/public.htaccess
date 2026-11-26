@@ -1,0 +1,46 @@
+# AlphaGrew web root on shared hosting: the React site and the Laravel API share one origin.
+#   /api/*, /up        -> Laravel (index.php)
+#   real files         -> served as they are (assets, images, /storage uploads)
+#   /about             -> about.html (pages pre-rendered at build time)
+#   anything else      -> spa.html (sign-in, the workspace, the Owner Console, 404s)
+Options -Indexes
+DirectoryIndex index.html
+DirectorySlash Off
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Sanctum bearer tokens: pass the Authorization header through to PHP.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteRule ^(api|up)(/.*)?$ index.php [L]
+
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    RewriteCond %{REQUEST_FILENAME}.html -f
+    RewriteRule ^(.+?)/?$ $1.html [L]
+
+    RewriteRule ^ spa.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Frame-Options "DENY"
+    Header always set Permissions-Policy "camera=(), geolocation=(), microphone=(self), payment=()"
+    Header always set Strict-Transport-Security "max-age=31536000"
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; media-src 'self' blob:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+    # @NOINDEX@ Header always set X-Robots-Tag "noindex, nofollow"
+    <FilesMatch "\.(js|css|woff2|png|jpe?g|svg|webp|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

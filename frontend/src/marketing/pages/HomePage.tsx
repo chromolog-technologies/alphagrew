@@ -128,7 +128,7 @@ function Ecosystem() {
       <span className="mk-orbit-ring inset-[18%] border-solid! border-iris-100!" />
       <div className="mk-orbit-core">
         <img src="/brand/alphagrew-mark.png" alt="" width={40} height={40} className="h-10 w-10" />
-        <span className="font-display text-sm font-bold text-ink-900">Alphagrew</span>
+        <span className="font-display text-sm font-bold text-ink-900">AlphaGrew</span>
         <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-iris-700">One record</span>
       </div>
       {ORBIT.map((item) => {
@@ -154,7 +154,7 @@ function Ecosystem() {
 }
 
 const FAQ_PREVIEW = [
-  'Is Alphagrew available today?',
+  'Is AlphaGrew available today?',
   'Does the AI decide who gets placed?',
   'Can another institution see our data?',
   'How do students get access?',
@@ -178,7 +178,7 @@ export default function HomePage() {
                 From campus learning to <span className="mk-gradient-text">career readiness.</span>
               </h1>
               <p className="mk-lede mk-rise mk-rise-2 max-w-xl">
-                Alphagrew connects what students learn, how they prepare and how the placement cell runs each drive, so
+                AlphaGrew connects what students learn, how they prepare and how the placement cell runs each drive, so
                 institutions, placement teams, students and recruiters work from the same record.
               </p>
               <div className="mk-rise mk-rise-3 flex flex-wrap gap-3 pt-1">
@@ -190,7 +190,7 @@ export default function HomePage() {
                 </ButtonLink>
               </div>
               <p className="mk-rise mk-rise-3 max-w-xl text-sm text-ink-500">
-                Every feature on this site is marked{' '}
+                Every feature on this site is labelled with where it stands today:{' '}
                 <strong className="font-semibold text-ink-900">In current build</strong>,{' '}
                 <strong className="font-semibold text-ink-900">In development</strong> or{' '}
                 <strong className="font-semibold text-ink-900">Planned</strong>.{' '}
@@ -258,8 +258,8 @@ export default function HomePage() {
         <SectionHeader
           id="season-title"
           eyebrow="Step by step"
-          title="The placement season on Alphagrew"
-          lede="Alphagrew follows the order a placement season actually runs in. Each stage builds on data the previous one captured, so nobody types the same thing twice."
+          title="The placement season on AlphaGrew"
+          lede="AlphaGrew follows the order a placement season actually runs in. Each stage builds on data the previous one captured, so nobody types the same thing twice."
         />
         <ol className="mk-snake">
           {STAGES.map((stage, index) => {
@@ -400,7 +400,9 @@ export default function HomePage() {
         </CardGrid>
       </Section>
 
-      <Section tone="muted" labelledBy="faq-preview-title">
+      <GetInTouch />
+
+      <Section labelledBy="faq-preview-title">
         <Container narrow className="px-0!">
           <SectionHeader
             id="faq-preview-title"
@@ -421,11 +423,9 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      <GetInTouch />
-
       <CtaBand
-        title="See Alphagrew with your own departments and batches"
-        lede="Book a walkthrough of the current build. We will show you how a placement season could run on Alphagrew, using your eligibility rules."
+        title="See AlphaGrew with your own departments and batches"
+        lede="Book a walkthrough of the current build. We will show you how a placement season could run on AlphaGrew, using your eligibility rules."
       />
     </>
   );

@@ -16,6 +16,13 @@ return [
     'default' => env('QUEUE_CONNECTION', 'database'),
 
     /*
+    | Shared hosting (for example Hostinger) cannot keep `queue:work` running. With this on, the
+    | scheduler, run every minute by cron, works through the queue for up to 50 seconds.
+    | Leave it off where a real worker runs (the Docker image's supervisord).
+    */
+    'run_from_scheduler' => (bool) env('QUEUE_RUN_FROM_SCHEDULER', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Queue Connections
     |--------------------------------------------------------------------------

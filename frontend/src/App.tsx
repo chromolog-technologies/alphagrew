@@ -1007,7 +1007,7 @@ export default function App() {
     setError('');
   };
 
-  const handleUpdateProfile = async (payload: { name: string; email: string; title: string; password?: string }) => {
+  const handleUpdateProfile = async (payload: { name: string; email: string; title: string; password?: string; currentPassword?: string }) => {
     if (!auth?.user) {
       return;
     }

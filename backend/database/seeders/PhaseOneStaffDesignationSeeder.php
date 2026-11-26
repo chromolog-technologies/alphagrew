@@ -98,7 +98,7 @@ class PhaseOneStaffDesignationSeeder extends Seeder
                 User::query()->create([
                     'name' => 'Campus HOD',
                     'email' => 'hod.autogen@demo.com',
-                    'password' => 'demo123',
+                    'password' => (string) config('app.demo_password'),
                     'role' => 'staff',
                     'title' => $hodDesignation->name,
                     'department_code' => strtoupper($department->code),
@@ -108,7 +108,7 @@ class PhaseOneStaffDesignationSeeder extends Seeder
                 User::query()->create([
                     'name' => 'Campus Exam Coordinator',
                     'email' => 'examcoordinator.autogen@demo.com',
-                    'password' => 'demo123',
+                    'password' => (string) config('app.demo_password'),
                     'role' => 'staff',
                     'title' => $examDesignation?->name ?? $hodDesignation->name,
                     'department_code' => strtoupper($department->code),

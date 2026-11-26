@@ -102,3 +102,11 @@ Schedule::command('owner:apply-scheduled-status-changes')->everyFifteenMinutes()
 
 // Heartbeat for the owner console's system health page.
 Schedule::call(fn () => \Illuminate\Support\Facades\Cache::put(\App\Services\Owner\SystemHealth::HEARTBEAT_KEY, time(), 3600))->everyMinute()->name('owner-heartbeat');
+
+// Shared hosting without a long-running worker: drain the queue from the every-minute cron.
+if (config('queue.run_from_scheduler')) {
+    Schedule::command('queue:work --stop-when-empty --tries=3 --max-time=50')
+        ->everyMinute()
+        ->withoutOverlapping(5)
+        ->name('queue-from-scheduler');
+}

@@ -56,6 +56,28 @@ export const CAPABILITIES = {
     summary: 'Bring in students and staff from spreadsheets, with an error report for rows that need fixing.',
   },
 
+  // Customisation: fitting the platform to the institution
+  customFields: {
+    name: 'Custom fields',
+    status: 'available',
+    summary: 'Add the fields your institution tracks to students, staff, courses, exams and other records, without code.',
+  },
+  customModules: {
+    name: 'Custom modules',
+    status: 'available',
+    summary: 'Create modules of your own, such as hostel requests or internships, with their own records and fields.',
+  },
+  dashboardBuilder: {
+    name: 'Dashboard builder',
+    status: 'available',
+    summary: 'Build dashboards from charts and figures, and share them with the roles that need them.',
+  },
+  sidebarLayout: {
+    name: 'Arrangeable navigation',
+    status: 'available',
+    summary: 'Administrators reorder and hide menu items so each role sees what it uses most.',
+  },
+
   // Student profiles and resumes
   careerProfile: {
     name: 'Student career profile',
@@ -202,28 +224,6 @@ export const CAPABILITIES = {
     name: 'Audit log',
     status: 'available',
     summary: 'An append-only record of who changed what, which administrators can search and filter.',
-  },
-
-  // Tailoring to the institution
-  customFields: {
-    name: 'Custom fields',
-    status: 'available',
-    summary: 'Add your own fields to students, staff, subjects, exams, companies, departments, courses and designations.',
-  },
-  customModules: {
-    name: 'Custom modules',
-    status: 'available',
-    summary: 'Keep records the product does not cover out of the box, such as hostel or transport, as modules of your own.',
-  },
-  sidebarLayout: {
-    name: 'Rearrangeable menu',
-    status: 'available',
-    summary: 'Reorder menu items and hide the ones your institution does not use, for everyone at once.',
-  },
-  dashboardBuilder: {
-    name: 'Dashboard builder',
-    status: 'available',
-    summary: 'Start from a dashboard made for each role, or build and share your own from live widgets.',
   },
 
   // Recruiters

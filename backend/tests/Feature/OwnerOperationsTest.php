@@ -346,6 +346,16 @@ class OwnerOperationsTest extends TestCase
             ->assertOk();
     }
 
+    public function test_institution_export_neutralises_spreadsheet_formulas(): void
+    {
+        Institution::query()->whereKey(Institution::defaultId())->update(['name' => '=HYPERLINK("http://evil.example","Click")']);
+
+        $csv = $this->as('owner@test.dev')->get('/api/v1/owner/institutions/export')->assertOk()->streamedContent();
+
+        $this->assertStringContainsString('"\'=HYPERLINK(""http://evil.example"",""Click"")"', $csv);
+        $this->assertStringNotContainsString(',"=HYPERLINK', $csv);
+    }
+
     private function platformUser(string $email, UserRole $role, ?string $roleSlug): User
     {
         $roleId = $roleSlug ? PlatformRole::query()->where('slug', $roleSlug)->value('id') : null;

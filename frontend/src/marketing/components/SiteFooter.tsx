@@ -1,7 +1,7 @@
+import { Mail, MapPin, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { BRAND, COMPANY } from '../config';
+import { BRAND, COMPANY, CONTACT, contactEmail } from '../config';
 import { FOOTER_NAV } from '../navigation';
-import { ContactDetails } from './ContactDetails';
 import { Container } from './Layout';
 import { Logo } from './Logo';
 
@@ -16,7 +16,20 @@ export function SiteFooter({ inert }: { inert?: boolean }) {
               An AI-first campus placement and career intelligence platform for institutions, placement officers, faculty,
               students and recruiters.
             </p>
-            <ContactDetails onDark className="mt-2" />
+            <address className="flex flex-col gap-2.5 text-sm not-italic text-ink-200">
+              <a href={`mailto:${contactEmail()}`} className="inline-flex items-center gap-2.5 break-all transition-colors hover:text-white">
+                <Mail size={16} aria-hidden="true" className="shrink-0 text-aqua-300" />
+                {contactEmail()}
+              </a>
+              <a href={CONTACT.phoneHref} className="inline-flex items-center gap-2.5 transition-colors hover:text-white">
+                <Phone size={16} aria-hidden="true" className="shrink-0 text-aqua-300" />
+                {CONTACT.phone}
+              </a>
+              <span className="inline-flex items-start gap-2.5">
+                <MapPin size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-aqua-300" />
+                <span>{CONTACT.addressLines.join(', ')}</span>
+              </span>
+            </address>
           </div>
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {FOOTER_NAV.map((column) => (

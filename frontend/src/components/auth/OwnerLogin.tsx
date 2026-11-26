@@ -98,7 +98,7 @@ export default function OwnerLogin({
             <CardHeader className="p-6 pb-4 sm:p-8 sm:pb-4">
               <div className="flex items-center gap-3.5">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-600 p-2 text-white shadow-md shadow-indigo-500/25">
-                  <img src="/alpha-logo.png" alt="Alphagrew logo" className="h-8 w-8 rounded-xl object-contain" />
+                  <img src="/alpha-logo.png" alt="AlphaGrew logo" className="h-8 w-8 rounded-xl object-contain" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -244,6 +244,7 @@ export default function OwnerLogin({
                         className="h-10 border-slate-700 bg-slate-950/70 pl-10 pr-10 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:bg-slate-950"
                         placeholder="Enter password"
                         type={showPassword ? 'text' : 'password'}
+                        autoComplete="current-password"
                         required
                       />
                       <Button

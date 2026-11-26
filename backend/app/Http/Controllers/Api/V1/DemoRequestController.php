@@ -4,83 +4,87 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
-use App\Models\SalesActivity;
-use App\Services\Audit\AuditLogger;
+use App\Notifications\DemoRequested;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rule;
 
 /**
- * "Book a demo" and "Get in touch" forms on the public marketing site.
- *
- * Each request becomes a CRM Lead (source "website", stage "new") in the Owner Console's
- * sales pipeline, with the visitor's answers kept as the lead's notes and first activity.
- * Public and unauthenticated: throttled per address, and a hidden "website" field that
- * people never see but form-filling bots do is silently accepted and dropped.
+ * POST /demo-requests: the public website's "Book a demo" form. Each request becomes a new
+ * Owner Console lead (source "website", stage "new") and is emailed to the sales inbox.
+ * Public and unauthenticated, so it is rate limited and has a honeypot field for bots.
  */
 class DemoRequestController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit)
-    {
-    }
+    public const ROLES = ['Principal or director', 'Training and placement officer', 'Head of department', 'Faculty or trainer', 'Recruiter', 'Student', 'Other'];
+
+    public const SIZES = ['Under 500', '500 to 2,000', '2,000 to 5,000', 'Over 5,000'];
+
+    /** A rough student count per size band, so the CRM can sort and filter leads. */
+    private const SIZE_ESTIMATE = ['Under 500' => 250, '500 to 2,000' => 1000, '2,000 to 5,000' => 3500, 'Over 5,000' => 6000];
 
     public function store(Request $request): JsonResponse
     {
-        // Honeypot: pretend success so bots don't learn to skip the field.
+        // Bots fill every field; people never see this one. Answer as if it worked.
         if (filled($request->input('website'))) {
-            return response()->json(['message' => 'Thanks. We will be in touch shortly.'], 201);
+            return response()->json(['message' => 'Thank you. We will be in touch soon.'], 201);
         }
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:160'],
-            'institution' => ['nullable', 'string', 'max:180'],
-            'phone' => ['nullable', 'string', 'max:40'],
-            'role' => ['nullable', 'string', 'max:80'],
-            'size' => ['nullable', 'string', 'max:40'],
-            'interests' => ['nullable', 'array', 'max:10'],
-            'interests.*' => ['string', 'max:80'],
+            'institution' => ['required', 'string', 'max:180'],
+            'role' => ['required', 'string', Rule::in(self::ROLES)],
+            'phone' => ['nullable', 'string', 'max:40', 'regex:/^[0-9+()\-\s]{6,40}$/'],
+            'size' => ['nullable', 'string', Rule::in(self::SIZES)],
+            'interests' => ['sometimes', 'array', 'max:6'],
+            'interests.*' => ['string', 'max:60'],
             'message' => ['nullable', 'string', 'max:2000'],
-            // Which form sent it: the full Contact page form or the short home page form.
-            'form' => ['nullable', 'in:demo,get_in_touch'],
+        ], [
+            'phone.regex' => 'Enter a phone number using digits, spaces and + only.',
         ]);
 
-        $details = array_filter([
-            'Form' => ($data['form'] ?? 'demo') === 'get_in_touch' ? 'Home page "Get in touch"' : 'Contact page demo request',
-            'Role' => $data['role'] ?? null,
-            'Final and pre-final year students' => $data['size'] ?? null,
-            'Interested in' => ! empty($data['interests']) ? implode(', ', $data['interests']) : null,
-            'Message' => $data['message'] ?? null,
-        ], fn ($value) => filled($value));
+        $size = $data['size'] ?? null;
+        $details = [
+            'role' => $data['role'],
+            'size' => $size,
+            'interests' => array_values($data['interests'] ?? []),
+            'message' => $data['message'] ?? null,
+        ];
 
-        $notes = collect($details)->map(fn ($value, $label) => "{$label}: {$value}")->implode("\n");
+        $lead = Lead::query()->create([
+            'organization_name' => trim($data['institution']),
+            'contact_name' => trim($data['name']),
+            'contact_email' => strtolower(trim($data['email'])),
+            'contact_phone' => isset($data['phone']) ? trim($data['phone']) : null,
+            'source' => 'website',
+            'stage' => 'new',
+            'expected_students' => $size ? self::SIZE_ESTIMATE[$size] : null,
+            'next_follow_up_at' => now()->addDay(),
+            'notes' => $this->notes($details),
+        ]);
 
-        $lead = DB::transaction(function () use ($data, $notes): Lead {
-            $lead = Lead::query()->create([
-                'organization_name' => filled($data['institution'] ?? null) ? $data['institution'] : 'Not given',
-                'contact_name' => $data['name'],
-                'contact_email' => strtolower($data['email']),
-                'contact_phone' => $data['phone'] ?? null,
-                'source' => 'website',
-                'stage' => 'new',
-                'next_follow_up_at' => now()->addDay(),
-                'notes' => $notes,
-            ]);
+        try {
+            Notification::route('mail', (string) config('app.demo_requests_email'))->notify(new DemoRequested($lead, $details));
+        } catch (\Throwable $e) {
+            // The lead is saved, so sales still sees it in the Owner Console.
+            Log::warning('Demo request email could not be queued.', ['lead' => $lead->id, 'error' => $e->getMessage()]);
+        }
 
-            SalesActivity::query()->create([
-                'lead_id' => $lead->id,
-                'activity_type' => 'note',
-                'summary' => 'Submitted from the public website',
-                'outcome' => null,
-                'occurred_at' => now(),
-                'actor_id' => null,
-            ]);
+        return response()->json(['message' => 'Thank you. We will be in touch soon.'], 201);
+    }
 
-            return $lead;
-        });
-
-        $this->audit->record('public.demo_requested', $lead, [], ['organization' => $lead->organization_name]);
-
-        return response()->json(['message' => 'Thanks. We will be in touch shortly.'], 201);
+    /** @param  array{role: string, size: ?string, interests: list<string>, message: ?string}  $details */
+    private function notes(array $details): string
+    {
+        return collect([
+            'Website demo request.',
+            'Role: '.$details['role'],
+            $details['size'] ? 'Final and pre-final year students: '.$details['size'] : null,
+            $details['interests'] !== [] ? 'Interested in: '.implode(', ', $details['interests']) : null,
+            $details['message'] ? "Message:\n".$details['message'] : null,
+        ])->filter()->implode("\n");
     }
 }

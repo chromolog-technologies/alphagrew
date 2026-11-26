@@ -7,6 +7,9 @@ cd /var/www/html
 # Apache listens on $PORT (Render and similar hosts set it).
 sed -i "s/^Listen .*/Listen ${PORT:-10000}/" /etc/apache2/ports.conf
 
+# Uploaded logos and staff photos are served from public/storage (a link to storage/app/public).
+[ -L public/storage ] || php artisan storage:link
+
 php artisan migrate --force
 # Roles and permissions are idempotent (firstOrCreate). Demo accounts with a known
 # password are created only when DEMO_SEED_ENABLED=true (see config/app.php).

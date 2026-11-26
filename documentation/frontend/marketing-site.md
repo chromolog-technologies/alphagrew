@@ -1,6 +1,6 @@
-# Alphagrew marketing site
+# AlphaGrew marketing site
 
-The public website for Alphagrew (a product of Chromolog Technologies): the pages a prospective institution, placement officer, faculty member, student or recruiter sees before signing in. It lives in the existing React frontend under `frontend/src/marketing/` and is kept separate from the signed-in application (sign-in at `/login`, workspace at `/app/*`, Owner Console at `/owner/*`).
+The public website for AlphaGrew (a product of Chromolog Technologies): the pages a prospective institution, placement officer, faculty member, student or recruiter sees before signing in. It lives in the existing React frontend under `frontend/src/marketing/` and is kept separate from the signed-in application (sign-in at `/login`, workspace at `/app/*`, Owner Console at `/owner/*`).
 
 Status: foundation complete (shell, design system, all 12 pages with first-draft copy). Copy, legal text and contact details need product-owner and legal sign-off before launch; see [Unresolved product questions](#unresolved-product-questions).
 
@@ -9,14 +9,14 @@ Status: foundation complete (shell, design system, all 12 pages with first-draft
 | Decision | Why |
 |---|---|
 | Built inside the existing Vite + React 19 + React Router 7 + Tailwind CSS 4 frontend | Same toolchain, CI job and deploy (`vercel.json` already rewrites every path to `index.html`). No new framework or backend. |
-| Marketing code in `src/marketing/`, app code untouched | Marketing pages never import app modules except `src/routes.ts` (for the app's paths) and the shared `cn()` helper and loading state. |
+| Marketing code in `src/marketing/`, app code untouched | Marketing pages never import app modules except `src/routes.ts` (for the app's paths), the shared API client `src/api/core.ts` and `apiError.ts` (the demo form) and the shared `cn()` helper and loading state. |
 | The signed-in app (`App.tsx`) is lazy-loaded from `Root.tsx` | Visitors to the public site no longer download the workspace. The app arrives as separate chunks (`App`, `CampusWorkspace`, modules) only on app paths. `Root` chooses app or marketing from `APP_ROUTE_PATTERNS` in `src/routes.ts` before any `<Routes>` renders, because the app's route table uses absolute paths. |
 | Every marketing page except Home and the 404 is its own chunk (`MarketingRoutes.tsx`, `lazyPage`) | The first download for a visitor fell from 146 KB to 107 KB gzipped. After the first page, the others are fetched while the browser is idle, and a loaded page renders without a loading flash. Tests call `preloadMarketingPages()` first. |
 | Design tokens use new names (`navy`, `iris`, `aqua`, `ink`, `mist`, `line`) | Adding them to Tailwind's theme cannot change any colour the app already uses. |
 | Component styles are `mk-` classes in `@layer components`, scoped by `.mk-site` | Utilities still override them; nothing leaks into the app. The app's global input and table rules in `index.css` now skip `.mk-site` (`:not(.mk-site *)`), a no-op for the app. |
 | Fonts self-hosted (Inter, Plus Jakarta Sans for the site; Geist for the signed-in app; latin-first, variable, OFL) | No third-party font request (privacy, DPDP), no layout shift beyond `font-display: swap`. The site's fonts are ~75 KB; Geist is imported from `App.tsx` (`@fontsource-variable/geist`), so only the signed-in app downloads it. |
 | Product mockups built in markup, not screenshots | Sharp at any size, themable, readable by screen readers, and every one is labelled "Sample". |
-| Demo requests | The Contact page form and the home page "Get in touch" form post to `POST /api/v1/demo-requests`, which saves a CRM lead (source `website`, stage `new`) in the Owner Console. Throttled to 3 a minute and 20 a day per address, with a hidden honeypot field. Builds without an API (offline demo) fall back to a pre-filled email to `VITE_CONTACT_EMAIL`; with neither, the page shows the configured contact details. |
+| Demo form posts to the API | `POST /api/v1/demo-requests` (public, rate limited, honeypot) saves each request as an Owner Console lead (source `website`, stage `new`) and emails it to `DEMO_REQUESTS_EMAIL` (default info@chromologtechnologies.com) with reply-to set to the requester. A build without the API falls back to a pre-filled email. |
 | Page metadata via a small `usePageMeta` hook | Sets title, description, canonical, robots and Open Graph tags per route without a new dependency. |
 
 ### File map
@@ -28,9 +28,7 @@ frontend/src/
   marketing/
     siteMap.ts                  every public page: path, label, title, description, purpose, parent, noindex
     navigation.ts               header and footer menus, built from siteMap
-    config.ts                   contact details, VITE_SITE_URL, Plausible, brand names
-    demoRequest.ts              POST /demo-requests and error mapping
-    analytics.ts                Plausible (manual pageviews on public pages only)
+    config.ts                   CONTACT (email, phone, office address, map link), VITE_SITE_URL, brand names
     MarketingRoutes.tsx         <Route> tree under SiteLayout, plus the 404
     marketing.css               tokens (@theme), fonts, mk- component classes, motion rules
     content/
@@ -62,8 +60,8 @@ All routes are public and use the shared shell. Unknown public URLs show a 404 p
 
 | Page | Route | Breadcrumb parent | Content purpose |
 |---|---|---|---|
-| Home | `/` | none | Explain in one screen what Alphagrew is and who it is for, route each audience to its solution, and lead to a demo request. |
-| About us | `/about` | Home | Who builds Alphagrew, why, and the principles (students first, AI assists, institution owns data). |
+| Home | `/` | none | Explain in one screen what AlphaGrew is and who it is for, route each audience to its solution, and lead to a demo request. |
+| About us | `/about` | Home | Who builds AlphaGrew, why, and the principles (students first, AI assists, institution owns data). |
 | Platform / Features | `/platform` | Home | Full module map with honest build status, role access table, links to each product page. |
 | AI Interviewer | `/platform/ai-interviewer` | Platform | How resume- and role-aware mock interviews work, what feedback looks like, AI guardrails. |
 | Career Intelligence | `/platform/career-intelligence` | Platform | Resume analysis, readiness, eligibility checks and the batch view for staff. |
@@ -82,13 +80,13 @@ All routes are public and use the shared shell. Unknown public URLs show a 404 p
 | Not found | any other public path | none | Recover the visitor: home, sign in, demo, popular pages. `noindex`. |
 | Sign in, workspace and Owner Console | `/login`, `/app/<page>`, `/owner/*` and the account pages | n/a | Existing application, unchanged. `noindex`; `robots.txt` disallows every app path. |
 
-Navigation: header has **Platform** (overview + 3 products) and **Solutions** (5 roles) dropdowns, then How it works, About, FAQs, Sign in and Book a demo. The footer repeats every page, including legal links and Sign in. All labels and paths come from `siteMap.ts`, and a test fails if any page links to a path that is not in the site map or an app path from `src/routes.ts`.
+Navigation (Figma order): Home, About us, **Platform** (overview + 3 products) and **Solutions** (5 roles) dropdowns, How it works, FAQs, Contact us, then Sign in and the "Book a demo" button. The full navigation shows from 1280px; narrower screens use the menu panel. The footer repeats every page, adds the contact email, phone and office, and links the legal pages. All labels and paths come from `siteMap.ts`, and a test fails if any page links somewhere unexpected.
 
 ## 3. Design system
 
 ### Colour tokens (Tailwind utilities: `bg-navy-900`, `text-iris-700`, ...)
 
-The palette follows the ALPHA GREW Figma design: royal blue on white and pale blue, with a deep navy footer. The signed-in app uses the same brand blue: its `--primary` is `#246bfc`, and Tailwind's `blue-*` and `indigo-*` scales in `src/index.css` map to the same scale as `iris-*`. Token names were kept from the first version (`iris` is now the royal blue) so every page picks up the palette without markup changes.
+The palette follows the AlphaGrew Figma design: royal blue on white and pale blue, with a deep navy footer. The signed-in app uses the same brand blue: its `--primary` is `#246bfc`, and Tailwind's `blue-*` and `indigo-*` scales in `src/index.css` map to the same scale as `iris-*`. Token names were kept from the first version (`iris` is now the royal blue) so every page picks up the palette without markup changes.
 
 | Token | Value | Use |
 |---|---|---|
@@ -118,7 +116,7 @@ Contrast (WCAG 2.1): white on `iris-600` 4.6:1, white on `iris-700` 6.0:1, `iris
 
 ### Breakpoints (Tailwind defaults, mobile-first)
 
-`sm` 640px · `md` 768px · `lg` 1024px (desktop navigation appears, two-column splits) · `xl` 1280px. Verified with no horizontal scroll at 390px and 1440px on every page.
+`sm` 640px · `md` 768px · `lg` 1024px (two-column splits) · `xl` 1280px (full header navigation). Verified with no horizontal scroll at 390px and 1440px on every page.
 
 ### Components
 
@@ -149,7 +147,7 @@ Contrast (WCAG 2.1): white on `iris-600` 4.6:1, white on `iris-700` 6.0:1, `iris
 
 ## 5. SEO defaults
 
-- Unique title (`Page | Alphagrew`), meta description, Open Graph title/description per route (`siteMap.ts`).
+- Unique title (`Page | AlphaGrew`), meta description, Open Graph title/description per route (`siteMap.ts`).
 - Canonical and `og:url` when `VITE_SITE_URL` is set.
 - `robots.txt` always emitted at build (disallows every app path); `sitemap.xml` emitted when `VITE_SITE_URL` is set, listing indexable pages only.
 - Semantic landmarks (`header`, `nav` with labels, `main`, `footer`), one `h1`, labelled sections, real links for navigation.
@@ -159,37 +157,33 @@ Contrast (WCAG 2.1): white on `iris-600` 4.6:1, white on `iris-700` 6.0:1, `iris
 
 | Variable | Required | Effect |
 |---|---|---|
-| `VITE_CONTACT_EMAIL` | No | Public email, shown in the footer and on the Contact page. Also the mailto fallback for builds without an API. |
-| `VITE_CONTACT_PHONE` | No | Public phone in display form, e.g. `+91 80 1234 5678`. |
-| `VITE_CONTACT_ADDRESS` | No | Short address, e.g. `Bengaluru, India`. |
-| `VITE_PLAUSIBLE_DOMAIN` | No | Turns on Plausible analytics for this site domain. |
-| `VITE_PLAUSIBLE_SRC` | No | Plausible script URL, only when self-hosting. |
+| `VITE_CONTACT_EMAIL` | No | Overrides the email shown on the site (default info@chromologtechnologies.com). Demo requests always go to the API. |
 | `VITE_SITE_URL` | No | Public origin without trailing slash. Enables canonical URLs and `sitemap.xml`. |
 
-All are documented in `frontend/.env.example`.
+Both are documented in `frontend/.env.example`.
 
 ## 7. Assumptions
 
 1. The marketing site belongs in the existing frontend and deploys with it, at `/` on the same domain as the app.
-2. The product name is written "Alphagrew" everywhere: site, sign-in pages, app, emails (confirmed 18 November 2026).
+2. The product name is written "AlphaGrew" everywhere (site, app, emails and docs), decided on 17 November 2026. URLs, emails and handles use lowercase `alphagrew`.
 3. The primary market is Indian higher-education institutions (batches, backlogs, CGPA cut-offs, DPDP Act), as in the PRD.
 4. Build status per feature follows the 22 October 2026 code audit; features at 0–10% are "Planned", partial ones "In development".
-5. Demo requests go to the Owner Console sales pipeline; the sales team follows up from there.
-6. Recruiters are an audience for the site; their accounts are created by each placement cell.
-7. Students reach Alphagrew through their institution, so the site has no student self-signup call to action.
+5. A mailto-based demo request is acceptable until a lead endpoint or CRM exists.
+6. Recruiters are an audience for the site even though recruiter sign-in is blocked by design today.
+7. Students reach AlphaGrew through their institution, so the site has no student self-signup call to action.
 8. The logo mark cropped from `alpha-logo.png` is the approved mark; the wordmark is set in Plus Jakarta Sans rather than the image's lettering.
 
 ## 8. Unresolved product questions
 
-1. **Contact details**: public email, phone and address (`VITE_CONTACT_*`).
+1. **Demo requests**: decided 17 November 2026: both. Each request becomes an Owner Console lead and is emailed to info@chromologtechnologies.com.
 2. **Domain**: what is the public URL (`VITE_SITE_URL`)?
 3. **Launch claims**: which capabilities will be marketed as available at launch, and when should "In development" badges change?
 4. **Legal**: registered entity name and address, Grievance Officer, hosting region, AI sub-processors, retention periods, governing-law city; and legal review of both drafts.
-5. **Logo**: is there a vector (SVG) logo, ideally the "ALPHA GREW / SMART CAMPUS" wordmark from Figma? The current mark is a raster crop.
+5. **Brand**: the spelling is settled as "AlphaGrew". Open: whether a vector logo exists (the current mark is a raster crop).
 6. **Pricing and plans**: will pricing or AI interview credits be published?
 7. **Proof points**: when pilots produce real outcomes, which metrics and named testimonials may be used (with consent)?
 8. **Company page**: should About include team members and company registration details?
-9. **Analytics**: Plausible chosen; set `VITE_PLAUSIBLE_DOMAIN` and add a "Demo request" goal in Plausible.
+9. **Analytics**: is a privacy-friendly analytics tool wanted (affects the cookie section)?
 10. **Prerendering**: prerender public routes for social previews and faster first paint?
 
 ## 9. Validation checklist
@@ -223,8 +217,6 @@ Manual (checked in Chromium at 1440×900 and 390×844):
 cd frontend
 npm ci
 npm run dev                # http://localhost:5173 (or the port Vite prints): / is the marketing site, /login is sign-in
-# Optional: try the demo form
-VITE_CONTACT_EMAIL=you@example.com npm run dev
 # Production build, as CI runs it
 VITE_API_BASE_URL=/api/v1 npm run build && npm run preview
 ```
@@ -241,11 +233,11 @@ Built on the Phase 1 shell and components; no design tokens changed. New shared 
 | Page | Sections |
 |---|---|
 | Home | Hero ("From campus learning to career readiness") with illustrative dashboard · audience cards (5 roles) · feature highlights with status · three-step workflow · AI Interviewer, Career Intelligence and Placement Management highlights · FAQ preview (4) · Book a demo band |
-| About | Hero · the problem (four fragments) · approach (preparation, coordination, recruitment on one record) · mission and vision · six product principles · Alphagrew and Chromolog Technologies · related pages · CTA |
+| About | Hero · the problem (four fragments) · approach (preparation, coordination, recruitment on one record) · mission and vision · six product principles · AlphaGrew and Chromolog Technologies · related pages · CTA |
 | Platform | Hero with jump links · status legend · six areas (placement operations; profiles and resumes; opportunities and eligibility; assessments and interview preparation; readiness insights; notifications and reporting), each with capability list and, where useful, a mockup · foundations · access by role · related pages · CTA |
 | How it works | Hero · eight stages with sticky stage index, roles, features used (with status) and links · "depends on your setup" note · pilot phases · related pages · CTA |
 
-Phase 2 assumptions: "In current build" follows the audit's ✅ items (roles, invitations and registration, academic structure, career profile, resume upload, text AI interviews, announcements); the mission wording is ours and the vision is taken from the PRD; the Chromolog relationship is limited to "Alphagrew is a product developed by Chromolog Technologies", with company details left to the legal pages.
+Phase 2 assumptions: "In current build" follows the audit's ✅ items (roles, invitations and registration, academic structure, career profile, resume upload, text AI interviews, announcements); the mission wording is ours and the vision is taken from the PRD; the Chromolog relationship is limited to "AlphaGrew is a product developed by Chromolog Technologies", with company details left to the legal pages.
 
 ## 12. Phase 3: Solutions
 

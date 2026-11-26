@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Baseline | Alphagrew Master Product Requirements, SRS, Technical Architecture & Delivery Plan, v1.0 (September 2026) |
+| Baseline | AlphaGrew Master Product Requirements, SRS, Technical Architecture & Delivery Plan, v1.0 (September 2026) |
 | Code snapshot | Branch `feat/dashboard-redesign` (contains `main` plus the dashboards, results and mark-entry work), 10 November 2026 |
 | Previous study | [02-gap-analysis.md](02-gap-analysis.md), 22 October 2026. Gap IDs (`AUTH-2`, `ELG-1`, …) are reused here. |
 | Evidence | Route table (277 API routes), models and migrations, services and actions, frontend screens actually rendered, 153 backend and 35 frontend tests, and [../api/10-frontend-coverage.md](../api/10-frontend-coverage.md) |

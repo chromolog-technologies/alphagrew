@@ -1,120 +1,177 @@
 import { useState, type FormEvent } from 'react';
+import { Mail, MapPin, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { canSubmitOnline, describeSubmitError, submitDemoRequest } from '../demoRequest';
+import { CONTACT, contactEmail } from '../config';
+import {
+  canSendDemoRequestsOnline,
+  demoRequestMailto,
+  REQUIRED_DEMO_FIELDS,
+  sendDemoRequest,
+  validateDemoRequest,
+  type DemoRequest,
+  type DemoRequestErrors,
+} from '../demoRequest';
+import { DEMO_PATH } from '../navigation';
 import { SITE_PAGES } from '../siteMap';
 import { Button } from './Button';
-import { ContactDetails } from './ContactDetails';
-import { Honeypot, TextField } from './Fields';
 import { InlineAlert } from './Feedback';
-import { Section } from './Layout';
+import { TextField } from './Fields';
+import { Container } from './Layout';
 
-type Field = 'name' | 'email' | 'phone';
+const EMPTY: DemoRequest = { name: '', email: '', institution: '', role: 'Other', phone: '', size: '', interests: [], message: 'Sent from the home page.' };
 
 /**
- * Short "Get in touch" form near the end of the home page, for visitors who don't go on to
- * the Contact page. Saved as a website lead like the full demo form. Hidden when this build
- * has no API to save it to.
+ * "Get in touch" band from the Figma home page: a short form beside the company's contact
+ * details. It sends the same demo request as the Contact page (Owner Console lead + email).
  */
 export function GetInTouch() {
-  const [values, setValues] = useState<Record<Field, string>>({ name: '', email: '', phone: '' });
-  const [honeypot, setHoneypot] = useState('');
-  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
-  const [failure, setFailure] = useState<string | null>(null);
+  const to = contactEmail();
+  const [request, setRequest] = useState<DemoRequest>(EMPTY);
+  const [errors, setErrors] = useState<DemoRequestErrors>({});
+  const [website, setWebsite] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [sendError, setSendError] = useState('');
 
-  if (!canSubmitOnline()) return null;
-
-  const set = (key: Field, value: string) => {
-    setValues((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({ ...current, [key]: undefined }));
+  const set = (key: 'name' | 'email' | 'institution' | 'phone', value: string) => {
+    setRequest((current) => ({ ...current, [key]: value }));
+    if (key in errors) setErrors((current) => ({ ...current, [key]: undefined }));
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = event.currentTarget;
-    const found: Partial<Record<Field, string>> = {};
-    if (!values.name.trim()) found.name = 'Enter your name.';
-    if (!values.email.trim()) found.email = 'Enter your email address.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) found.email = 'Enter an email address like name@college.edu.in.';
+    const found = validateDemoRequest(request);
     setErrors(found);
-    setFailure(null);
-    const first = (['name', 'email', 'phone'] as const).find((key) => found[key]);
-    if (first) {
-      form.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
+    setSendError('');
+    const firstInvalid = REQUIRED_DEMO_FIELDS.find((key) => found[key]);
+    if (firstInvalid) {
+      form.querySelector<HTMLElement>(`[name="${firstInvalid}"]`)?.focus();
       return;
     }
-
-    setStatus('sending');
-    try {
-      await submitDemoRequest({ ...values, form: 'get_in_touch', website: honeypot });
-      setStatus('sent');
-    } catch (error) {
-      const { fields, message } = describeSubmitError(error);
-      setErrors(fields);
-      setFailure(message ?? null);
-      setStatus('idle');
+    if (!canSendDemoRequestsOnline()) {
+      window.location.href = demoRequestMailto(to, request);
+      return;
     }
+    setBusy(true);
+    const result = await sendDemoRequest(request, website, 'home');
+    setBusy(false);
+    if (result.ok) {
+      setSent(true);
+      return;
+    }
+    setErrors(result.fieldErrors);
+    const invalid = REQUIRED_DEMO_FIELDS.find((key) => result.fieldErrors[key]);
+    if (invalid) form.querySelector<HTMLElement>(`[name="${invalid}"]`)?.focus();
+    else setSendError(result.message);
   };
 
   return (
-    <Section labelledBy="get-in-touch-title">
-      <div className="mk-card relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[1fr_1.4fr] lg:items-center">
-        <div className="flex flex-col gap-3">
-          <p className="mk-eyebrow">Get in touch</p>
-          <h2 id="get-in-touch-title" className="mk-h2 !text-[clamp(1.5rem,1.25rem+1vw,2.1rem)]">
-            Leave your details and we will get back to you
-          </h2>
-          <p className="text-ink-500">
-            Prefer the full form?{' '}
-            <Link to={SITE_PAGES.contact.path} className="mk-link">
-              Book a demo
-            </Link>{' '}
-            instead.
-          </p>
-          <ContactDetails className="mt-2" />
-        </div>
+    <section aria-labelledby="get-in-touch-title" className="mk-section mk-tone-muted">
+      <Container>
+        <div className="grid items-start gap-10 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
+          <div className="flex flex-col gap-5">
+            <p className="mk-eyebrow">Get in touch</p>
+            <h2 id="get-in-touch-title" className="mk-h2">
+              Talk to the AlphaGrew team
+            </h2>
+            <p className="mk-lede">
+              We're here to help you explore AlphaGrew, answer your questions and set up a walkthrough for your institution.
+            </p>
+            <address className="mt-2 flex flex-col gap-4 not-italic">
+              <a href={`mailto:${to}`} className="group inline-flex items-center gap-3 text-ink-700">
+                <span className="mk-icon-tile !h-10 !w-10" aria-hidden="true">
+                  <Mail size={18} strokeWidth={1.8} />
+                </span>
+                <span className="break-all font-medium group-hover:text-iris-700">{to}</span>
+              </a>
+              <a href={CONTACT.phoneHref} className="group inline-flex items-center gap-3 text-ink-700">
+                <span className="mk-icon-tile !h-10 !w-10" aria-hidden="true">
+                  <Phone size={18} strokeWidth={1.8} />
+                </span>
+                <span className="font-medium group-hover:text-iris-700">{CONTACT.phone}</span>
+              </a>
+              <span className="inline-flex items-start gap-3 text-ink-500">
+                <span className="mk-icon-tile !h-10 !w-10" aria-hidden="true">
+                  <MapPin size={18} strokeWidth={1.8} />
+                </span>
+                <span className="pt-2">{CONTACT.addressLines.join(', ')}</span>
+              </span>
+            </address>
+          </div>
 
-        {status === 'sent' ? (
-          <InlineAlert tone="success" title="Thank you">
-            We have your details and will be in touch soon.
-          </InlineAlert>
-        ) : (
-          <form noValidate onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5" aria-labelledby="get-in-touch-title">
-            <Honeypot value={honeypot} onChange={setHoneypot} />
-            <div className="grid gap-5 sm:grid-cols-2">
-              <TextField label="Name" name="name" autoComplete="name" required value={values.name} error={errors.name} onChange={(e) => set('name', e.target.value)} />
-              <TextField
-                label="Email"
-                name="email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                required
-                value={values.email}
-                error={errors.email}
-                onChange={(e) => set('email', e.target.value)}
-              />
-            </div>
-            <TextField label="Phone" name="phone" type="tel" autoComplete="tel" placeholder="+91" value={values.phone} error={errors.phone} onChange={(e) => set('phone', e.target.value)} />
-            {failure && (
-              <InlineAlert tone="error" title="Your details were not sent">
-                {failure} Please try again.
-              </InlineAlert>
-            )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button type="submit" size="lg" arrow disabled={status === 'sending'}>
-                {status === 'sending' ? 'Sending…' : 'Get in touch'}
-              </Button>
-              <p className="text-sm text-ink-500">
-                Used only to contact you.{' '}
-                <Link to={SITE_PAGES.privacy.path} className="mk-link">
-                  Privacy Policy
+          {sent ? (
+            <div className="mk-card gap-3 p-6 sm:p-8" role="status">
+              <h3 className="mk-h3">Thank you, {request.name.trim().split(/\s+/)[0]}</h3>
+              <p className="text-ink-500">
+                We have your details and will contact you at <span className="font-semibold text-ink-900">{request.email.trim()}</span>{' '}
+                soon. Want to tell us more?{' '}
+                <Link to={DEMO_PATH} className="mk-link">
+                  Fill in the full demo request
                 </Link>
+                .
               </p>
             </div>
-          </form>
-        )}
-      </div>
-    </Section>
+          ) : (
+            <form noValidate onSubmit={onSubmit} className="mk-card gap-5 p-6 sm:p-8" aria-label="Get in touch">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <TextField label="Full name" name="name" autoComplete="name" required value={request.name} error={errors.name} onChange={(e) => set('name', e.target.value)} />
+                <TextField
+                  label="Institution or company"
+                  name="institution"
+                  autoComplete="organization"
+                  required
+                  value={request.institution}
+                  error={errors.institution}
+                  onChange={(e) => set('institution', e.target.value)}
+                />
+                <TextField
+                  label="Email address"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  required
+                  value={request.email}
+                  error={errors.email}
+                  onChange={(e) => set('email', e.target.value)}
+                />
+                <TextField label="Phone number" name="phone" type="tel" autoComplete="tel" placeholder="+91" value={request.phone} onChange={(e) => set('phone', e.target.value)} />
+              </div>
+              <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+                <label>
+                  Leave this field empty
+                  <input type="text" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                </label>
+              </div>
+              {sendError && (
+                <InlineAlert tone="error" title={sendError}>
+                  Please try again, or email{' '}
+                  <a className="mk-link" href={`mailto:${to}`}>
+                    {to}
+                  </a>{' '}
+                  or call{' '}
+                  <a className="mk-link" href={CONTACT.phoneHref}>
+                    {CONTACT.phone}
+                  </a>
+                  .
+                </InlineAlert>
+              )}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button type="submit" arrow busy={busy}>
+                  Send
+                </Button>
+                <p className="text-sm text-ink-500">
+                  We use these details only to contact you.{' '}
+                  <Link to={SITE_PAGES.privacy.path} className="mk-link">
+                    Privacy Policy
+                  </Link>
+                </p>
+              </div>
+            </form>
+          )}
+        </div>
+      </Container>
+    </section>
   );
 }

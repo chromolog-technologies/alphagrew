@@ -29,7 +29,7 @@ class VerifyAccountNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $appName = config('app.name', 'Alphagrew');
+        $appName = config('app.name', 'AlphaGrew');
         $email = $notifiable instanceof User ? $notifiable->getEmailForPasswordReset() : ($notifiable->email ?? '');
         $frontendUrl = rtrim(config('app.frontend_url', 'http://localhost:5173'), '/');
 

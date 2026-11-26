@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { trackPageview } from '../analytics';
 import { LoadingState, PageErrorBoundary } from './Feedback';
 import { SiteFooter } from './SiteFooter';
 import { SiteHeader } from './SiteHeader';
@@ -56,8 +56,6 @@ export default function SiteLayout({ preload }: { preload?: () => Promise<unknow
   const mainRef = useRef<HTMLElement>(null);
   useRouteFocus(mainRef);
   useIdlePreload(preload);
-  // One pageview per marketing page (does nothing unless Plausible is configured).
-  useEffect(() => trackPageview(), [pathname]);
 
   return (
     <div className="mk-site">
@@ -73,6 +71,9 @@ export default function SiteLayout({ preload }: { preload?: () => Promise<unknow
         </PageErrorBoundary>
       </main>
       <SiteFooter inert={mobileOpen} />
+      {/* Cookie-free page views (Vercel Web Analytics), on the public site only. Hosts other
+          than Vercel (e.g. the Hostinger demo) build with VITE_ANALYTICS=off: the script only exists on Vercel. */}
+      {import.meta.env.VITE_ANALYTICS !== 'off' && <Analytics />}
     </div>
   );
 }

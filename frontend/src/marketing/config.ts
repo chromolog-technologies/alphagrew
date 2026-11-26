@@ -1,29 +1,27 @@
-// Deployment settings for the public site. All are optional: without them the site still
-// works, but contact rows are hidden, pages carry no canonical URL and nothing is measured.
+// Settings for the public site. VITE_CONTACT_EMAIL and VITE_SITE_URL are optional overrides.
 // Read on each call (not at import) so tests can stub them.
 
-const env = (value: string | undefined) => (value ?? '').trim();
+/** Chromolog Technologies' public contact details, shown on the Contact page and in the footer. */
+export const CONTACT = {
+  email: 'info@chromologtechnologies.com',
+  phone: '+91 94002 30723',
+  /** The phone number for tel: links (digits only, with country code). */
+  phoneHref: 'tel:+919400230723',
+  addressLines: ['SPATIUM, Ground Floor, Island Castle', 'Opposite YMCA, Chittoor Road', 'Ernakulam, Kerala 682035'],
+  mapsUrl:
+    'https://www.google.com/maps/search/?api=1&query=' +
+    encodeURIComponent('SPATIUM, Ground Floor Island Castle, Opposite YMCA, Chittoor Road, Ernakulam, Kerala 682035'),
+} as const;
 
-/** Public contact inbox, e.g. "hello@example.com". Shown in the footer and on the Contact page. */
-export const contactEmail = () => env(import.meta.env.VITE_CONTACT_EMAIL);
+/** Inbox shown for demo requests; VITE_CONTACT_EMAIL overrides the company address. */
+export const contactEmail = () => (import.meta.env.VITE_CONTACT_EMAIL ?? '').trim() || CONTACT.email;
 
-/** Public contact phone in display form, e.g. "+91 80 1234 5678". */
-export const contactPhone = () => env(import.meta.env.VITE_CONTACT_PHONE);
+/** The public website's address; VITE_SITE_URL overrides it (no trailing slash). */
+export const SITE_URL_DEFAULT = 'https://alphagrew.com';
+export const siteUrl = () => ((import.meta.env?.VITE_SITE_URL ?? '').trim() || SITE_URL_DEFAULT).replace(/\/+$/, '');
 
-/** Short public address, e.g. "Bengaluru, India". */
-export const contactAddress = () => env(import.meta.env.VITE_CONTACT_ADDRESS);
+/** Image shown when a page is shared (LinkedIn, WhatsApp, X), 1200 × 630. */
+export const SHARE_IMAGE = { path: '/brand/og-image.png', width: 1200, height: 630, alt: 'AlphaGrew: from campus learning to career readiness' } as const;
 
-/** tel: link target: digits and a leading plus only. */
-export const telHref = (phone: string) => `tel:${phone.replace(/[^\d+]/g, '')}`;
-
-/** Public origin of the marketing site, e.g. "https://www.example.com", without a trailing slash. */
-export const siteUrl = () => env(import.meta.env.VITE_SITE_URL).replace(/\/+$/, '');
-
-/** Plausible site domain, e.g. "alphagrew.com". Empty turns analytics off. */
-export const plausibleDomain = () => env(import.meta.env.VITE_PLAUSIBLE_DOMAIN);
-
-/** Plausible script URL; only needed when self-hosting Plausible. */
-export const plausibleScript = () => env(import.meta.env.VITE_PLAUSIBLE_SRC) || 'https://plausible.io/js/script.manual.js';
-
-export const BRAND = 'Alphagrew';
+export const BRAND = 'AlphaGrew';
 export const COMPANY = 'Chromolog Technologies';

@@ -39,6 +39,7 @@ import {
 import { JobEditorSheet } from './JobEditorSheet';
 import { RecruiterAccountsDialog } from './RecruiterAccountsDialog';
 import { StatusBadge, deadlineHint, errorMessage, formatDate } from './placementUi';
+import { csvCell } from '../../lib/csv';
 
 const JOB_STATUS_BADGE = { draft: 'secondary', open: 'success', closed: 'outline' } as const;
 /** Moves an officer can make from the applications table (offers have their own dialog). */
@@ -413,7 +414,8 @@ function EligiblePanel({ job, onNotice }: { job: Job; onNotice: (notice: Notice)
   const rows = (eligible.data?.data ?? []).filter((row) => filter === 'all' || (filter === 'eligible') === row.eligible);
 
   const exportCsv = () => {
-    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    // csvCell neutralises formulas: student names are typed by students themselves.
+    const escape = csvCell;
     const lines = [
       ['Name', 'Registration number', 'Department', 'Year', 'CGPA', 'Eligible', 'Can apply', 'Reasons', 'Application'].map(escape).join(','),
       ...rows.map((row) => [

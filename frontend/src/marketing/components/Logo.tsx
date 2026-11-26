@@ -3,19 +3,17 @@ import { cn } from '../../lib/utils';
 import { BRAND } from '../config';
 
 /**
- * Logo mark plus the Figma-style wordmark ("ALPHAGREW" over "SMART CAMPUS"), linking home.
- * The wordmark is live text so it stays sharp at any size; the mark is still cropped from
- * public/alpha-logo.png until a vector logo is available.
+ * Logo: the mark (cropped from public/alpha-logo.png) and the "AlphaGrew" wordmark with the
+ * "SMART CAMPUS" tagline from the Figma design, set in the site's display font so it stays
+ * sharp at any size. Replace the mark with a vector file when one exists.
  */
 export function Logo({ className, onDark = false }: { className?: string; onDark?: boolean }) {
   return (
     <Link to="/" className={cn('inline-flex items-center gap-2.5 rounded-lg', className)} aria-label={`${BRAND} home`}>
-      <img src="/brand/alphagrew-mark.png" alt="" width={36} height={36} className="h-9 w-9" />
-      <span className="flex flex-col leading-none" aria-hidden="true">
-        <span className={cn('font-display text-[1.0625rem] font-extrabold tracking-[0.06em]', onDark ? 'text-white' : 'text-ink-900')}>
-          {BRAND.toUpperCase()}
-        </span>
-        <span className={cn('mt-1 text-[0.5625rem] font-semibold tracking-[0.3em]', onDark ? 'text-aqua-300' : 'text-iris-700')}>
+      <img src="/brand/alphagrew-mark.png" alt="" width={32} height={32} className="h-8 w-8" />
+      <span className="flex flex-col whitespace-nowrap leading-none" aria-hidden="true">
+        <span className={cn('font-display text-lg font-bold tracking-tight', onDark ? 'text-white' : 'text-ink-900')}>{BRAND}</span>
+        <span className={cn('mt-0.5 text-[0.5625rem] font-semibold tracking-[0.22em]', onDark ? 'text-aqua-300' : 'text-iris-600')}>
           SMART CAMPUS
         </span>
       </span>

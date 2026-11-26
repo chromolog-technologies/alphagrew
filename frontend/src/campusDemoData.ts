@@ -7,8 +7,8 @@ import {
 } from './campusTypes';
 
 export const campusBrand = {
-  productName: 'Alphagrew',
-  companyName: 'Alphagrew',
+  productName: 'AlphaGrew',
+  companyName: 'AlphaGrew',
   campusName: 'Brightnode Institute of Technology',
   campusTagline: 'Sales-ready campus management demo for admissions, academics, and placements.',
 };

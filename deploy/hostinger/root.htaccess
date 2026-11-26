@@ -1,0 +1,13 @@
+# AlphaGrew on shared hosting (Hostinger): the subdomain's folder holds the whole Laravel app,
+# so every request is sent into public/. Nothing above public/ (.env, vendor, storage...)
+# can be fetched from the web.
+Options -Indexes
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

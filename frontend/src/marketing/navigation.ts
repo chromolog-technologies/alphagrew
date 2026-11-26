@@ -20,11 +20,11 @@ export type NavEntry = NavLinkItem | NavGroup;
 
 export const isNavGroup = (entry: NavEntry): entry is NavGroup => 'items' in entry;
 
-// Order follows the Figma header: Home, About, Platform, Solutions, How it works, Contact.
-// FAQs are linked from the footer.
+// Order follows the Figma design: Home, About us, Platform, Solutions, How it works, Contact us
+// (plus FAQs). "Book a demo" stays as the header button.
 export const PRIMARY_NAV: NavEntry[] = [
   { label: 'Home', to: SITE_PAGES.home.path },
-  { label: 'About', to: SITE_PAGES.about.path },
+  { label: 'About us', to: SITE_PAGES.about.path },
   {
     label: 'Platform',
     match: SITE_PAGES.platform.path,
@@ -44,7 +44,8 @@ export const PRIMARY_NAV: NavEntry[] = [
     ],
   },
   { label: 'How it works', to: SITE_PAGES.howItWorks.path },
-  { label: 'Contact', to: SITE_PAGES.contact.path },
+  { label: 'FAQs', to: SITE_PAGES.faq.path },
+  { label: 'Contact us', to: SITE_PAGES.contact.path },
 ];
 
 export const SIGN_IN_PATH = LOGIN_BASE_PATH;

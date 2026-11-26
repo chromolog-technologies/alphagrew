@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Product | Alphagrew |
+| Product | AlphaGrew |
 | Organization | Chromolog Technologies |
 | Document | Frontend workflow for the roles and multi-tenancy backend change |
 | Based on | Commits `d065d44`, `0da2f42`, `116a1a5` (20 October 2026) |

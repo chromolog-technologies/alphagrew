@@ -2,7 +2,7 @@
 
 | Item | Value |
 |---|---|
-| Product | Alphagrew |
+| Product | AlphaGrew |
 | Organization | Chromolog Technologies |
 | Document | Screen design for tickets F4–F9 of the roles and tenancy workflow |
 | Version | 1.0 draft |
@@ -57,7 +57,7 @@ Taken from `frontend/src/index.css` and `CampusLogin.tsx`. Text colours pass 4.5
 
 ```
 ┌──────────────────────────────────┐  ┌──────────────────────────────────┐
-│ [AG]  ALPHA GREW                 │  │ Demo accounts                    │
+│ [AG]  AlphaGrew                 │  │ Demo accounts                    │
 │       Sign in                    │  │ Pick a role to fill the form.    │
 │                                  │  │ Password for all: demo123        │
 │ ⓘ Recruiter portal not available │  │ ┌──────────────────────────────┐ │

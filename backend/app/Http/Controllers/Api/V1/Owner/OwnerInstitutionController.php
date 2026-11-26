@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Owner;
 
+use App\Support\Csv;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
@@ -54,11 +55,11 @@ class OwnerInstitutionController extends Controller
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Code', 'Name', 'Type', 'Status', 'Verification', 'Official email', 'Phone', 'State', 'Students', 'Users', 'Created']);
             foreach ($rows as $institution) {
-                fputcsv($out, [
+                fputcsv($out, Csv::row([
                     $institution->code, $institution->name, $institution->institution_type, $institution->status, $institution->verification_status,
                     $institution->official_email, $institution->contact_phone, $institution->state, $institution->students_count, $institution->users_count,
                     $institution->created_at?->toDateString(),
-                ]);
+                ]));
             }
             fclose($out);
         }, 'institutions-'.now()->format('Y-m-d').'.csv', ['Content-Type' => 'text/csv']);

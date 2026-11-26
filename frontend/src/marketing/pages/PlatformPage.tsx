@@ -5,6 +5,7 @@ import { CapabilityList, RelatedLinks, StatusLegend } from '../components/Cards'
 import { CtaBand } from '../components/CtaBand';
 import { PageHero, Section, SectionHeader, Split, type SectionTone } from '../components/Layout';
 import {
+  CustomizationMockup,
   DriveBoardMockup,
   EligibilityMockup,
   FeedbackMockup,
@@ -71,18 +72,19 @@ const GROUPS: FeatureGroup[] = [
     link: { to: SITE_PAGES.careerIntelligence.path, label: 'Explore Career Intelligence' },
   },
   {
+    id: 'customization',
+    eyebrow: 'Fits how your institution works',
+    title: 'Your fields, your modules, your dashboards',
+    lede: 'Every institution runs placements a little differently. Add the fields you track, create modules for your own processes, build dashboards for each role and arrange the menu, all without code.',
+    ids: ['customFields', 'customModules', 'dashboardBuilder', 'sidebarLayout'],
+    visual: <CustomizationMockup />,
+  },
+  {
     id: 'notifications-reporting',
     eyebrow: 'Notifications and reporting',
     title: 'The right notice to the right students, and numbers already counted',
     lede: 'Announcements reach a department, batch or the whole institution. Reports give leadership placement figures without rebuilding them by hand.',
     ids: ['announcements', 'notifications', 'analytics', 'auditLog'],
-  },
-  {
-    id: 'tailoring',
-    eyebrow: 'Tailored to your institution',
-    title: 'Fits how your institution works',
-    lede: 'Every institution runs a little differently. Add the fields and records you need, arrange the menu around your own work, and give each role the dashboard it uses every day, without waiting for a custom build.',
-    ids: ['customFields', 'customModules', 'sidebarLayout', 'dashboardBuilder', 'multiCampus'],
   },
 ];
 
@@ -91,6 +93,7 @@ const FOUNDATIONS: CapabilityId[] = [
   'onboarding',
   'academicStructure',
   'academicRecords',
+  'multiCampus',
   'tenantIsolation',
   'bulkImport',
   'recruiterPortal',

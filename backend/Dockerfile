@@ -44,6 +44,10 @@ ENV APP_ENV=production \
     PDFTOTEXT_PATH=/usr/bin/pdftotext \
     PORT=10000
 
+# Uploads (resumes, photos, logos, attachments) live in storage/app. A container's own disk
+# is wiped on every redeploy, so mount a persistent disk or volume at this path in production.
+VOLUME ["/var/www/html/storage/app"]
+
 EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \

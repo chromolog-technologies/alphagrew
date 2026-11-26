@@ -195,7 +195,7 @@ const users: PlatformUserDetail[] = [
 ];
 
 let settings: PlatformSettings = {
-  platformName: 'Alphagrew',
+  platformName: 'AlphaGrew',
   brandTagline: 'Unified Campus & Career Intelligence Platform',
   brandPrimaryColor: '#1557e0',
   supportEmail: 'support@alphagrew.example',

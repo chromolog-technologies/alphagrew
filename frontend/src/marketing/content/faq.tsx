@@ -23,8 +23,8 @@ export const FAQ_GROUPS: FaqGroup[] = [
     title: 'General',
     items: [
       faq(
-        'What is Alphagrew?',
-        "Alphagrew is a campus placement and career intelligence platform developed by Chromolog Technologies. It brings academic records, resume analysis, AI mock interviews, placement drives and analytics together, with each institution's data kept separate.",
+        'What is AlphaGrew?',
+        "AlphaGrew is a campus placement and career intelligence platform developed by Chromolog Technologies. It brings academic records, resume analysis, AI mock interviews, placement drives and analytics together, with each institution's data kept separate.",
       ),
       faq(
         'Who is it for?',
@@ -39,12 +39,12 @@ export const FAQ_GROUPS: FaqGroup[] = [
         </p>,
       ),
       faq(
-        'Is Alphagrew available today?',
+        'Is AlphaGrew available today?',
         'Much of it is built and working today, and new features are added regularly. Each feature on this site is marked In current build, In development or Planned, and product pictures are illustrative mockups. Book a demo to see it with your own data.',
       ),
       faq(
         'Do we have to replace our existing ERP?',
-        'No. Alphagrew is designed to work alongside the systems you already use for fees or admissions, and to use your student and course data for placement and preparation.',
+        'No. AlphaGrew is designed to work alongside the systems you already use for fees or admissions, and to use your student and course data for placement and preparation.',
       ),
     ],
   },
@@ -60,7 +60,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
         'Will recruiters see my mock interview scores?',
         'No. Mock interview scores are for practice. They are visible to you and to the staff at your institution who support your preparation, not to recruiters.',
       ),
-      faq('Can I use Alphagrew on my phone?', 'Yes. Alphagrew is a web application that works in a mobile browser. There is no separate app to install.'),
+      faq('Can I use AlphaGrew on my phone?', 'Yes. AlphaGrew is a web application that works in a mobile browser. There is no separate app to install.'),
     ],
   },
   {
@@ -77,7 +77,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       ),
       faq(
         'Where does the AI run?',
-        'AI requests are made only from the Alphagrew backend. AI provider keys are never exposed in the browser.',
+        'AI requests are made only from the AlphaGrew backend. AI provider keys are never exposed in the browser.',
       ),
     ],
   },
@@ -90,10 +90,10 @@ export const FAQ_GROUPS: FaqGroup[] = [
         'No. Every record belongs to one institution, and the platform is designed so that each request only reaches the data of the signed-in user\'s institution.',
       ),
       faq(
-        "How does Alphagrew approach India's DPDP Act?",
-        'For student and staff data your institution provides, the institution decides why the data is used and Alphagrew processes it on its behalf. Consent records, access and correction requests, retention limits and audit trails are part of the product design.',
+        "How does AlphaGrew approach India's DPDP Act?",
+        'For student and staff data your institution provides, the institution decides why the data is used and AlphaGrew processes it on its behalf. Consent records, access and correction requests, retention limits and audit trails are part of the product design.',
         <p>
-          For student and staff data your institution provides, the institution decides why the data is used and Alphagrew
+          For student and staff data your institution provides, the institution decides why the data is used and AlphaGrew
           processes it on its behalf. Consent records, access and correction requests, retention limits and audit trails are part
           of the product design. Read the{' '}
           <Link className="mk-link" to={SITE_PAGES.privacy.path}>

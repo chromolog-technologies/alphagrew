@@ -124,7 +124,7 @@ export function SiteHeader({
         toggleRef.current?.focus();
       }
     };
-    const desktop = window.matchMedia?.('(min-width: 1024px)');
+    const desktop = window.matchMedia?.('(min-width: 1280px)');
     const onWiden = (event: MediaQueryListEvent) => event.matches && onMobileOpenChange(false);
 
     document.addEventListener('keydown', onKeyDown);
@@ -138,10 +138,10 @@ export function SiteHeader({
 
   return (
     <header className="mk-header">
-      <Container className="flex h-16 items-center justify-between gap-4 lg:h-18">
+      <Container className="flex h-16 items-center justify-between gap-4 xl:h-18">
         <Logo />
 
-        <nav aria-label="Main" className="hidden lg:block">
+        <nav aria-label="Main" className="hidden xl:block">
           <ul className="flex items-center gap-1">
             {PRIMARY_NAV.map((entry) => (
               <li key={entry.label}>
@@ -171,7 +171,7 @@ export function SiteHeader({
           <button
             ref={toggleRef}
             type="button"
-            className="mk-nav-link p-2! lg:hidden"
+            className="mk-nav-link p-2! xl:hidden"
             aria-expanded={mobileOpen}
             aria-controls={mobileId}
             onClick={() => onMobileOpenChange(!mobileOpen)}
@@ -186,7 +186,7 @@ export function SiteHeader({
         id={mobileId}
         ref={panelRef}
         hidden={!mobileOpen}
-        className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto border-t border-line bg-white lg:hidden"
+        className="fixed inset-x-0 bottom-0 top-16 overflow-y-auto border-t border-line bg-white xl:hidden"
       >
         <nav aria-label="Main" className="mk-container flex flex-col gap-6 py-6">
           {PRIMARY_NAV.map((entry) =>

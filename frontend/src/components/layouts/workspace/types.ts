@@ -118,7 +118,7 @@ export interface CampusWorkspaceProps {
     },
   ) => Promise<void> | void;
   onDeleteAnnouncement: (announcementId: number) => Promise<void> | void;
-  onUpdateProfile: (payload: { name: string; email: string; title: string; password?: string }) => Promise<void> | void;
+  onUpdateProfile: (payload: { name: string; email: string; title: string; password?: string; currentPassword?: string }) => Promise<void> | void;
   onUpdateStudentResume: (payload: CampusStudentResume) => Promise<void> | void;
   onCreateMaster: (payload: {
     category: CampusMasterCategory;
@@ -280,6 +280,8 @@ export type ProfileDraft = {
   email: string;
   title: string;
   password: string;
+  /** Needed by the API when the email or password changes. */
+  currentPassword: string;
 };
 
 export type DeleteIntent =

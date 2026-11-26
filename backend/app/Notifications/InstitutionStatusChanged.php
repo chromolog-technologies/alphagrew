@@ -35,8 +35,8 @@ class InstitutionStatusChanged extends CampusNotification
         $status = str_replace('_', ' ', $this->status);
 
         return match ($this->status) {
-            'suspended' => "Access to Alphagrew for {$this->institution} is suspended{$when}. Your data is kept.{$why}",
-            'active' => "Access to Alphagrew for {$this->institution} is active{$when}.{$why}",
+            'suspended' => "Access to AlphaGrew for {$this->institution} is suspended{$when}. Your data is kept.{$why}",
+            'active' => "Access to AlphaGrew for {$this->institution} is active{$when}.{$why}",
             'requires_information' => "Chromolog needs more information to verify {$this->institution}.{$why}",
             default => "The status of {$this->institution} changed to {$status}{$when}.{$why}",
         };
